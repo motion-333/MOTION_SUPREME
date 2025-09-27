@@ -119,8 +119,9 @@
     let alignActivatedAt = 0;
     let alignIntroDone = false;
     const alignDuration = 1000;
-    let alignSpacing = 4.35;
-    let alignTopY = -6.4;
+    let alignSpacing = 3.8;
+    let alignTopY = 4.5;
+    let alignColumnX = -5.2;
     const selectedScale = 1.58;
     const neighbourScale = 1.22;
     const farScale = 1.02;
@@ -132,9 +133,8 @@
     const networkCtx = networkCanvas.getContext('2d');
     const networkPoints = [];
     const NETWORK_COUNT = 17;
-    let networkAccent = '#1449ff';
-
-    let accentColor = '#1449ff';
+    const networkAccent = '#1449ff';
+    const CHARACTER_SEQUENCE = ['M', '3', 'O', '3', 'T', '3', 'I', '3', 'O', '3', 'N', '3'];
 
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
@@ -146,25 +146,14 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
+      const padding = visibleHeight * 0.1;
       const len = Math.max(folders.length, 1);
-      alignSpacing = THREE.MathUtils.clamp((visibleWidth * 0.72) / len, 3.4, 6.2);
-      const bottomEdge = -visibleHeight / 2;
-      alignTopY = bottomEdge + visibleHeight * 0.18;
-    }
-
-    function applyAccent(colorHex) {
-      if (!colorHex) return;
-      accentColor = colorHex;
-      networkAccent = colorHex;
-      labelsContainer.style.setProperty('--accent-color', colorHex);
-      const base = new THREE.Color(colorHex);
-      const darker = base.clone().multiplyScalar(0.78);
-      rimLight.color.copy(base);
-      folders.forEach(folder => {
-        const ud = folder.userData;
-        if (ud.frontMat) ud.frontMat.color.copy(base);
-        if (ud.backMat) ud.backMat.color.copy(darker);
-      });
+      const usableHeight = Math.max(visibleHeight - padding * 2, 0.1);
+      alignSpacing = len > 1 ? usableHeight / (len - 1) : 0;
+      alignTopY = visibleHeight / 2 - padding;
+      alignColumnX = -visibleWidth / 2 + visibleWidth * 0.14;
+      labelsContainer.style.setProperty('--accent-color', '#1449ff');
+      rimLight.color.set('#8ecbff');
     }
 
     let edgeHover = { dir: 0, strength: 0, accumulator: 0 };
@@ -195,13 +184,14 @@
       cursor3D.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(d)));
 
       if (mode === 'align') {
-        const zone = window.innerWidth * 0.1;
-        if (e.clientX < zone) {
+        const zone = window.innerHeight * 0.1;
+        const leftGate = window.innerWidth * 0.2;
+        if (e.clientX <= leftGate && e.clientY < zone) {
           edgeHover.dir = -1;
-          edgeHover.strength = Math.min(1, (zone - e.clientX) / zone);
-        } else if (e.clientX > window.innerWidth - zone) {
+          edgeHover.strength = Math.min(1, (zone - e.clientY) / zone);
+        } else if (e.clientX <= leftGate && e.clientY > window.innerHeight - zone) {
           edgeHover.dir = 1;
-          edgeHover.strength = Math.min(1, (e.clientX - (window.innerWidth - zone)) / zone);
+          edgeHover.strength = Math.min(1, (e.clientY - (window.innerHeight - zone)) / zone);
         } else {
           edgeHover.dir = 0;
           edgeHover.strength = 0;
@@ -347,10 +337,13 @@
       networkPoints.length = 0;
       for (let i = 0; i < NETWORK_COUNT; i++) {
         networkPoints.push({
-          x: (0.18 + Math.random() * 0.64) * networkCanvas.width,
-          y: (0.2 + Math.random() * 0.45) * networkCanvas.height,
+          x: (0.36 + Math.random() * 0.58) * networkCanvas.width,
+          y: (0.16 + Math.random() * 0.68) * networkCanvas.height,
           vx: (Math.random() - 0.5) * 0.12,
-          vy: (Math.random() - 0.5) * 0.12
+          vy: (Math.random() - 0.5) * 0.12,
+          charIndex: Math.floor(Math.random() * CHARACTER_SEQUENCE.length),
+          timer: 0,
+          delay: 240 + Math.random() * 240
         });
       }
     }
@@ -360,10 +353,10 @@
       if (mode !== 'align') return;
       const width = networkCanvas.width;
       const height = networkCanvas.height;
-      const minX = width * 0.12;
-      const maxX = width * 0.88;
-      const minY = height * 0.2;
-      const maxY = height * 0.75;
+      const minX = width * 0.32;
+      const maxX = width * 0.94;
+      const minY = height * 0.12;
+      const maxY = height * 0.88;
       networkPoints.forEach(p => {
         p.x += p.vx * dt * 0.06;
         p.y += p.vy * dt * 0.06;
@@ -375,30 +368,43 @@
           p.vy *= -1;
           p.y = THREE.MathUtils.clamp(p.y, minY, maxY);
         }
+        p.timer += dt;
+        if (p.timer >= p.delay) {
+          p.timer = 0;
+          p.delay = 240 + Math.random() * 240;
+          p.charIndex = (p.charIndex + 1) % CHARACTER_SEQUENCE.length;
+        }
       });
       networkCtx.strokeStyle = networkAccent;
       networkCtx.lineWidth = 1;
-      networkCtx.globalAlpha = 0.28;
+      networkCtx.globalAlpha = 0.26;
       for (let i = 0; i < networkPoints.length; i++) {
         for (let j = i + 1; j < networkPoints.length; j++) {
           const a = networkPoints[i];
           const b = networkPoints[j];
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
           const dist = Math.hypot(dx, dy);
-          if (dist > width * 0.22) continue;
+          if (dist > width * 0.28) continue;
+          if (dist < 12) continue;
+          const gap = 5;
+          const inv = 1 / dist;
+          const offsetX = dx * inv * gap;
+          const offsetY = dy * inv * gap;
           networkCtx.beginPath();
-          networkCtx.moveTo(a.x, a.y);
-          networkCtx.lineTo(b.x, b.y);
+          networkCtx.moveTo(a.x + offsetX, a.y + offsetY);
+          networkCtx.lineTo(b.x - offsetX, b.y - offsetY);
           networkCtx.stroke();
         }
       }
       networkCtx.globalAlpha = 1;
+      networkCtx.fillStyle = networkAccent;
+      networkCtx.font = '600 18px Ferrite, sans-serif';
+      networkCtx.textAlign = 'center';
+      networkCtx.textBaseline = 'middle';
       networkPoints.forEach(p => {
-        networkCtx.beginPath();
-        networkCtx.fillStyle = networkAccent;
-        networkCtx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        networkCtx.fill();
+        const ch = CHARACTER_SEQUENCE[p.charIndex];
+        networkCtx.fillText(ch, p.x, p.y);
       });
     }
 
@@ -430,7 +436,6 @@
       rebuildNetwork();
       networkCanvas.classList.remove('visible');
       updateLayoutMetrics();
-      applyAccent(accentColor);
     }
 
     window.addEventListener('click', () => {
@@ -543,24 +548,26 @@
           if (t < 1) allComplete = false;
           const tt = alignEase(t);
           const rawOffset = i - currentSelection;
-          const prevX = ud.lastAlignPos.x;
+          const prevY = ud.lastAlignPos.y;
           let loopBase = rawOffset + (ud.loopShift || 0);
-          let targetX = loopBase * alignSpacing;
+          let targetY = alignTopY - loopBase * alignSpacing;
           const span = alignSpacing * len;
-          if (!Number.isFinite(prevX)) {
-            ud.lastAlignPos.x = targetX;
+          if (!Number.isFinite(prevY)) {
+            ud.lastAlignPos.y = targetY;
           }
-          if (prevX - targetX > span * 0.5) {
-            ud.loopShift += 1;
-            loopBase = rawOffset + ud.loopShift;
-            targetX = loopBase * alignSpacing;
-          } else if (targetX - prevX > span * 0.5) {
-            ud.loopShift -= 1;
-            loopBase = rawOffset + ud.loopShift;
-            targetX = loopBase * alignSpacing;
+          if (span > 0) {
+            if (prevY - targetY > span * 0.5) {
+              ud.loopShift += 1;
+              loopBase = rawOffset + ud.loopShift;
+              targetY = alignTopY - loopBase * alignSpacing;
+            } else if (targetY - prevY > span * 0.5) {
+              ud.loopShift -= 1;
+              loopBase = rawOffset + ud.loopShift;
+              targetY = alignTopY - loopBase * alignSpacing;
+            }
           }
           const visualDepth = Math.abs(rawOffset);
-          const targetY = alignTopY + Math.sin(now / 1500 + i) * 0.05;
+          const targetX = alignColumnX + Math.sin(now / 1600 + i * 0.35) * 0.08;
           const targetZ = visualDepth * 0.12;
           const targetScaleValue = visualDepth < 0.5 ? selectedScale : (visualDepth < 1.5 ? neighbourScale : farScale);
           if (!ud.alignFrom) {
@@ -575,9 +582,9 @@
           const targetScale = new THREE.Vector3(targetScaleValue, targetScaleValue, targetScaleValue);
           const fromScale = ud.alignFromScale || new THREE.Vector3().copy(f.scale);
           f.scale.copy(fromScale.clone().lerp(targetScale, tt));
-          const dx = f.position.x - prevPos.x;
-          ud.twist.y += (dx * 0.06 - ud.twist.y) * 0.2;
-          ud.twist.z += (-dx * 0.04 - ud.twist.z) * 0.2;
+          const dy = f.position.y - prevPos.y;
+          ud.twist.y += (dy * 0.025 - ud.twist.y) * 0.22;
+          ud.twist.z += (-dy * 0.035 - ud.twist.z) * 0.22;
           const fromRot = ud.alignFromRot || f.rotation.clone();
           const rotTargetX = baseAlignTilt;
           const rotX = THREE.MathUtils.lerp(fromRot.x, rotTargetX, tt);
@@ -709,9 +716,6 @@
     window.addEventListener('message', e => {
       if (e.data && Array.isArray(e.data.folders)) {
         initFolders(e.data.folders);
-      }
-      if (e.data && e.data.theme && e.data.theme.accent) {
-        applyAccent(e.data.theme.accent);
       }
     });
 
