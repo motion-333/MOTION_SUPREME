@@ -52,7 +52,7 @@
       text-transform: uppercase;
       letter-spacing: 0.12em;
       text-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
-      transition: opacity 0.4s ease;
+      transition: opacity 0.4s ease, transform 0.45s ease;
       opacity: 0.9;
       white-space: nowrap;
     }
@@ -76,7 +76,6 @@
   <script>
     const FOLDER_NAMES = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
 
-    const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
     const networkCanvas = document.getElementById('networkCanvas');
     const labelsContainer = document.getElementById('labels');
@@ -90,22 +89,25 @@
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
     camera.position.set(0, 2.2, 18);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.88);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambient);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.36);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.34);
     keyLight.position.set(3.5, 5.8, 8);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.28);
+    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.26);
     rimLight.position.set(-6, 3.5, -6);
     scene.add(rimLight);
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    const targetMouse = { x: 0, y: 0 };
+    const currentMouse = { x: 0, y: 0 };
+    const cursor3D = new THREE.Vector3();
 
     const folders = [];
     const labels = [];
 
-    const topY = 3.3;
+    const topY = 3.4;
     const spacing = 3.1;
     const selectedScale = 1.45;
     const baseScale = 0.9;
@@ -117,7 +119,13 @@
     let currentSelection = 0;
     let selectionVelocity = 0;
 
+    let edgeTarget = 0;
+    let edgeState = 0;
+
+    let magnetized = null;
+
     const networkCtx = networkCanvas.getContext('2d');
+    const networkCharacters = ['M', 'O', 'T', 'I', 'O', 'N', '3', '3', '3'];
     let networkPoints = [];
     let networkEdges = [];
 
@@ -125,6 +133,10 @@
 
     function easeInOut(t) {
       return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    function randomRange(min, max) {
+      return min + Math.random() * (max - min);
     }
 
     function createFolder(name, index) {
@@ -189,21 +201,31 @@
 
       group.scale.setScalar(baseScale);
 
-      const orbitRadius = 6 + Math.random() * 3;
-      const orbitSpeed = 0.16 + Math.random() * 0.05;
       const orbitAngle = (index / FOLDER_NAMES.length) * Math.PI * 2;
+      const initialRadius = 5.4 + Math.random() * 2.2;
+      const initialHeight = Math.sin(orbitAngle * 1.4) * 2.4;
+
+      group.position.set(
+        Math.cos(orbitAngle) * initialRadius,
+        initialHeight,
+        Math.sin(orbitAngle) * 1.6
+      );
+
+      const dir = new THREE.Vector3(randomRange(-1, 1), randomRange(-0.6, 0.8), randomRange(-0.3, 0.3)).normalize();
 
       group.userData = {
         name,
-        orbit: {
-          radius: orbitRadius,
-          speed: orbitSpeed,
-          angle: orbitAngle,
-          vertical: 1.2 + Math.random() * 0.8,
-          bobPhase: Math.random() * Math.PI * 2,
-          swayPhase: Math.random() * Math.PI * 2,
-          position: new THREE.Vector3(),
-        },
+        front,
+        freePosition: group.position.clone(),
+        freeRotation: new THREE.Euler(0, 0, 0),
+        freeScale: baseScale,
+        dir,
+        speed: 0.006 + Math.random() * 0.0025,
+        curvePhase: Math.random() * Math.PI * 2,
+        curveScale: 0.12 + Math.random() * 0.05,
+        hoverPhase: Math.random() * Math.PI * 2,
+        innerR: 1.35 + Math.random() * 0.35,
+        hoverOffset: new THREE.Vector3(0, -0.9, 0),
         alignAlpha: 0,
         alignFrom: 0,
         alignDelay: 0,
@@ -236,23 +258,44 @@
       const width = window.innerWidth;
       const height = window.innerHeight;
       const topLimit = height * 0.38;
-      const bottomLimit = height * 0.92;
-      for (let i = 0; i < 17; i++) {
-        const baseX = width * 0.12 + Math.random() * width * 0.76;
+      const bottomLimit = height * 0.9;
+      const usableWidth = width * 0.76;
+      const leftOffset = width * 0.12;
+
+      networkCharacters.forEach(char => {
+        const baseX = leftOffset + Math.random() * usableWidth;
         const baseY = topLimit + Math.random() * (bottomLimit - topLimit);
         networkPoints.push({
+          char,
           baseX,
           baseY,
           x: baseX,
           y: baseY,
           angle: Math.random() * Math.PI * 2,
-          amplitude: 12 + Math.random() * 20,
+          amplitude: 10 + Math.random() * 18,
           speed: 0.25 + Math.random() * 0.35,
+          pulse: Math.random() * Math.PI * 2,
         });
-      }
+      });
+
+      const edgeSet = new Set();
+      const maxNeighbors = 3;
       for (let i = 0; i < networkPoints.length; i++) {
-        for (let j = i + 1; j < networkPoints.length; j++) {
-          networkEdges.push({ a: i, b: j });
+        const distances = [];
+        for (let j = 0; j < networkPoints.length; j++) {
+          if (i === j) continue;
+          const dx = networkPoints[j].baseX - networkPoints[i].baseX;
+          const dy = networkPoints[j].baseY - networkPoints[i].baseY;
+          distances.push({ j, d: Math.hypot(dx, dy) });
+        }
+        distances.sort((a, b) => a.d - b.d);
+        for (let k = 0; k < Math.min(maxNeighbors, distances.length); k++) {
+          const idx = distances[k].j;
+          const key = i < idx ? `${i}-${idx}` : `${idx}-${i}`;
+          if (!edgeSet.has(key)) {
+            edgeSet.add(key);
+            networkEdges.push({ a: i, b: idx });
+          }
         }
       }
     }
@@ -260,33 +303,50 @@
     function drawNetwork(delta, strength) {
       networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
       if (strength < 0.2) return;
-      networkCtx.lineWidth = 0.8 + strength * 0.8;
-      networkCtx.strokeStyle = `rgba(20, 73, 255, ${0.28 + strength * 0.32})`;
-      networkCtx.fillStyle = '#1449ff';
+
+      const now = performance.now();
       networkPoints.forEach(point => {
         point.angle += point.speed * delta;
+        point.pulse += delta * 1.2;
         point.x = point.baseX + Math.cos(point.angle) * point.amplitude;
         point.y = point.baseY + Math.sin(point.angle * 0.85) * point.amplitude * 0.55;
       });
+
+      networkCtx.lineWidth = 0.6 + strength * 0.5;
+      networkCtx.strokeStyle = `rgba(20, 73, 255, ${0.24 + strength * 0.28})`;
       networkCtx.beginPath();
       networkEdges.forEach(edge => {
         const a = networkPoints[edge.a];
         const b = networkPoints[edge.b];
-        networkCtx.moveTo(a.x, a.y);
-        networkCtx.lineTo(b.x, b.y);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 12) return;
+        const gap = 5;
+        const offsetX = (dx / dist) * gap;
+        const offsetY = (dy / dist) * gap;
+        networkCtx.moveTo(a.x + offsetX, a.y + offsetY);
+        networkCtx.lineTo(b.x - offsetX, b.y - offsetY);
       });
       networkCtx.stroke();
-      const radius = 2.2 + strength * 1.4;
+
+      networkCtx.fillStyle = '#1449ff';
+      networkCtx.font = `${18 + strength * 8}px Ferrite, sans-serif`;
+      networkCtx.textAlign = 'center';
+      networkCtx.textBaseline = 'middle';
       networkPoints.forEach(point => {
-        networkCtx.beginPath();
-        networkCtx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-        networkCtx.fill();
+        const wobble = Math.sin(point.pulse + now * 0.0006) * 2.5;
+        networkCtx.save();
+        networkCtx.translate(point.x, point.y);
+        networkCtx.rotate(Math.sin(point.pulse * 0.6) * 0.06);
+        networkCtx.fillText(point.char, wobble, 0);
+        networkCtx.restore();
       });
     }
 
     function scheduleAlignment(index, aligning, immediate = false) {
       alignmentGoal = aligning ? 1 : 0;
-      const baseDelay = aligning ? 0.16 : 0.12;
+      const baseDelay = aligning ? 0.14 : 0.12;
       folders.forEach((folder, i) => {
         const data = folder.userData;
         const falloff = index >= 0 ? Math.abs(i - index) : Math.abs(i - Math.floor(folders.length / 2));
@@ -300,6 +360,8 @@
       });
       if (aligning) {
         regenerateNetwork();
+      } else {
+        magnetized = null;
       }
     }
 
@@ -317,7 +379,6 @@
       aligned = false;
       scheduleAlignment(selectedIndex, false);
       selectedIndex = -1;
-      targetSelection = 0;
       updateLabelSelection();
     }
 
@@ -332,8 +393,8 @@
       }
       selectedIndex = index;
       targetSelection = index;
-      selectionVelocity = 0;
       updateLabelSelection();
+      regenerateNetwork();
     }
 
     function updateLabelSelection() {
@@ -342,32 +403,46 @@
       });
     }
 
-    const edgeThreshold = 90;
-    const hoverDelay = 800;
-    let edgeDir = 0;
-    let edgeTimer = 0;
-
     window.addEventListener('mousemove', (event) => {
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      if (aligned && event.clientX < edgeThreshold) edgeDir = -1;
-      else if (aligned && window.innerWidth - event.clientX < edgeThreshold) edgeDir = 1;
-      else edgeDir = 0;
+      const normalizedX = (event.clientX / window.innerWidth - 0.5) * 2;
+      const normalizedY = -(event.clientY / window.innerHeight - 0.5) * 2;
+      targetMouse.x = normalizedX;
+      targetMouse.y = normalizedY;
+
+      raycaster.setFromCamera(mouse, camera);
+      const distance = -raycaster.ray.origin.z / raycaster.ray.direction.z;
+      cursor3D.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(distance)));
+
+      if (aligned) {
+        const edgeZone = window.innerWidth * 0.1;
+        const leftRatio = THREE.MathUtils.clamp(1 - event.clientX / edgeZone, 0, 1);
+        const rightRatio = THREE.MathUtils.clamp((event.clientX - (window.innerWidth - edgeZone)) / edgeZone, 0, 1);
+        if (leftRatio > 0.001) {
+          edgeTarget = -leftRatio;
+        } else if (rightRatio > 0.001) {
+          edgeTarget = rightRatio;
+        } else {
+          edgeTarget = 0;
+        }
+      } else {
+        edgeTarget = 0;
+      }
     });
 
     window.addEventListener('mouseleave', () => {
-      edgeDir = 0;
+      edgeTarget = 0;
     });
 
-    window.addEventListener('click', (event) => {
+    window.addEventListener('click', () => {
       raycaster.setFromCamera(mouse, camera);
-      const intersections = raycaster.intersectObjects(folders, true);
+      const intersections = raycaster.intersectObjects(folders.map(f => f.userData.front));
       if (!intersections.length) return;
-      let obj = intersections[0].object;
-      while (obj && !folders.includes(obj)) obj = obj.parent;
-      if (!obj) return;
-      const index = folders.indexOf(obj);
+      const folder = intersections[0].object.parent;
+      const index = folders.indexOf(folder);
+      if (index === -1) return;
       setSelected(index);
     });
 
@@ -385,7 +460,8 @@
         const x = (position.x * 0.5 + 0.5) * width;
         const y = (-position.y * 0.5 + 0.5) * height;
         const scaleInfluence = THREE.MathUtils.clamp(folder.userData.alignAlpha, 0, 1);
-        const scale = 1 + (aligned ? (i === selectedIndex ? 0.25 : 0.05) : 0);
+        const targetScale = aligned && i === Math.round(currentSelection) ? 1.15 : 1;
+        const scale = THREE.MathUtils.lerp(1, targetScale, scaleInfluence);
         label.style.left = `${x}px`;
         label.style.top = `${y + 32}px`;
         label.style.transform = `translate(-50%, 0) scale(${scale})`;
@@ -393,10 +469,84 @@
       });
     }
 
+    function updateFreeState(folder, delta, now) {
+      const data = folder.userData;
+      const pos = data.freePosition;
+
+      const toCursor = cursor3D.clone().sub(pos);
+      const dist = toCursor.length();
+      const mouseSpeed = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
+
+      if (alignmentGoal < 0.5) {
+        if ((magnetized === null || magnetized === folder) && dist < data.innerR) {
+          magnetized = folder;
+          const repel = new THREE.Vector3();
+          folders.forEach(other => {
+            if (other === folder) return;
+            const diff = pos.clone().sub(other.userData.freePosition);
+            const sq = diff.lengthSq();
+            if (sq < 16) {
+              repel.add(diff.normalize().multiplyScalar(0.12 / Math.max(0.2, sq)));
+            }
+          });
+          const targetPos = cursor3D.clone().add(data.hoverOffset);
+          pos.lerp(targetPos, 0.08 + mouseSpeed * 0.02);
+          pos.add(repel);
+          data.hoverPhase += delta * 6 + mouseSpeed * 0.35;
+          data.freeRotation.x += (THREE.MathUtils.degToRad(14) - data.freeRotation.x) * 0.15;
+          const twist = Math.sin(data.hoverPhase) * (0.35 + mouseSpeed * 0.15);
+          data.freeRotation.y += (twist - data.freeRotation.y) * 0.18;
+          data.freeRotation.z += ((Math.cos(data.hoverPhase * 0.8) * 0.22) - data.freeRotation.z) * 0.2;
+          data.freeScale += ((baseScale * 1.08) - data.freeScale) * 0.2;
+        } else {
+          if (magnetized === folder && dist > data.innerR * 1.45) {
+            magnetized = null;
+          }
+          data.curvePhase += delta * 1.4;
+          const drift = data.dir.clone().multiplyScalar(data.speed);
+          const curve = new THREE.Vector3(
+            Math.sin(data.curvePhase),
+            Math.sin(data.curvePhase * 0.9),
+            Math.cos(data.curvePhase * 0.8)
+          ).multiplyScalar(data.curveScale);
+          const repel = new THREE.Vector3();
+          folders.forEach(other => {
+            if (other === folder) return;
+            const diff = pos.clone().sub(other.userData.freePosition);
+            const sq = diff.lengthSq();
+            if (sq < 25) {
+              repel.add(diff.normalize().multiplyScalar(0.05 / Math.max(0.25, sq)));
+            }
+          });
+          pos.add(drift.add(curve).add(repel));
+          if (Math.abs(pos.x) > 6.8) data.dir.x *= -1;
+          if (pos.y > 4.5 || pos.y < -4.5) data.dir.y *= -1;
+          pos.z = THREE.MathUtils.clamp(pos.z, -1.4, 1.2);
+          data.freeRotation.x += (Math.sin(data.curvePhase * 0.9) * 0.18 - data.freeRotation.x) * 0.08;
+          data.freeRotation.y += (Math.sin(data.curvePhase * 0.6) * 0.32 - data.freeRotation.y) * 0.08;
+          data.freeRotation.z += (Math.cos(data.curvePhase * 0.75) * 0.2 - data.freeRotation.z) * 0.08;
+          data.freeScale += (baseScale - data.freeScale) * 0.18;
+        }
+      } else {
+        magnetized = null;
+        data.freeRotation.x += (Math.sin(now * 0.0006 + data.curvePhase) * 0.05 - data.freeRotation.x) * 0.1;
+        data.freeRotation.y += (-data.freeRotation.y) * 0.1;
+        data.freeRotation.z += (-data.freeRotation.z) * 0.1;
+        data.freeScale += (baseScale - data.freeScale) * 0.12;
+      }
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
       const now = performance.now();
+
+      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.08;
+      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.08;
+      camera.position.set(currentMouse.x * 3, currentMouse.y * 2.6 + 2.2, 18);
+      camera.lookAt(0, 0.5, 0);
+
+      edgeState += (edgeTarget - edgeState) * 0.07;
 
       folders.forEach((folder, i) => {
         const data = folder.userData;
@@ -407,90 +557,71 @@
         const planned = THREE.MathUtils.lerp(data.alignFrom, alignmentGoal, eased);
         data.alignAlpha += (planned - data.alignAlpha) * 0.22;
 
-        const orbit = data.orbit;
-        const orbitSlow = THREE.MathUtils.lerp(1, 0.2, data.alignAlpha);
-        orbit.angle += orbit.speed * delta * orbitSlow;
-        const orbX = Math.cos(orbit.angle) * orbit.radius;
-        const orbZ = Math.sin(orbit.angle) * orbit.radius * 0.62;
-        const orbY = Math.sin(orbit.angle * 1.35 + orbit.bobPhase) * orbit.vertical + 0.4;
-        orbit.position.set(orbX, orbY, orbZ);
+        updateFreeState(folder, delta, now);
       });
 
       const alignStrength = folders.reduce((sum, folder) => sum + folder.userData.alignAlpha, 0) / Math.max(1, folders.length);
 
       if (alignmentGoal > 0.5) {
-        selectionVelocity += (targetSelection - currentSelection) * 0.08;
-        selectionVelocity *= 0.88;
+        targetSelection += edgeState * delta * 3.2;
+        targetSelection = THREE.MathUtils.clamp(targetSelection, 0, folders.length - 1);
+        selectionVelocity += (targetSelection - currentSelection) * (0.1 + Math.abs(edgeState) * 0.12);
+        selectionVelocity *= 0.86;
         currentSelection += selectionVelocity;
         currentSelection = THREE.MathUtils.clamp(currentSelection, 0, folders.length - 1);
       } else {
-        selectionVelocity *= 0.85;
+        selectionVelocity *= 0.84;
         currentSelection += selectionVelocity;
-        currentSelection += (Math.max(0, Math.min(folders.length - 1, selectedIndex >= 0 ? selectedIndex : currentSelection)) - currentSelection) * 0.04;
+        if (selectedIndex >= 0) {
+          currentSelection += (selectedIndex - currentSelection) * 0.04;
+        }
       }
 
       folders.forEach((folder, i) => {
         const data = folder.userData;
-        const orbit = data.orbit;
         const alignAlpha = THREE.MathUtils.clamp(data.alignAlpha, 0, 1);
-
         const offset = i - currentSelection;
         const alignPos = new THREE.Vector3(
           offset * spacing,
           topY - Math.min(Math.abs(offset) * 0.28, 0.7),
           -Math.min(Math.abs(offset) * 0.22, 1)
         );
-        const orbitPos = orbit.position;
-        const targetPos = orbitPos.clone().lerp(alignPos, alignAlpha);
-        folder.position.x += (targetPos.x - folder.position.x) * (0.12 + alignAlpha * 0.35);
-        folder.position.y += (targetPos.y - folder.position.y) * (0.11 + alignAlpha * 0.3);
-        folder.position.z += (targetPos.z - folder.position.z) * (0.1 + alignAlpha * 0.28);
+        const targetPos = data.freePosition.clone().lerp(alignPos, alignAlpha);
+        folder.position.lerp(targetPos, 0.38);
 
         const alignScale = i === Math.round(currentSelection)
           ? selectedScale
           : THREE.MathUtils.clamp(baseScale + (1 - Math.min(Math.abs(offset), 1.8)) * 0.18, baseScale * 0.85, selectedScale * 0.9);
-        const targetScale = THREE.MathUtils.lerp(baseScale, alignScale, alignAlpha);
-        const newScale = THREE.MathUtils.lerp(folder.scale.x, targetScale, 0.2 + alignAlpha * 0.3);
+        const targetScale = THREE.MathUtils.lerp(data.freeScale, alignScale, alignAlpha);
+        const newScale = THREE.MathUtils.lerp(folder.scale.x, targetScale, 0.24 + alignAlpha * 0.18);
         folder.scale.setScalar(newScale);
 
-        const orbitRotX = Math.sin(orbit.angle * 0.9 + orbit.swayPhase) * 0.18;
-        const orbitRotY = Math.sin(orbit.angle * 0.6) * 0.25;
-        const orbitRotZ = Math.cos(orbit.angle * 0.8) * 0.15;
-
         const velocityInfluence = selectionVelocity * (i - currentSelection);
-        const alignRotY = THREE.MathUtils.clamp(velocityInfluence * 1.05, -0.4, 0.4);
+        const alignRotY = THREE.MathUtils.clamp(velocityInfluence * 1.05, -0.42, 0.42);
         const alignRotX = Math.sin(now * 0.0012 + i) * 0.03 + THREE.MathUtils.clamp(-velocityInfluence * 0.3, -0.25, 0.25);
-        const alignRotZ = THREE.MathUtils.clamp(-velocityInfluence * 0.6, -0.45, 0.45);
+        const alignRotZ = THREE.MathUtils.clamp(-velocityInfluence * 0.62, -0.45, 0.45);
 
-        const targetRotX = THREE.MathUtils.lerp(orbitRotX, alignRotX, alignAlpha);
-        const targetRotY = THREE.MathUtils.lerp(orbitRotY, alignRotY, alignAlpha);
-        const targetRotZ = THREE.MathUtils.lerp(orbitRotZ, alignRotZ, alignAlpha);
-
-        folder.rotation.x += (targetRotX - folder.rotation.x) * 0.18;
-        folder.rotation.y += (targetRotY - folder.rotation.y) * 0.18;
-        folder.rotation.z += (targetRotZ - folder.rotation.z) * 0.18;
+        folder.rotation.x += (THREE.MathUtils.lerp(data.freeRotation.x, alignRotX, alignAlpha) - folder.rotation.x) * 0.2;
+        folder.rotation.y += (THREE.MathUtils.lerp(data.freeRotation.y, alignRotY, alignAlpha) - folder.rotation.y) * 0.2;
+        folder.rotation.z += (THREE.MathUtils.lerp(data.freeRotation.z, alignRotZ, alignAlpha) - folder.rotation.z) * 0.2;
       });
 
-      if (edgeDir !== 0 && alignStrength > 0.6 && folders.length) {
-        edgeTimer += delta * 1000;
-        if (edgeTimer > hoverDelay) {
-          edgeTimer = 0;
-          const next = THREE.MathUtils.clamp(Math.round(targetSelection + edgeDir), 0, folders.length - 1);
-          if (next !== targetSelection) {
-            targetSelection = next;
-            selectedIndex = next;
-            updateLabelSelection();
-          }
+      if (aligned) {
+        const candidate = Math.round(currentSelection);
+        const clamped = THREE.MathUtils.clamp(candidate, 0, folders.length - 1);
+        if (clamped !== selectedIndex) {
+          selectedIndex = clamped;
+          targetSelection = THREE.MathUtils.lerp(targetSelection, selectedIndex, 0.6);
+          updateLabelSelection();
+          regenerateNetwork();
         }
-      } else {
-        edgeTimer = 0;
       }
 
       const orbitLightPos = new THREE.Vector3(3.5, 5.8, 8);
-      const alignLightPos = new THREE.Vector3(7, 9.5, 16);
+      const alignLightPos = new THREE.Vector3(7.4, 10.5, 18);
       const lightTarget = orbitLightPos.clone().lerp(alignLightPos, alignStrength);
       keyLight.position.lerp(lightTarget, 0.06 + alignStrength * 0.08);
-      keyLight.intensity = THREE.MathUtils.lerp(0.32, 0.22, alignStrength);
+      keyLight.intensity = THREE.MathUtils.lerp(0.32, 0.2, alignStrength);
 
       renderer.render(scene, camera);
       updateLabels();
