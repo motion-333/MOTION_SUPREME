@@ -857,6 +857,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const spot1 = new THREE.SpotLight(0xffffff,0.6,20,Math.PI/2,1);
   const spot2 = new THREE.SpotLight(0xffffff,0.5,20,Math.PI/2,1);
   scene.add(spot1,spot2);
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
   const maskSize=512;
   const maskCanvas=document.createElement('canvas');
   maskCanvas.width=maskCanvas.height=maskSize;
@@ -897,13 +899,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs,2));
       const baseMat=new THREE.MeshPhysicalMaterial({map:id1Tex, clearcoat:1, clearcoatRoughness:0.8, metalness:0, roughness:0.9});
+      const cardMeshes=[];
       const baseCard=new THREE.Mesh(geo, baseMat);
       scene.add(baseCard);
       const overlayMat=new THREE.MeshBasicMaterial({map:id2Tex, transparent:true, alphaMap:maskTexture, depthWrite:false});
       const overlayCard=new THREE.Mesh(geo, overlayMat);
       overlayCard.position.z=thickness/2+0.0001;
       scene.add(overlayCard);
-      window.addEventListener('mousedown',()=>{
+      cardMeshes.push(baseCard, overlayCard);
+      renderer.domElement.addEventListener('mousedown',event=>{
+        const rect=renderer.domElement.getBoundingClientRect();
+        pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
+        pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
+        raycaster.setFromCamera(pointer,camera);
+        const hit=raycaster.intersectObjects(cardMeshes,false);
+        if(!hit.length) return;
         isDown=true; isUp=false; tDownStart=performance.now(); prevDown=0; maskCtx.fillStyle='black'; maskCtx.fillRect(0,0,maskSize,maskSize); maskTexture.needsUpdate=true;
       });
       window.addEventListener('mouseup',()=>{ if(isDown){ isDown=false; isUp=true; tUpStart=performance.now(); prevUp=0; } });
