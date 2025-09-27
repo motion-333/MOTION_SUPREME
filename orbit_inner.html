@@ -80,6 +80,7 @@
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
     const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
+    const BADGE_TEXTS = ['DESIGN', 'VIDEO', 'PHOTO', 'WEB', 'SOCIALS', 'ART DIR.'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -122,8 +123,8 @@
     let alignActivatedAt = 0;
     let alignIntroDone = false;
     const alignDuration = 1000;
-    const baseAlignSpacing = 5.4;
-    const alignTopBaseline = -3.6;
+    const baseAlignSpacing = 5.0;
+    const alignTopBaseline = -3.35;
     const topAnchorHeight = 1.95;
     const selectedScale = 1.58;
     const neighbourScale = 1.22;
@@ -145,6 +146,7 @@
       accentColor = color;
       document.documentElement.style.setProperty('--accent', accentColor);
       updateLabelStyles();
+      folders.forEach(f => refreshBadge(f.userData.badge));
     }
 
     let edgeHover = { dir: 0, strength: 0, accumulator: 0 };
@@ -178,6 +180,42 @@
       });
     }
 
+    function createBadge(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.font = "700 150px 'Ferrite', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = accentColor;
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 12);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.anisotropy = 4;
+      texture.needsUpdate = true;
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      material.depthTest = false;
+      material.depthWrite = false;
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.7), material);
+      plane.position.set(0, 1.6, 0.031);
+      plane.renderOrder = 10;
+      return { text, canvas, ctx, texture, material, mesh: plane };
+    }
+
+    function refreshBadge(badge) {
+      if (!badge) return;
+      const { ctx, canvas, texture, text } = badge;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = accentColor;
+      ctx.font = "700 150px 'Ferrite', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 12);
+      texture.needsUpdate = true;
+    }
+
     function resize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -206,21 +244,21 @@
         const zone = window.innerWidth * 0.1;
         if (e.clientX < zone) {
           edgeHover.dir = -1;
-          edgeHover.strength = Math.min(1, (zone - e.clientX) / zone);
+          edgeHover.strength = Math.min(1, (zone - e.clientX) / zone) * 0.75;
         } else if (e.clientX > window.innerWidth - zone) {
           edgeHover.dir = 1;
-          edgeHover.strength = Math.min(1, (e.clientX - (window.innerWidth - zone)) / zone);
+          edgeHover.strength = Math.min(1, (e.clientX - (window.innerWidth - zone)) / zone) * 0.75;
         } else {
           edgeHover.dir = 0;
           edgeHover.strength = 0;
-          edgeHover.accumulator = Math.max(0, edgeHover.accumulator - 0.015);
+          edgeHover.accumulator = Math.max(0, edgeHover.accumulator - 0.025);
         }
       }
     });
 
     const ease = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
 
-    function createFolder(name) {
+    function createFolder(name, badgeText) {
       const g = new THREE.Group();
       const frontMat = new THREE.MeshStandardMaterial({ color: 0x89d8fd, roughness: 0.4, metalness: 0.2 });
       const backMat  = new THREE.MeshStandardMaterial({ color: 0x5bbde9, roughness: 0.45, metalness: 0.15 });
@@ -276,6 +314,9 @@
       lip.receiveShadow = true;
       g.add(lip);
 
+      const badge = createBadge(badgeText || name.toUpperCase());
+      g.add(badge.mesh);
+
       const dir = new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).normalize();
       g.userData = {
         name,
@@ -311,7 +352,9 @@
         orbitAnchor: new THREE.Vector3(),
         lastAlignPos: new THREE.Vector3(),
         twist: { y: 0, z: 0 },
-        baseScale
+        baseScale,
+        badge,
+        wrapUntil: 0
       };
       return g;
     }
@@ -356,7 +399,7 @@
       for (let i = 0; i < NETWORK_COUNT; i++) {
         networkPoints.push({
           x: (0.18 + Math.random() * 0.64) * networkCanvas.width,
-          y: (0.6 + Math.random() * 0.32) * networkCanvas.height,
+          y: (0.48 + Math.random() * 0.18) * networkCanvas.height,
           vx: (Math.random() - 0.5) * 0.12,
           vy: (Math.random() - 0.5) * 0.12
         });
@@ -370,8 +413,8 @@
       const height = networkCanvas.height;
       const minX = width * 0.12;
       const maxX = width * 0.88;
-      const minY = height * 0.62;
-      const maxY = height * 0.96;
+      const minY = height * 0.48;
+      const maxY = height * 0.7;
       networkPoints.forEach(p => {
         p.x += p.vx * dt * 0.06;
         p.y += p.vy * dt * 0.06;
@@ -387,21 +430,15 @@
       networkCtx.strokeStyle = accentColor;
       networkCtx.lineWidth = 1;
       networkCtx.globalAlpha = 0.28;
-      const maxNeighbours = 4;
       for (let i = 0; i < networkPoints.length; i++) {
         const point = networkPoints[i];
-        const neighbours = networkPoints
-          .map((other, idx) => ({ idx, dist: i === idx ? Infinity : Math.hypot(point.x - other.x, point.y - other.y) }))
-          .sort((a, b) => a.dist - b.dist)
-          .slice(0, maxNeighbours);
-        neighbours.forEach(({ idx }) => {
-          if (idx < i) return;
-          const other = networkPoints[idx];
+        for (let j = i + 1; j < networkPoints.length; j++) {
+          const other = networkPoints[j];
           networkCtx.beginPath();
           networkCtx.moveTo(point.x, point.y);
           networkCtx.lineTo(other.x, other.y);
           networkCtx.stroke();
-        });
+        }
       }
       networkCtx.globalAlpha = 1;
       networkPoints.forEach(p => {
@@ -419,8 +456,9 @@
       folders.length = 0;
       labelsContainer.innerHTML = '';
       labels.length = 0;
-      list.forEach(name => {
-        const f = createFolder(name);
+      list.forEach((name, idx) => {
+        const badgeLabel = BADGE_TEXTS[idx % BADGE_TEXTS.length];
+        const f = createFolder(name, badgeLabel);
         scene.add(f);
         folders.push(f);
         const lbl = document.createElement('div');
@@ -485,6 +523,8 @@
       const len = folders.length || 1;
       folders.forEach((f, i) => {
         const ud = f.userData;
+        f.visible = true;
+        ud.wrapUntil = 0;
         const delayFactor = stagger ? Math.abs(circularOffset(i, selectedIndex, len)) : 0;
         ud.alignDelay = delayFactor * 140;
         ud.alignFrom = f.position.clone();
@@ -500,6 +540,8 @@
       edgeHover = { dir: 0, strength: 0, accumulator: 0 };
       folders.forEach(f => {
         const ud = f.userData;
+        f.visible = true;
+        ud.wrapUntil = 0;
         ud.returning = true;
         ud.returnStart = performance.now();
         ud.returnFrom.copy(f.position);
@@ -557,16 +599,38 @@
           const targetScaleValue = visualDepth < 0.5 ? selectedScale : (visualDepth < 1.5 ? neighbourScale : farScale);
           const targetY = alignTopBaseline - targetScaleValue * topAnchorHeight + Math.sin(now / 1400 + i) * 0.05;
           const targetZ = visualDepth * 0.12;
+          const targetPos = new THREE.Vector3(targetX, targetY, targetZ);
+          const targetScale = new THREE.Vector3(targetScaleValue, targetScaleValue, targetScaleValue);
           if (!ud.alignFrom) {
             ud.alignFrom = f.position.clone();
             ud.alignFromScale = f.scale.clone();
             ud.alignFromRot = f.rotation.clone();
           }
+          const wrapThreshold = spacing * Math.max(1, len - 2.25);
+          if (Math.abs(targetPos.x - ud.lastAlignPos.x) > wrapThreshold) {
+            ud.wrapUntil = now + 160;
+            ud.alignFrom = targetPos.clone();
+            ud.alignFromScale = targetScale.clone();
+            ud.alignFromRot = new THREE.Euler(baseAlignTilt, 0, 0);
+            f.position.copy(targetPos);
+            f.scale.copy(targetScale);
+            f.rotation.set(baseAlignTilt, 0, 0);
+            ud.lastAlignPos.copy(targetPos);
+          }
+          const hidden = ud.wrapUntil && now < ud.wrapUntil;
+          f.visible = !hidden;
+          if (hidden) {
+            continue;
+          }
+          if (ud.wrapUntil && now >= ud.wrapUntil) {
+            ud.wrapUntil = 0;
+            ud.alignFrom = f.position.clone();
+            ud.alignFromScale = f.scale.clone();
+            ud.alignFromRot = f.rotation.clone();
+          }
           const fromPos = ud.alignFrom;
-          const targetPos = new THREE.Vector3(targetX, targetY, targetZ);
           const prevPos = f.position.clone();
           f.position.copy(fromPos.clone().lerp(targetPos, tt));
-          const targetScale = new THREE.Vector3(targetScaleValue, targetScaleValue, targetScaleValue);
           const fromScale = ud.alignFromScale || new THREE.Vector3().copy(f.scale);
           f.scale.copy(fromScale.clone().lerp(targetScale, tt));
           const dx = f.position.x - prevPos.x;
@@ -583,7 +647,7 @@
           alignIntroDone = true;
         }
         if (alignIntroDone && edgeHover.dir !== 0 && folders.length > 1) {
-          edgeHover.accumulator += edgeHover.strength * dt / 1150;
+          edgeHover.accumulator += edgeHover.strength * dt / 1550;
           if (edgeHover.accumulator >= 1) {
             const next = selectedIndex + edgeHover.dir;
             setTargetSelection(next, edgeHover.dir);
