@@ -30,19 +30,29 @@
 
     body.dark-mode {
       --accent: #d72b2b;
-      --bg-main: #1d1f24;
-      --bg-alt: #cfd1d6;
+      --bg-main: #0d0f14;
+      --bg-alt: #1d1f24;
       --text-primary: #d72b2b;
-      --topo-light: #cfd1d6;
+      --topo-light: #1d1f24;
     }
 
     html, body {
       margin: 0;
       padding: 0;
       height: 643vh;
-      background: var(--bg-main);
       font-family: 'Ferrite Display', sans-serif;
       overflow-x: hidden;
+      scrollbar-width: none;
+    }
+
+    html { background: var(--bg-main); }
+
+    body {
+      background: transparent;
+    }
+
+    body::-webkit-scrollbar {
+      display: none;
     }
 
     .i18n-loading [data-i18n] {
@@ -54,17 +64,23 @@
       position: fixed;
       top: 10px;
       left: 10px;
+      width: 78px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: 4px solid var(--accent);
-      background: transparent;
-      padding: 5px 10px;
+      background: var(--bg-main);
       cursor: pointer;
-      z-index: 1000;
+      z-index: 3;
       color: var(--accent);
-      font-size: 32px;
+      font-size: 24px;
       font-weight: 700;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+      box-sizing: border-box;
     }
 
-    iframe#topo-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: none; z-index: -1; pointer-events: none; }
+    iframe#topo-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: none; z-index: 0; pointer-events: none; }
 
     .interactive-text {
       position: fixed;
@@ -280,9 +296,9 @@
       color: var(--accent);
       font-size: 32px;
       cursor: pointer;
-      background: transparent;
-      z-index: 2;
-      transition: transform 4s cubic-bezier(.33,1,.68,1);
+      background: var(--bg-main);
+      z-index: 3;
+      transition: transform 4s cubic-bezier(.33,1,.68,1), background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
     }
 
     #modeToggle {
@@ -300,29 +316,29 @@
       cursor: pointer;
       font-size: 24px;
       font-weight: 700;
-      z-index: 2;
+      z-index: 3;
       transition: background 0.4s ease, color 0.4s ease, border-color 0.4s ease;
     }
 
     body.dark-mode #modeToggle {
-      background: var(--bg-alt);
+      background: var(--bg-main);
     }
 
     #scrollbarTrack {
       position: fixed;
       top: 0;
-      right: 24px;
+      right: 0;
       width: 8px;
       height: 100vh;
       background: rgba(0, 0, 0, 0.08);
       border-radius: 6px;
-      z-index: 1;
+      z-index: 2;
       overflow: hidden;
     }
 
     #scrollbarProgress {
       position: absolute;
-      bottom: 0;
+      top: 0;
       left: 0;
       width: 100%;
       height: 0;
@@ -364,23 +380,6 @@
       overflow: hidden;
     }
 
-    body::-webkit-scrollbar {
-      width: 10px;
-    }
-
-    body::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.12);
-    }
-
-    body::-webkit-scrollbar-thumb {
-      background: var(--accent);
-      border-radius: 6px;
-    }
-
-    body.dark-mode::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.16);
-    }
-
   </style>
 </head>
   <script>
@@ -410,55 +409,55 @@
     <div class="folder-icon" data-index="0">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="designTitle">DESIGN</text>
+        <text x="8" y="14" data-i18n="adsTitle">ADS</text>
       </svg>
-      <div class="folder-box" data-i18n="designContent">
-        WHETHER IT BE LOGOS OR FULL-ON REBRANDING, OVERLAY ELEMENTS FOR VISUALS OR COMPLETE MOTION DESIGNS, FLYERS OR OUTRIGHT MAGAZINES, I AM ABLE TO PROVIDE THE GRAPHICS THAT REPRESENT YOUR CREATIVE IDEAS.
+      <div class="folder-box" data-i18n="adsContent">
+        CRAFTING HIGH-IMPACT CAMPAIGN SPOTS, SHORT-FORM SPRINTS, AND MOTION PACKAGES THAT PUSH PRODUCTS AND BRANDS WITH PRECISION.
       </div>
     </div>
     <div class="folder-icon" data-index="1">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="videoTitle">VIDEO</text>
+        <text x="8" y="14" data-i18n="musicTitle">MUSIC VIDEOS</text>
       </svg>
-      <div class="folder-box" data-i18n="videoContent">
-        VERSATILE IN THE PRODUCTION OF A VARIETY OF FORMATS (MUSIC VIDEOS, ADS, EVENTS AND STORES), I’M EFFICIENT AT STRUCTURING SNAPPY AND GRAPHIC VIDEOS SHOWCASING EVERY ANGLE, BOTH MACRO AND PANORAMIC, IMMERSING THE VIEWER IN A CONTROLLED SPACE.
-      </div>
-    </div>
-    <div class="folder-icon" data-index="3">
-      <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="photoTitle">PHOTO</text>
-      </svg>
-      <div class="folder-box" data-i18n="photoContent">
-        CAPTURING AUTHENTIC AND SHARP SCENES IN A VIVID AND RAW STATE, IN SPONTANEOUS OR PREPARED ENVIRONMENTS. MY FOCUS IS ON STAND-OUT DETAIL, WITH AN EYE FOR ELEMENTS WHICH FUNDAMENTALLY COMMUNICATE THE REQUIRED MESSAGE.
+      <div class="folder-box" data-i18n="musicContent">
+        FROM PRE-PRODUCTION TO FINAL GRADE, I BUILD MUSIC VIDEO WORLDS WITH GRAPHIC STORYTELLING, DYNAMIC EDITS, AND TIGHT ART DIRECTION.
       </div>
     </div>
     <div class="folder-icon" data-index="2">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="webTitle">WEB</text>
+        <text x="8" y="14" data-i18n="eventsTitle">EVENTS</text>
       </svg>
-      <div class="folder-box" data-i18n="webContent">
-        I AM PROFICIENT AT DEVELOPING INTERACTIVE USER-FRIENDLY INTERFACES, BOTH FRONT-END AND BACK-END, EXPRESSING UNIQUE AND AMBITIOUS CONCEPTS CONCENTRATING ON THE DATA THAT MATTERS MOST.
+      <div class="folder-box" data-i18n="eventsContent">
+        DOCUMENTING EVENTS WITH KINETIC CAMERAWORK, LIVE GRAPHICS, AND FAST TURNAROUNDS THAT KEEP AUDIENCES IMMERSED AND INFORMED.
+      </div>
+    </div>
+    <div class="folder-icon" data-index="3">
+      <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+        <text x="8" y="14" data-i18n="graphicsTitle">GRAPHICS</text>
+      </svg>
+      <div class="folder-box" data-i18n="graphicsContent">
+        DESIGNING COMPLETE VISUAL IDENTITIES, TYPE SYSTEMS, AND MOTION-READY GRAPHICS THAT ANCHOR EVERY PROJECT.
       </div>
     </div>
     <div class="folder-icon" data-index="4">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="socialsTitle">SOCIALS</text>
+        <text x="8" y="14" data-i18n="webTitle">WEB</text>
       </svg>
-      <div class="folder-box" data-i18n="socialsContent">
-        AFTER HAVING WORKED WITH RESTAURANTS, BANDS, EVENTS AND STORES, I HAVE A DEEP UNDERSTANDING OF CONTENT PRODUCTION, GRASPING THE VIEWER’S ATTENTION AND ALGORITHM MANIPULATION.
+      <div class="folder-box" data-i18n="webContent">
+        DEVELOPING INTERACTIVE WEB EXPERIENCES WITH CLEAN SYSTEMS, DATA-DRIVEN STRUCTURES, AND IMMERSIVE MOTION INTERFACES.
       </div>
     </div>
     <div class="folder-icon" data-index="5">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="artDirTitle">ART DIR.</text>
+        <text x="8" y="14" data-i18n="zinesTitle">ZINES</text>
       </svg>
-      <div class="folder-box" data-i18n="artDirContent">
-        AS A POLYVALENT CREATOR, I CAN ADAPT ALL FORMATS, MEDIUMS AND SKILLS INTO A SINGLE PROJECT. CONSTANTLY DEVELOPING NEW CREATIVE PROCESSES, WITH INSPIRATIONS AND REFERENCES OF A BROAD SPECTRUM, I HAVE A PASSION FOR IMAGE TREATMENT AND EFFECTS, PRESENTING MY WORK IN A SIGNATURE STYLE.
+      <div class="folder-box" data-i18n="zinesContent">
+        CURATING PRINTED AND DIGITAL ZINES WITH LAYERED IMAGERY, EXPERIMENTAL LAYOUTS, AND TACTILE EFFECTS.
       </div>
     </div>
   </div>
@@ -477,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const THEMES = {
     light: { accent: '#1449ff', topoBg: '#faf8e5', topoLine: '#ffffff' },
-    dark:  { accent: '#d72b2b', topoBg: '#1d1f24', topoLine: '#cfd1d6' }
+    dark:  { accent: '#d72b2b', topoBg: '#0d0f14', topoLine: '#1d1f24' }
   };
 
   let currentTheme = localStorage.getItem('ms-theme') === 'dark' ? 'dark' : 'light';
@@ -984,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="copyright" data-i18n="copyright">© Don't steal my shit pls</div>
 
 <script>
-  window.FOLDER_NAMES = ["Agora", "AuxDesCales", "BurgerKing", "Canine", "LuluVanTrapp", "RedStar", "ToNarvik", "Tratt"];
+  window.FOLDER_NAMES = ["Ads", "Music Videos", "Events", "Graphics", "Web", "Zines"];
   const iframe = document.querySelector('iframe[src="orbit_inner.html"]');
 
   function sendFolders() {
