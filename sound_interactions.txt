@@ -1,0 +1,14 @@
+Sound Layer Plan for MOTION_SUPREME interactions
+===============================================
+
+1. baseDrone — persistent ambient drone that fades in when any interaction starts the audio context.
+2. interactiveTextHover — triggered while hovering over the MOTION SUPREME interactive letters.
+3. folderHover — fades up whenever a 3D folder is hovered in either orbit or aligned mode.
+4. folderSelect — short burst when a folder becomes the active selection (click or alignment).
+5. edgeScroll — engages while the cursor pressurises the left/right edges to slide through folders.
+6. webPulse — activates when the MOTION333 network regenerates or jitters beneath the lineup.
+7. orbitMagnet — rises when a folder is magnetised toward the cursor in orbit mode.
+8. alignedState — subtle layer that persists while the lineup mode is active.
+9. scrollWash — a soft shimmer that responds to any mouse or trackpad scroll gestures.
+
+Each layer is currently generated through Web Audio oscillators as placeholders. Replace with provided audio assets later by updating the SoundManager.createLayer configuration.

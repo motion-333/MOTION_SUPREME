@@ -18,11 +18,40 @@
       background: transparent;
       overflow: hidden;
       cursor: default;
+      color: #1449ff;
     }
     #sceneWrap {
       position: fixed;
       inset: 0;
       overflow: hidden;
+      font-family: 'Ferrite', sans-serif;
+    }
+    #topBar {
+      position: absolute;
+      top: clamp(1.5rem, 6vh, 4rem);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 6;
+      pointer-events: auto;
+      mix-blend-mode: normal;
+    }
+    #topBar .interactive-text {
+      display: inline-block;
+      white-space: nowrap;
+      font-size: clamp(1.4rem, 6vw, 4.2rem);
+      color: #1449ff;
+    }
+    #topBar .letter {
+      display: inline-block;
+      overflow: hidden;
+      transition: width 0.35s cubic-bezier(.25,.1,.25,1);
+    }
+    #topBar .letter .char {
+      display: inline-block;
+      transform-origin: left center;
+      transition: transform 0.35s cubic-bezier(.25,.1,.25,1),
+                  font-variation-settings 0.35s cubic-bezier(.25,.1,.25,1);
+      font-variation-settings: 'wght' 400;
     }
     canvas {
       position: absolute;
@@ -31,43 +60,46 @@
       height: 100%;
       display: block;
     }
-    #bgCanvas {
-      z-index: 1;
-    }
+    #bgCanvas { z-index: 1; }
+    #fgCanvas { z-index: 2; pointer-events: none; }
     #networkCanvas {
-      z-index: 2;
+      z-index: 3;
       pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
     }
+    #networkCanvas.visible { opacity: 1; }
     #labels {
       position: absolute;
       inset: 0;
-      z-index: 3;
+      z-index: 4;
       pointer-events: none;
       font-family: 'Ferrite', sans-serif;
       color: #1449ff;
     }
     .label {
       position: absolute;
-      transform: translate(-50%, 0) scale(1);
+      transform: translate(-50%, 0);
       text-transform: uppercase;
       letter-spacing: 0.12em;
       text-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
-      transition: opacity 0.4s ease, transform 0.45s ease;
+      transition: opacity 0.4s ease, transform 0.4s ease;
       opacity: 0.9;
       white-space: nowrap;
+      font-size: clamp(0.65rem, 1.2vw, 1.25rem);
     }
     .label.selected {
       opacity: 1;
       letter-spacing: 0.22em;
-    }
-    .label.hidden {
-      opacity: 0;
+      transform: translate(-50%, 0) scale(1.1);
     }
   </style>
 </head>
 <body>
   <div id="sceneWrap">
+    <div id="topBar"><div class="interactive-text">MOTION SUPREME</div></div>
     <canvas id="bgCanvas"></canvas>
+    <canvas id="fgCanvas"></canvas>
     <canvas id="networkCanvas"></canvas>
     <div id="labels"></div>
   </div>
@@ -76,574 +108,770 @@
   <script>
     const FOLDER_NAMES = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
 
+    const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
+    const fgCanvas = document.getElementById('fgCanvas');
     const networkCanvas = document.getElementById('networkCanvas');
     const labelsContainer = document.getElementById('labels');
+    const topInteractive = document.querySelector('#topBar .interactive-text');
 
-    const renderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
+    bgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    bgRenderer.setClearColor(0x000000, 0);
+
+    const fgRenderer = new THREE.WebGLRenderer({ canvas: fgCanvas, antialias: true, alpha: true });
+    fgRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    fgRenderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(0, 2.2, 18);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 16;
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambient);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 0.34);
-    keyLight.position.set(3.5, 5.8, 8);
-    scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.26);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.28);
+    dirLight.position.set(0, 0, 6);
+    scene.add(dirLight);
+
+    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.18);
     rimLight.position.set(-6, 3.5, -6);
     scene.add(rimLight);
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
+    const cursor3D = new THREE.Vector3();
     const targetMouse = { x: 0, y: 0 };
     const currentMouse = { x: 0, y: 0 };
-    const cursor3D = new THREE.Vector3();
+
+    let magnetized = null;
 
     const folders = [];
     const labels = [];
 
-    const topY = 3.4;
-    const spacing = 3.1;
+    const alignTopY = 5.1;
+    const alignSpacing = 3.9;
     const selectedScale = 1.45;
-    const baseScale = 0.9;
+    const neighbourScale = 1.05;
+    const farScale = 0.85;
 
-    let aligned = false;
-    let alignmentGoal = 0;
+    let mode = 'orbit';
     let selectedIndex = -1;
     let targetSelection = 0;
     let currentSelection = 0;
     let selectionVelocity = 0;
+    let lastSwitchTime = 0;
+    const selectionCooldown = 420;
+    let alignmentClock = 0;
+    const alignDelayPerStep = 110;
 
-    let edgeTarget = 0;
-    let edgeState = 0;
-
-    let magnetized = null;
+    let hoveredFolder = null;
 
     const networkCtx = networkCanvas.getContext('2d');
-    const networkCharacters = ['M', 'O', 'T', 'I', 'O', 'N', '3', '3', '3'];
-    let networkPoints = [];
-    let networkEdges = [];
+    const networkCharSequence = ['M','3','O','3','T','3','I','3','O','3','N','3'];
+    const networkPoints = [];
+    const networkSize = { width: 0, height: 0 };
 
-    const clock = new THREE.Clock();
-
-    function easeInOut(t) {
-      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    function resizeRenderers() {
+      bgRenderer.setSize(window.innerWidth, window.innerHeight);
+      fgRenderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      networkCanvas.width = window.innerWidth;
+      networkCanvas.height = window.innerHeight;
+      networkSize.width = window.innerWidth;
+      networkSize.height = window.innerHeight;
+      drawNetwork(true);
     }
 
-    function randomRange(min, max) {
-      return min + Math.random() * (max - min);
-    }
+    window.addEventListener('resize', resizeRenderers);
+    resizeRenderers();
+
+    const ease = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
 
     function createFolder(name, index) {
-      const group = new THREE.Group();
-
+      const g = new THREE.Group();
       const frontMat = new THREE.MeshStandardMaterial({ color: 0x89d8fd, roughness: 0.4, metalness: 0.2 });
       const backMat = new THREE.MeshStandardMaterial({ color: 0x5bbde9, roughness: 0.45, metalness: 0.15 });
-
       const w = 2.5, h = 1.8, r = 0.15;
-      const bodyShape = new THREE.Shape();
-      bodyShape.moveTo(-w / 2 + r, -h / 2);
-      bodyShape.lineTo(w / 2 - r, -h / 2);
-      bodyShape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
-      bodyShape.lineTo(w / 2, h / 2 - r);
-      bodyShape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
-      bodyShape.lineTo(-w / 2 + r, h / 2);
-      bodyShape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
-      bodyShape.lineTo(-w / 2, -h / 2 + r);
-      bodyShape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
-
-      const geom = new THREE.ExtrudeGeometry(bodyShape, {
+      const shape = new THREE.Shape();
+      shape.moveTo(-w/2 + r, -h/2);
+      shape.lineTo(w/2 - r, -h/2);
+      shape.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + r);
+      shape.lineTo(w/2, h/2 - r);
+      shape.quadraticCurveTo(w/2, h/2, w/2 - r, h/2);
+      shape.lineTo(-w/2 + r, h/2);
+      shape.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - r);
+      shape.lineTo(-w/2, -h/2 + r);
+      shape.quadraticCurveTo(-w/2, -h/2, -w/2 + r, -h/2);
+      const geom = new THREE.ExtrudeGeometry(shape, {
         depth: 0.03,
         bevelEnabled: true,
         bevelThickness: 0.025,
         bevelSize: 0.025,
-        bevelSegments: 2,
+        bevelSegments: 2
       });
-
       const front = new THREE.Mesh(geom, frontMat);
       front.geometry.translate(0, 0.9, 0);
       front.position.z = 0.015;
       front.castShadow = true;
-      group.add(front);
-
+      g.add(front);
       const back = new THREE.Mesh(geom.clone(), backMat);
       back.scale.y = 1.07;
       back.position.set(0, 0.05, -0.015);
       back.receiveShadow = true;
-      group.add(back);
-
+      g.add(back);
       const lipShape = new THREE.Shape();
-      lipShape.moveTo(-1.25, 0)
-        .quadraticCurveTo(-1.25, 0.2, -1.1, 0.2)
-        .lineTo(-0.6, 0.2)
-        .quadraticCurveTo(-0.45, 0.2, -0.3, 0)
-        .lineTo(-0.3, -0.3)
-        .quadraticCurveTo(-0.32, -0.43, -0.6, -0.43)
-        .lineTo(-1.22, -0.42)
-        .quadraticCurveTo(-1.28, -0.38, -1.24, -0.3)
-        .lineTo(-1.25, 0);
-
+      lipShape.moveTo(-1.25, 0);
+      lipShape.quadraticCurveTo(-1.25, 0.2, -1.1, 0.2);
+      lipShape.lineTo(-0.6, 0.2);
+      lipShape.quadraticCurveTo(-0.45, 0.2, -0.3, 0);
+      lipShape.lineTo(-0.3, -0.3);
+      lipShape.quadraticCurveTo(-0.32, -0.43, -0.6, -0.43);
+      lipShape.lineTo(-1.22, -0.42);
+      lipShape.quadraticCurveTo(-1.28, -0.38, -1.24, -0.3);
+      lipShape.lineTo(-1.25, 0);
       const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(lipShape, {
         depth: 0.03,
         bevelEnabled: true,
         bevelThickness: 0.025,
         bevelSize: 0.025,
-        bevelSegments: 2,
+        bevelSegments: 2
       }), backMat);
       lip.position.set(0, 1.9, -0.015);
       lip.receiveShadow = true;
-      group.add(lip);
+      g.add(lip);
+      g.scale.set(0.9, 0.9, 0.9);
 
-      group.scale.setScalar(baseScale);
-
-      const orbitAngle = (index / FOLDER_NAMES.length) * Math.PI * 2;
-      const initialRadius = 5.4 + Math.random() * 2.2;
-      const initialHeight = Math.sin(orbitAngle * 1.4) * 2.4;
-
-      group.position.set(
-        Math.cos(orbitAngle) * initialRadius,
-        initialHeight,
-        Math.sin(orbitAngle) * 1.6
-      );
-
-      const dir = new THREE.Vector3(randomRange(-1, 1), randomRange(-0.6, 0.8), randomRange(-0.3, 0.3)).normalize();
-
-      group.userData = {
+      const box = new THREE.Box3().setFromObject(g);
+      const dir = new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).normalize();
+      g.userData = {
         name,
         front,
-        freePosition: group.position.clone(),
-        freeRotation: new THREE.Euler(0, 0, 0),
-        freeScale: baseScale,
         dir,
-        speed: 0.006 + Math.random() * 0.0025,
+        speed: 0.002 + Math.random() * 0.001,
         curvePhase: Math.random() * Math.PI * 2,
-        curveScale: 0.12 + Math.random() * 0.05,
-        hoverPhase: Math.random() * Math.PI * 2,
-        innerR: 1.35 + Math.random() * 0.35,
-        hoverOffset: new THREE.Vector3(0, -0.9, 0),
-        alignAlpha: 0,
-        alignFrom: 0,
-        alignDelay: 0,
-        alignClock: 0,
-        alignDuration: 0.8,
+        curveScale: 0.005 + Math.random() * 0.003,
+        focused: false,
+        clickStart: 0,
+        startPos: new THREE.Vector3(),
+        targetPos: new THREE.Vector3(),
+        duration: 1000,
+        innerR: 1.2,
+        hoverPhase: 0,
+        returning: false,
+        returnStart: 0,
+        returnFrom: new THREE.Vector3(),
+        returnTo: new THREE.Vector3(),
+        returnDuration: 1000,
+        spin: false,
+        spinElapsed: 0,
+        spinDuration: 1,
+        magnetStart: 0,
+        startScale: new THREE.Vector3(),
+        targetScale: new THREE.Vector3(),
+        scaleReturnFrom: new THREE.Vector3(),
+        scaleReturnTo: new THREE.Vector3(),
+        topOffset: box.max.y,
+        lineProgress: 0,
+        lineDelay: 0,
+        currentLinePos: new THREE.Vector3(),
+        currentScale: new THREE.Vector3(0.9, 0.9, 0.9),
+        twist: 0
       };
-
-      return group;
+      return g;
     }
 
-    function initFolders() {
-      FOLDER_NAMES.forEach((name, index) => {
+    function setupInteractiveText(text) {
+      if (!topInteractive) return;
+      const hoverScale = 1.75;
+      const neighborScale = 1.25;
+      const normalW = 400;
+      const neighborW = 580;
+      const hoverW = 820;
+      topInteractive.textContent = '';
+      for (const ch of (text || '').trim()) {
+        const outer = document.createElement('span');
+        outer.className = 'letter';
+        const inner = document.createElement('span');
+        inner.className = 'char';
+        inner.textContent = ch;
+        outer.appendChild(inner);
+        topInteractive.appendChild(outer);
+      }
+      const letters = Array.from(topInteractive.children);
+      if (!letters.length) return;
+      requestAnimationFrame(() => {
+        const bases = [];
+        let sum = 0;
+        letters.forEach(letter => {
+          const inner = letter.firstElementChild;
+          inner.style.transform = 'scaleX(1)';
+          const w = inner.getBoundingClientRect().width;
+          bases.push(w);
+          sum += w;
+        });
+        const total = topInteractive.getBoundingClientRect().width;
+        const baseScale = total / sum;
+        letters.forEach((letter, i) => {
+          const inner = letter.firstElementChild;
+          letter.style.width = bases[i] * baseScale + 'px';
+          inner.style.width = bases[i] + 'px';
+          inner.style.transform = `scaleX(${baseScale})`;
+          inner.style.fontVariationSettings = `'wght' ${normalW}`;
+        });
+        letters.forEach((letter, i) => {
+          letter.addEventListener('mouseenter', () => {
+            soundManager.trigger('interactiveTextHover', true);
+            const widthHover = bases[i] * baseScale * hoverScale;
+            const widthNeighbor = bases[i] * baseScale * neighborScale;
+            let otherTotal = 0;
+            letters.forEach((_, j) => {
+              if (j !== i && j !== i - 1 && j !== i + 1) {
+                otherTotal += bases[j] * baseScale;
+              }
+            });
+            const remain = total - widthHover - (i > 0 ? widthNeighbor : 0) - (i < letters.length - 1 ? widthNeighbor : 0);
+            const otherScale = remain / otherTotal;
+            letters.forEach((l, j) => {
+              const inner = l.firstElementChild;
+              let scale = baseScale;
+              let weight = normalW;
+              if (j === i) { scale = baseScale * hoverScale; weight = hoverW; }
+              else if (j === i - 1 || j === i + 1) { scale = baseScale * neighborScale; weight = neighborW; }
+              else { scale = baseScale * otherScale; }
+              l.style.width = bases[j] * scale + 'px';
+              inner.style.transform = `scaleX(${scale})`;
+              inner.style.fontVariationSettings = `'wght' ${weight}`;
+            });
+          });
+          letter.addEventListener('mouseleave', () => {
+            soundManager.trigger('interactiveTextHover', false);
+            letters.forEach((l, j) => {
+              const inner = l.firstElementChild;
+              const scale = baseScale;
+              l.style.width = bases[j] * scale + 'px';
+              inner.style.transform = `scaleX(${scale})`;
+              inner.style.fontVariationSettings = `'wght' ${normalW}`;
+            });
+          });
+        });
+        topInteractive.addEventListener('mouseleave', () => {
+          soundManager.trigger('interactiveTextHover', false);
+        });
+      });
+    }
+
+    function initFolders(names) {
+      const finalNames = names && names.length ? names : FOLDER_NAMES;
+      folders.forEach(f => scene.remove(f));
+      folders.length = 0;
+      labelsContainer.innerHTML = '';
+      labels.length = 0;
+      finalNames.forEach((name, index) => {
         const folder = createFolder(name, index);
         scene.add(folder);
         folders.push(folder);
-
         const label = document.createElement('div');
         label.className = 'label';
         label.textContent = name.toUpperCase();
         labelsContainer.appendChild(label);
         labels.push(label);
       });
+      startTime = performance.now();
     }
 
-    function regenerateNetwork() {
-      networkCanvas.width = window.innerWidth;
-      networkCanvas.height = window.innerHeight;
-      networkPoints = [];
-      networkEdges = [];
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const topLimit = height * 0.38;
-      const bottomLimit = height * 0.9;
-      const usableWidth = width * 0.76;
-      const leftOffset = width * 0.12;
+    let startTime = performance.now();
+    const introDur = 3000;
+    const scatterDur = 2000;
 
-      networkCharacters.forEach(char => {
-        const baseX = leftOffset + Math.random() * usableWidth;
-        const baseY = topLimit + Math.random() * (bottomLimit - topLimit);
-        networkPoints.push({
-          char,
-          baseX,
-          baseY,
-          x: baseX,
-          y: baseY,
-          angle: Math.random() * Math.PI * 2,
-          amplitude: 10 + Math.random() * 18,
-          speed: 0.25 + Math.random() * 0.35,
-          pulse: Math.random() * Math.PI * 2,
-        });
-      });
-
-      const edgeSet = new Set();
-      const maxNeighbors = 3;
-      for (let i = 0; i < networkPoints.length; i++) {
-        const distances = [];
-        for (let j = 0; j < networkPoints.length; j++) {
-          if (i === j) continue;
-          const dx = networkPoints[j].baseX - networkPoints[i].baseX;
-          const dy = networkPoints[j].baseY - networkPoints[i].baseY;
-          distances.push({ j, d: Math.hypot(dx, dy) });
-        }
-        distances.sort((a, b) => a.d - b.d);
-        for (let k = 0; k < Math.min(maxNeighbors, distances.length); k++) {
-          const idx = distances[k].j;
-          const key = i < idx ? `${i}-${idx}` : `${idx}-${i}`;
-          if (!edgeSet.has(key)) {
-            edgeSet.add(key);
-            networkEdges.push({ a: i, b: idx });
-          }
-        }
-      }
-    }
-
-    function drawNetwork(delta, strength) {
-      networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
-      if (strength < 0.2) return;
-
-      const now = performance.now();
-      networkPoints.forEach(point => {
-        point.angle += point.speed * delta;
-        point.pulse += delta * 1.2;
-        point.x = point.baseX + Math.cos(point.angle) * point.amplitude;
-        point.y = point.baseY + Math.sin(point.angle * 0.85) * point.amplitude * 0.55;
-      });
-
-      networkCtx.lineWidth = 0.6 + strength * 0.5;
-      networkCtx.strokeStyle = `rgba(20, 73, 255, ${0.24 + strength * 0.28})`;
-      networkCtx.beginPath();
-      networkEdges.forEach(edge => {
-        const a = networkPoints[edge.a];
-        const b = networkPoints[edge.b];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 12) return;
-        const gap = 5;
-        const offsetX = (dx / dist) * gap;
-        const offsetY = (dy / dist) * gap;
-        networkCtx.moveTo(a.x + offsetX, a.y + offsetY);
-        networkCtx.lineTo(b.x - offsetX, b.y - offsetY);
-      });
-      networkCtx.stroke();
-
-      networkCtx.fillStyle = '#1449ff';
-      networkCtx.font = `${18 + strength * 8}px Ferrite, sans-serif`;
-      networkCtx.textAlign = 'center';
-      networkCtx.textBaseline = 'middle';
-      networkPoints.forEach(point => {
-        const wobble = Math.sin(point.pulse + now * 0.0006) * 2.5;
-        networkCtx.save();
-        networkCtx.translate(point.x, point.y);
-        networkCtx.rotate(Math.sin(point.pulse * 0.6) * 0.06);
-        networkCtx.fillText(point.char, wobble, 0);
-        networkCtx.restore();
-      });
-    }
-
-    function scheduleAlignment(index, aligning, immediate = false) {
-      alignmentGoal = aligning ? 1 : 0;
-      const baseDelay = aligning ? 0.14 : 0.12;
-      folders.forEach((folder, i) => {
-        const data = folder.userData;
-        const falloff = index >= 0 ? Math.abs(i - index) : Math.abs(i - Math.floor(folders.length / 2));
-        data.alignFrom = immediate ? alignmentGoal : data.alignAlpha;
-        data.alignDelay = immediate ? 0 : falloff * baseDelay;
-        data.alignClock = 0;
-        data.alignDuration = aligning ? 0.85 : 0.8 + falloff * 0.05;
-        if (immediate) {
-          data.alignAlpha = alignmentGoal;
-        }
-      });
-      if (aligning) {
-        regenerateNetwork();
-      } else {
-        magnetized = null;
-      }
-    }
-
-    function enterAligned(index, immediate = false) {
-      aligned = true;
+    function enterAligned(index, fromOrbit = false) {
+      mode = 'aligned';
       selectedIndex = index;
       targetSelection = index;
+      alignmentClock = performance.now();
+      dirLight.position.set(0, 8, 14);
+      soundManager.trigger('alignedState', true);
+      soundManager.trigger('baseDrone', true);
+      folders.forEach((folder, i) => {
+        const ud = folder.userData;
+        ud.lineDelay = Math.abs(i - index) * alignDelayPerStep + (fromOrbit ? Math.random() * 120 : 0);
+        ud.lineProgress = 0;
+        ud.currentScale.copy(folder.scale);
+        ud.currentLinePos.copy(folder.position);
+      });
       currentSelection = index;
       selectionVelocity = 0;
-      scheduleAlignment(index, true, immediate);
-      updateLabelSelection();
+      updateAlignmentTargets();
+      networkCanvas.classList.add('visible');
+      refreshNetwork(true);
     }
 
     function exitAligned() {
-      aligned = false;
-      scheduleAlignment(selectedIndex, false);
+      mode = 'orbit';
       selectedIndex = -1;
-      updateLabelSelection();
+      dirLight.position.set(0, 0, 6);
+      soundManager.trigger('alignedState', false);
+      soundManager.trigger('edgeScroll', false);
+      soundManager.trigger('webPulse', false);
+      networkCanvas.classList.remove('visible');
+      pressure = 0;
+      edgeDir = 0;
+      hoveredFolder = null;
+      soundManager.trigger('folderHover', false);
     }
 
-    function setSelected(index) {
-      if (!aligned) {
-        enterAligned(index);
-        return;
-      }
-      if (selectedIndex === index) {
-        exitAligned();
-        return;
-      }
-      selectedIndex = index;
-      targetSelection = index;
-      updateLabelSelection();
-      regenerateNetwork();
-    }
-
-    function updateLabelSelection() {
-      labels.forEach((label, i) => {
-        label.classList.toggle('selected', aligned && i === selectedIndex);
+    function updateAlignmentTargets() {
+      const now = performance.now();
+      folders.forEach((folder, i) => {
+        const ud = folder.userData;
+        const offset = i - targetSelection;
+        const magnitude = Math.abs(offset);
+        const scale = i === Math.round(targetSelection) ? selectedScale : (magnitude <= 1 ? neighbourScale : farScale);
+        const widthFactor = scale;
+        const targetX = offset * alignSpacing;
+        const targetZ = 7 + magnitude * 0.5;
+        const targetY = alignTopY - ud.topOffset * scale;
+        ud.lineTarget = new THREE.Vector3(targetX, targetY, targetZ);
+        ud.targetScale = new THREE.Vector3(scale, scale, scale);
+        ud.lineStart = folder.position.clone();
+        ud.scaleStart = folder.scale.clone();
+        ud.alignBegin = now + ud.lineDelay;
+        ud.alignDuration = 600 + magnitude * 120;
       });
     }
 
-    window.addEventListener('mousemove', (event) => {
+    function snapToOrbit() {
+      folders.forEach(folder => {
+        const ud = folder.userData;
+        ud.focused = false;
+        ud.returning = false;
+      });
+    }
+
+    function selectIndex(newIndex) {
+      if (newIndex < 0 || newIndex >= folders.length) return;
+      const now = performance.now();
+      if (now - lastSwitchTime < selectionCooldown) return;
+      lastSwitchTime = now;
+      targetSelection = newIndex;
+      soundManager.trigger('edgeScroll', true);
+      soundManager.burst('folderSelect');
+      updateAlignmentTargets();
+      selectedIndex = newIndex;
+      refreshNetwork(true);
+    }
+
+    function updateLabels() {
+      labels.forEach((label, i) => {
+        const folder = folders[i];
+        const vector = folder.position.clone().project(camera);
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+        label.style.left = `${x}px`;
+        label.style.top = `${y + 18}px`;
+        if (mode === 'aligned') {
+          const weight = THREE.MathUtils.clamp(1 - Math.abs(i - currentSelection), 0, 1);
+          label.style.opacity = 0.4 + weight * 0.6;
+          if (Math.round(currentSelection) === i) label.classList.add('selected');
+          else label.classList.remove('selected');
+        } else {
+          label.style.opacity = 0.9;
+          label.classList.remove('selected');
+        }
+      });
+    }
+
+    function refreshNetwork(reset = false) {
+      networkPoints.length = 0;
+      const areaTop = window.innerHeight * 0.48;
+      const areaBottom = window.innerHeight * 0.92;
+      const areaLeft = window.innerWidth * 0.12;
+      const areaRight = window.innerWidth * 0.88;
+      for (let i = 0; i < 17; i++) {
+        const x = areaLeft + Math.random() * (areaRight - areaLeft);
+        const y = areaTop + Math.random() * (areaBottom - areaTop);
+        const phase = Math.random() * 2000;
+        const charOffset = Math.floor(Math.random() * networkCharSequence.length);
+        networkPoints.push({
+          x,
+          y,
+          baseX: x,
+          baseY: y,
+          driftPhase: Math.random() * Math.PI * 2,
+          driftSpeed: 0.6 + Math.random() * 0.6,
+          radius: 16,
+          charIndex: charOffset,
+          nextSwitch: performance.now() + phase,
+          switchInterval: 300,
+          jitter: Math.random() * 0.9 + 0.4
+        });
+      }
+      networkEdges.length = 0;
+      for (let i = 0; i < networkPoints.length; i++) {
+        for (let j = i + 1; j < networkPoints.length; j++) {
+          networkEdges.push([i, j]);
+        }
+      }
+      drawNetwork(reset);
+      soundManager.trigger('webPulse', true);
+    }
+
+    function drawNetwork(force = false) {
+      if (mode !== 'aligned' && !force) return;
+      const ctx = networkCtx;
+      ctx.clearRect(0, 0, networkSize.width, networkSize.height);
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = 'rgba(20, 73, 255, 0.26)';
+      ctx.fillStyle = '#1449ff';
+      const now = performance.now();
+      const time = now / 1000;
+      networkPoints.forEach(pt => {
+        pt.x = pt.baseX + Math.sin(time * pt.driftSpeed + pt.driftPhase) * 16;
+        pt.y = pt.baseY + Math.cos(time * (pt.driftSpeed * 0.8) + pt.driftPhase) * 12;
+        if (now >= pt.nextSwitch) {
+          pt.charIndex = (pt.charIndex + 1) % networkCharSequence.length;
+          pt.nextSwitch = now + pt.switchInterval + Math.random() * 120;
+        }
+      });
+      networkEdges.forEach(edge => {
+        const a = networkPoints[edge[0]];
+        const b = networkPoints[edge[1]];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 6) return;
+        const gap = 26;
+        const ratio = gap / dist;
+        const sx = a.x + dx * ratio;
+        const sy = a.y + dy * ratio;
+        const ex = b.x - dx * ratio;
+        const ey = b.y - dy * ratio;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      });
+      ctx.font = '600 18px "Ferrite", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      networkPoints.forEach(pt => {
+        const char = networkCharSequence[pt.charIndex];
+        ctx.save();
+        ctx.translate(pt.x, pt.y);
+        ctx.fillStyle = '#1449ff';
+        ctx.fillText(char, 0, 0);
+        ctx.restore();
+      });
+    }
+
+    class SoundManager {
+      constructor() {
+        this.context = null;
+        this.layers = new Map();
+        this.activeFlags = new Map();
+        this.interactionQueue = [];
+        this.baseStarted = false;
+        this.ensureContext = this.ensureContext.bind(this);
+        window.addEventListener('pointerdown', this.ensureContext, { once: true });
+        window.addEventListener('keydown', this.ensureContext, { once: true });
+      }
+      ensureContext() {
+        if (!this.context) {
+          this.context = new (window.AudioContext || window.webkitAudioContext)();
+          this.master = this.context.createGain();
+          this.master.gain.value = 0.85;
+          this.master.connect(this.context.destination);
+          this.createLayer('baseDrone', { frequency: 110, type: 'sine', volume: 0.08, sustained: true });
+          this.createLayer('interactiveTextHover', { frequency: 420, type: 'triangle', volume: 0.03 });
+          this.createLayer('folderHover', { frequency: 320, type: 'sawtooth', volume: 0.035 });
+          this.createLayer('folderSelect', { frequency: 200, type: 'square', volume: 0.04 });
+          this.createLayer('edgeScroll', { frequency: 260, type: 'triangle', volume: 0.028 });
+          this.createLayer('webPulse', { frequency: 510, type: 'sine', volume: 0.02 });
+          this.createLayer('orbitMagnet', { frequency: 180, type: 'sine', volume: 0.03 });
+          this.createLayer('alignedState', { frequency: 150, type: 'square', volume: 0.025, sustained: true });
+          this.createLayer('scrollWash', { frequency: 610, type: 'sawtooth', volume: 0.03 });
+          this.context.resume();
+          this.trigger('baseDrone', true);
+        }
+      }
+      createLayer(name, { frequency = 220, type = 'sine', volume = 0.05, sustained = false } = {}) {
+        if (!this.context) return;
+        const osc = this.context.createOscillator();
+        osc.type = type;
+        osc.frequency.value = frequency;
+        const gain = this.context.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(this.master);
+        osc.start();
+        this.layers.set(name, { osc, gain, volume, sustained });
+        this.activeFlags.set(name, false);
+      }
+      trigger(name, active = true) {
+        if (!this.context || !this.layers.has(name)) return;
+        const layer = this.layers.get(name);
+        const flag = this.activeFlags.get(name);
+        if (active === flag) return;
+        this.activeFlags.set(name, active);
+        const target = active ? layer.volume : 0;
+        const now = this.context.currentTime;
+        layer.gain.cancelScheduledValues(now);
+        layer.gain.setTargetAtTime(target, now, active ? 0.25 : 0.35);
+      }
+      burst(name) {
+        this.trigger(name, true);
+        if (!this.context) return;
+        const layer = this.layers.get(name);
+        if (!layer) return;
+        const now = this.context.currentTime;
+        layer.gain.cancelScheduledValues(now);
+        layer.gain.setTargetAtTime(layer.volume, now, 0.08);
+        layer.gain.setTargetAtTime(0, now + 0.25, 0.25);
+      }
+    }
+
+    const soundManager = new SoundManager();
+
+    setupInteractiveText('MOTION SUPREME');
+
+    initFolders(FOLDER_NAMES);
+
+    window.addEventListener('mousemove', event => {
+      const nx = (event.clientX / window.innerWidth - 0.5) * 2;
+      const ny = -(event.clientY / window.innerHeight - 0.5) * 2;
+      targetMouse.x = nx;
+      targetMouse.y = ny;
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      const normalizedX = (event.clientX / window.innerWidth - 0.5) * 2;
-      const normalizedY = -(event.clientY / window.innerHeight - 0.5) * 2;
-      targetMouse.x = normalizedX;
-      targetMouse.y = normalizedY;
-
       raycaster.setFromCamera(mouse, camera);
       const distance = -raycaster.ray.origin.z / raycaster.ray.direction.z;
-      cursor3D.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(distance)));
+      cursor3D.copy(raycaster.ray.origin).add(raycaster.ray.direction.clone().multiplyScalar(distance));
+    });
 
-      if (aligned) {
-        const edgeZone = window.innerWidth * 0.1;
-        const leftRatio = THREE.MathUtils.clamp(1 - event.clientX / edgeZone, 0, 1);
-        const rightRatio = THREE.MathUtils.clamp((event.clientX - (window.innerWidth - edgeZone)) / edgeZone, 0, 1);
-        if (leftRatio > 0.001) {
-          edgeTarget = -leftRatio;
-        } else if (rightRatio > 0.001) {
-          edgeTarget = rightRatio;
-        } else {
-          edgeTarget = 0;
-        }
+    let edgeDir = 0;
+    window.addEventListener('mousemove', event => {
+      const leftZone = window.innerWidth * 0.1;
+      const rightZone = window.innerWidth * 0.9;
+      if (mode === 'aligned') {
+        if (event.clientX < leftZone) edgeDir = -1;
+        else if (event.clientX > rightZone) edgeDir = 1;
+        else edgeDir = 0;
       } else {
-        edgeTarget = 0;
+        edgeDir = 0;
       }
     });
 
     window.addEventListener('mouseleave', () => {
-      edgeTarget = 0;
+      edgeDir = 0;
     });
 
     window.addEventListener('click', () => {
       raycaster.setFromCamera(mouse, camera);
-      const intersections = raycaster.intersectObjects(folders.map(f => f.userData.front));
-      if (!intersections.length) return;
-      const folder = intersections[0].object.parent;
+      const hits = raycaster.intersectObjects(folders.map(f => f.userData.front));
+      if (!hits.length) return;
+      const folder = hits[0].object.parent;
       const index = folders.indexOf(folder);
-      if (index === -1) return;
-      setSelected(index);
+      if (mode === 'orbit') {
+        soundManager.burst('folderSelect');
+        enterAligned(index, true);
+      } else if (mode === 'aligned' && index === Math.round(targetSelection)) {
+        soundManager.burst('folderSelect');
+        exitAligned();
+        snapToOrbit();
+      } else if (mode === 'aligned') {
+        selectIndex(index);
+      }
     });
 
-    function updateLabels() {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      labels.forEach((label, i) => {
-        const folder = folders[i];
-        const position = folder.position.clone().project(camera);
-        if (position.z > 1) {
-          label.classList.add('hidden');
-          return;
-        }
-        label.classList.remove('hidden');
-        const x = (position.x * 0.5 + 0.5) * width;
-        const y = (-position.y * 0.5 + 0.5) * height;
-        const scaleInfluence = THREE.MathUtils.clamp(folder.userData.alignAlpha, 0, 1);
-        const targetScale = aligned && i === Math.round(currentSelection) ? 1.15 : 1;
-        const scale = THREE.MathUtils.lerp(1, targetScale, scaleInfluence);
-        label.style.left = `${x}px`;
-        label.style.top = `${y + 32}px`;
-        label.style.transform = `translate(-50%, 0) scale(${scale})`;
-        label.style.opacity = 0.72 + scaleInfluence * 0.25;
-      });
-    }
-
-    function updateFreeState(folder, delta, now) {
-      const data = folder.userData;
-      const pos = data.freePosition;
-
-      const toCursor = cursor3D.clone().sub(pos);
-      const dist = toCursor.length();
-      const mouseSpeed = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
-
-      if (alignmentGoal < 0.5) {
-        if ((magnetized === null || magnetized === folder) && dist < data.innerR) {
-          magnetized = folder;
-          const repel = new THREE.Vector3();
-          folders.forEach(other => {
-            if (other === folder) return;
-            const diff = pos.clone().sub(other.userData.freePosition);
-            const sq = diff.lengthSq();
-            if (sq < 16) {
-              repel.add(diff.normalize().multiplyScalar(0.12 / Math.max(0.2, sq)));
-            }
-          });
-          const targetPos = cursor3D.clone().add(data.hoverOffset);
-          pos.lerp(targetPos, 0.08 + mouseSpeed * 0.02);
-          pos.add(repel);
-          data.hoverPhase += delta * 6 + mouseSpeed * 0.35;
-          data.freeRotation.x += (THREE.MathUtils.degToRad(14) - data.freeRotation.x) * 0.15;
-          const twist = Math.sin(data.hoverPhase) * (0.35 + mouseSpeed * 0.15);
-          data.freeRotation.y += (twist - data.freeRotation.y) * 0.18;
-          data.freeRotation.z += ((Math.cos(data.hoverPhase * 0.8) * 0.22) - data.freeRotation.z) * 0.2;
-          data.freeScale += ((baseScale * 1.08) - data.freeScale) * 0.2;
-        } else {
-          if (magnetized === folder && dist > data.innerR * 1.45) {
-            magnetized = null;
-          }
-          data.curvePhase += delta * 1.4;
-          const drift = data.dir.clone().multiplyScalar(data.speed);
-          const curve = new THREE.Vector3(
-            Math.sin(data.curvePhase),
-            Math.sin(data.curvePhase * 0.9),
-            Math.cos(data.curvePhase * 0.8)
-          ).multiplyScalar(data.curveScale);
-          const repel = new THREE.Vector3();
-          folders.forEach(other => {
-            if (other === folder) return;
-            const diff = pos.clone().sub(other.userData.freePosition);
-            const sq = diff.lengthSq();
-            if (sq < 25) {
-              repel.add(diff.normalize().multiplyScalar(0.05 / Math.max(0.25, sq)));
-            }
-          });
-          pos.add(drift.add(curve).add(repel));
-          if (Math.abs(pos.x) > 6.8) data.dir.x *= -1;
-          if (pos.y > 4.5 || pos.y < -4.5) data.dir.y *= -1;
-          pos.z = THREE.MathUtils.clamp(pos.z, -1.4, 1.2);
-          data.freeRotation.x += (Math.sin(data.curvePhase * 0.9) * 0.18 - data.freeRotation.x) * 0.08;
-          data.freeRotation.y += (Math.sin(data.curvePhase * 0.6) * 0.32 - data.freeRotation.y) * 0.08;
-          data.freeRotation.z += (Math.cos(data.curvePhase * 0.75) * 0.2 - data.freeRotation.z) * 0.08;
-          data.freeScale += (baseScale - data.freeScale) * 0.18;
-        }
-      } else {
-        magnetized = null;
-        data.freeRotation.x += (Math.sin(now * 0.0006 + data.curvePhase) * 0.05 - data.freeRotation.x) * 0.1;
-        data.freeRotation.y += (-data.freeRotation.y) * 0.1;
-        data.freeRotation.z += (-data.freeRotation.z) * 0.1;
-        data.freeScale += (baseScale - data.freeScale) * 0.12;
-      }
-    }
+    let pressure = 0;
 
     function animate() {
       requestAnimationFrame(animate);
-      const delta = clock.getDelta();
       const now = performance.now();
+      const dt = now - startTime;
 
-      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.08;
-      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.08;
-      camera.position.set(currentMouse.x * 3, currentMouse.y * 2.6 + 2.2, 18);
-      camera.lookAt(0, 0.5, 0);
-
-      edgeState += (edgeTarget - edgeState) * 0.07;
-
-      folders.forEach((folder, i) => {
-        const data = folder.userData;
-        data.alignClock += delta;
-        const timeInto = Math.max(0, data.alignClock - data.alignDelay);
-        const ratio = data.alignDuration <= 0 ? 1 : Math.min(1, timeInto / data.alignDuration);
-        const eased = easeInOut(ratio);
-        const planned = THREE.MathUtils.lerp(data.alignFrom, alignmentGoal, eased);
-        data.alignAlpha += (planned - data.alignAlpha) * 0.22;
-
-        updateFreeState(folder, delta, now);
-      });
-
-      const alignStrength = folders.reduce((sum, folder) => sum + folder.userData.alignAlpha, 0) / Math.max(1, folders.length);
-
-      if (alignmentGoal > 0.5) {
-        targetSelection += edgeState * delta * 3.2;
-        targetSelection = THREE.MathUtils.clamp(targetSelection, 0, folders.length - 1);
-        selectionVelocity += (targetSelection - currentSelection) * (0.1 + Math.abs(edgeState) * 0.12);
-        selectionVelocity *= 0.86;
-        currentSelection += selectionVelocity;
-        currentSelection = THREE.MathUtils.clamp(currentSelection, 0, folders.length - 1);
-      } else {
-        selectionVelocity *= 0.84;
-        currentSelection += selectionVelocity;
-        if (selectedIndex >= 0) {
-          currentSelection += (selectedIndex - currentSelection) * 0.04;
+      if (mode === 'orbit') {
+        const activeFolder = folders.find(f => f.userData.focused);
+        if (activeFolder) {
+          targetMouse.x = 0;
+          targetMouse.y = 0;
         }
+        if (dt < introDur) {
+          const a = (dt / introDur) * Math.PI * 2;
+          folders.forEach((f, i) => {
+            const th = (i / folders.length) * Math.PI * 2 + a;
+            f.position.set(Math.cos(th) * 5, Math.sin(th) * 5, 0);
+          });
+        } else if (dt < introDur + scatterDur) {
+          const p = (dt - introDur) / scatterDur;
+          folders.forEach((f, i) => {
+            const ti = Math.max(Math.min(p * folders.length - i, 1), 0);
+            const ei = ease(ti);
+            const th = (i / folders.length) * Math.PI * 2;
+            const center = new THREE.Vector3(Math.cos(th) * 5, Math.sin(th) * 5, 0);
+            f.position.copy(center.add(f.userData.dir.clone().multiplyScalar(ei * 3)));
+          });
+        } else {
+          raycaster.setFromCamera(mouse, camera);
+          const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
+          const currentHovered = hoverHits.length ? hoverHits[0].object.parent : null;
+          if (currentHovered !== hoveredFolder) {
+            if (hoveredFolder) soundManager.trigger('folderHover', false);
+            if (currentHovered) soundManager.trigger('folderHover', true);
+            hoveredFolder = currentHovered;
+          }
+          let magnetActive = false;
+          folders.forEach(folder => {
+            const ud = folder.userData;
+            const to = cursor3D.clone().sub(folder.position);
+            const d = to.length();
+            const accel = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
+            if (magnetized === folder && now - ud.magnetStart > 2200) magnetized = null;
+            if (d < ud.innerR && accel > 3 && !ud.spin) {
+              ud.spin = true;
+              ud.spinElapsed = 0;
+            }
+            if (ud.spin) {
+              ud.spinElapsed += 0.1;
+              folder.rotation.y = (ud.spinElapsed / ud.spinDuration) * Math.PI * 2;
+              if (ud.spinElapsed >= ud.spinDuration) {
+                ud.spin = false;
+                folder.rotation.y = 0;
+              }
+              return;
+            }
+            if ((magnetized === null || magnetized === folder) && d < ud.innerR) {
+              magnetized = folder;
+              ud.magnetStart = now;
+              magnetActive = true;
+              const repel = new THREE.Vector3();
+              folders.forEach(other => {
+                if (other !== folder) {
+                  const dv = folder.position.clone().sub(other.position);
+                  const distSq = dv.lengthSq();
+                  if (distSq < 16) repel.add(dv.normalize().multiplyScalar(0.05));
+                }
+              });
+              folder.position.add(repel);
+              const offset = new THREE.Vector3(0, -0.9, 0);
+              folder.position.lerp(cursor3D.clone().add(offset), 0.05);
+              ud.hoverPhase += 0.1;
+              ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x) * 0.1;
+              const breeze = accel * 0.3;
+              folder.rotation.y += (Math.sin(ud.hoverPhase) * breeze - folder.rotation.y) * 0.2;
+              folder.rotation.z += (Math.cos(ud.hoverPhase) * breeze * 0.5 - folder.rotation.z) * 0.2;
+              return;
+            }
+            if (hoverHits.find(h => h.object === ud.front)) {
+              ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x) * 0.1;
+            } else {
+              ud.front.rotation.x += (0 - ud.front.rotation.x) * 0.1;
+            }
+            ud.curvePhase += 0.01;
+            const repel2 = new THREE.Vector3();
+            folders.forEach(other => {
+              if (other !== folder) {
+                const dv = folder.position.clone().sub(other.position);
+                const sq = dv.lengthSq();
+                if (sq < 100) repel2.add(dv.normalize().multiplyScalar(0.08 / sq));
+              }
+            });
+            const curveVec = new THREE.Vector3(
+              Math.sin(ud.curvePhase),
+              Math.sin(ud.curvePhase * 0.9),
+              Math.cos(ud.curvePhase * 0.8)
+            ).multiplyScalar(ud.curveScale);
+            const cf = new THREE.Vector3();
+            const magR = 5;
+            if (d < magR && d > ud.innerR) cf.add(to.normalize().multiplyScalar((magR - d) / magR * 0.02));
+            folder.position.add(
+              ud.dir.clone().multiplyScalar(ud.speed)
+                .add(curveVec)
+                .add(repel2)
+                .add(cf)
+            );
+            ['x', 'y'].forEach(axis => {
+              if (folder.position[axis] > 5 || folder.position[axis] < -5) ud.dir[axis] *= -1;
+            });
+            folder.position.z = Math.max(-0.4, Math.min(0.4, folder.position.z));
+            folder.rotation.y += (0 - folder.rotation.y) * 0.2;
+            folder.rotation.z += (0 - folder.rotation.z) * 0.2;
+          });
+          soundManager.trigger('orbitMagnet', magnetActive);
+        }
+      } else if (mode === 'aligned') {
+        raycaster.setFromCamera(mouse, camera);
+        const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
+        const currentHovered = hoverHits.length ? hoverHits[0].object.parent : null;
+        if (currentHovered !== hoveredFolder) {
+          if (hoveredFolder) soundManager.trigger('folderHover', false);
+          if (currentHovered) soundManager.trigger('folderHover', true);
+          hoveredFolder = currentHovered;
+        }
+        if (edgeDir !== 0) {
+          pressure += edgeDir * 0.012;
+          pressure = THREE.MathUtils.clamp(pressure, -1, 1);
+          if (Math.abs(pressure) >= 0.95) {
+            const next = Math.round(targetSelection + Math.sign(pressure));
+            if (next !== targetSelection) {
+              selectIndex(next);
+            }
+            pressure = 0.45 * Math.sign(pressure);
+          }
+        } else {
+          pressure *= 0.8;
+          if (Math.abs(pressure) < 0.01) pressure = 0;
+          soundManager.trigger('edgeScroll', false);
+        }
+        selectionVelocity += (targetSelection - currentSelection) * 0.05;
+        selectionVelocity *= 0.78;
+        currentSelection += selectionVelocity;
+        folders.forEach((folder, i) => {
+          const ud = folder.userData;
+          const offset = Math.abs(i - targetSelection);
+          const now = performance.now();
+          const progress = THREE.MathUtils.clamp((now - ud.alignBegin) / ud.alignDuration, 0, 1);
+          const eased = ease(progress);
+          ud.currentLinePos.lerpVectors(ud.lineStart, ud.lineTarget, eased);
+          folder.position.copy(ud.currentLinePos);
+          ud.currentScale.lerpVectors(ud.scaleStart, ud.targetScale, eased);
+          folder.scale.copy(ud.currentScale);
+          const twistTarget = (i - currentSelection) * 0.18;
+          ud.twist += (twistTarget - ud.twist) * 0.12;
+          folder.rotation.y = ud.twist;
+          folder.rotation.z = (Math.sin(now / 600 + i) * 0.04) * (1 - Math.min(offset, 1));
+        });
       }
 
-      folders.forEach((folder, i) => {
-        const data = folder.userData;
-        const alignAlpha = THREE.MathUtils.clamp(data.alignAlpha, 0, 1);
-        const offset = i - currentSelection;
-        const alignPos = new THREE.Vector3(
-          offset * spacing,
-          topY - Math.min(Math.abs(offset) * 0.28, 0.7),
-          -Math.min(Math.abs(offset) * 0.22, 1)
-        );
-        const targetPos = data.freePosition.clone().lerp(alignPos, alignAlpha);
-        folder.position.lerp(targetPos, 0.38);
+      dirLight.position.x += (targetMouse.x * 10 - dirLight.position.x) * 0.1;
+      dirLight.position.y += (targetMouse.y * 6 - dirLight.position.y) * 0.1;
+      const accel = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
+      currentMouse.x += (targetMouse.x - currentMouse.x) * 0.02 * accel;
+      currentMouse.y += (targetMouse.y - currentMouse.y) * 0.02 * accel;
+      camera.position.set(currentMouse.x * 3, currentMouse.y * 3, 16);
+      camera.lookAt(0, 0, 0);
 
-        const alignScale = i === Math.round(currentSelection)
-          ? selectedScale
-          : THREE.MathUtils.clamp(baseScale + (1 - Math.min(Math.abs(offset), 1.8)) * 0.18, baseScale * 0.85, selectedScale * 0.9);
-        const targetScale = THREE.MathUtils.lerp(data.freeScale, alignScale, alignAlpha);
-        const newScale = THREE.MathUtils.lerp(folder.scale.x, targetScale, 0.24 + alignAlpha * 0.18);
-        folder.scale.setScalar(newScale);
+      bgRenderer.render(scene, camera);
+      const active = mode === 'aligned' ? folders[Math.round(targetSelection)] : null;
+      folders.forEach(f => f.visible = !active || f === active);
+      fgRenderer.render(scene, camera);
+      folders.forEach(f => f.visible = true);
 
-        const velocityInfluence = selectionVelocity * (i - currentSelection);
-        const alignRotY = THREE.MathUtils.clamp(velocityInfluence * 1.05, -0.42, 0.42);
-        const alignRotX = Math.sin(now * 0.0012 + i) * 0.03 + THREE.MathUtils.clamp(-velocityInfluence * 0.3, -0.25, 0.25);
-        const alignRotZ = THREE.MathUtils.clamp(-velocityInfluence * 0.62, -0.45, 0.45);
-
-        folder.rotation.x += (THREE.MathUtils.lerp(data.freeRotation.x, alignRotX, alignAlpha) - folder.rotation.x) * 0.2;
-        folder.rotation.y += (THREE.MathUtils.lerp(data.freeRotation.y, alignRotY, alignAlpha) - folder.rotation.y) * 0.2;
-        folder.rotation.z += (THREE.MathUtils.lerp(data.freeRotation.z, alignRotZ, alignAlpha) - folder.rotation.z) * 0.2;
-      });
-
-      if (aligned) {
-        const candidate = Math.round(currentSelection);
-        const clamped = THREE.MathUtils.clamp(candidate, 0, folders.length - 1);
-        if (clamped !== selectedIndex) {
-          selectedIndex = clamped;
-          targetSelection = THREE.MathUtils.lerp(targetSelection, selectedIndex, 0.6);
-          updateLabelSelection();
-          regenerateNetwork();
-        }
-      }
-
-      const orbitLightPos = new THREE.Vector3(3.5, 5.8, 8);
-      const alignLightPos = new THREE.Vector3(7.4, 10.5, 18);
-      const lightTarget = orbitLightPos.clone().lerp(alignLightPos, alignStrength);
-      keyLight.position.lerp(lightTarget, 0.06 + alignStrength * 0.08);
-      keyLight.intensity = THREE.MathUtils.lerp(0.32, 0.2, alignStrength);
-
-      renderer.render(scene, camera);
       updateLabels();
-      drawNetwork(delta, alignStrength);
+      drawNetwork();
     }
 
-    function onResize() {
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      networkCanvas.width = window.innerWidth;
-      networkCanvas.height = window.innerHeight;
-      regenerateNetwork();
-      updateLabels();
-    }
-
-    window.addEventListener('resize', onResize);
-
-    initFolders();
-    regenerateNetwork();
     animate();
+
+    window.addEventListener('wheel', () => {
+      soundManager.burst('scrollWash');
+    }, { passive: true });
+
+    window.addEventListener('message', event => {
+      if (event.data && Array.isArray(event.data.folders)) {
+        initFolders(event.data.folders);
+      }
+    });
   </script>
 </body>
 </html>
