@@ -33,14 +33,14 @@
     /* Folder UI overlay */
     #folderUi {
       position:fixed;
-      left:50%;
-      top:50%;
+      left:0;
+      top:0;
       display:flex;
-      align-items:flex-end;
+      align-items:flex-start;
       gap:clamp(12px, 3vw, 48px);
       pointer-events:none;
       opacity:0;
-      transform:translate(-60%, -90%);
+      transform:translate(-50%, -50%);
       transition:opacity 0.3s ease;
       z-index:7;
       color:#1449ff;
@@ -70,7 +70,7 @@
       font-size:clamp(32px, 6vw, 96px);
       white-space:nowrap;
       display:flex;
-      align-items:flex-end;
+      align-items:flex-start;
       gap:0;
     }
     #folderTitle .letter {
@@ -187,7 +187,6 @@
       frontFlap.castShadow = true;
       frontFlap.position.set(0,0,0.015);
       const frontPivot = new THREE.Group();
-      frontPivot.position.set(0,-h/2,0);
       frontPivot.add(frontFlap);
       frontPivot.rotation.x = CLOSED_LID_ANGLE;
       frontFlap.userData.folder = g;
@@ -205,14 +204,22 @@
               .quadraticCurveTo(-0.45,0.2,-0.3,0).lineTo(-0.3,-0.3)
               .quadraticCurveTo(-0.32,-0.43,-0.6,-0.43).lineTo(-1.22,-0.42)
               .quadraticCurveTo(-1.28,-0.38,-1.24,-0.3).lineTo(-1.25,0);
-      const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(lipShape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 }), backMat);
+      const lipGeom = new THREE.ExtrudeGeometry(lipShape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 });
+      const lip = new THREE.Mesh(lipGeom, backMat);
       lip.position.set(0,1.9,-0.015);
       lip.receiveShadow=true;
-      g.add(lip);
-
+      lip.geometry.computeBoundingBox();
+      const lipBox = lip.geometry.boundingBox;
+      const lipWidth = lipBox.max.x - lipBox.min.x;
+      const lipDepth = lipBox.max.z - lipBox.min.z;
       const anchor = new THREE.Object3D();
-      anchor.position.set(-1.2, 2.05, 0.08);
-      g.add(anchor);
+      anchor.position.set(
+        lipBox.min.x + lipWidth * 0.35,
+        lipBox.max.y + 0.02,
+        lipBox.max.z + lipDepth * 0.5 + 0.02
+      );
+      lip.add(anchor);
+      g.add(lip);
 
       const dir = new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0).normalize();
       g.userData = {
@@ -225,7 +232,7 @@
         curveScale:0.005 + Math.random()*0.003,
         focused:false, clickStart:0, startPos:new THREE.Vector3(), targetPos:new THREE.Vector3(), duration:1000,
         moveDuration:900,
-        openDelay:900,
+        openDelay:0,
         innerR:1.2, hoverPhase:0,
         returning:false, returnStart:0, returnFrom:new THREE.Vector3(), returnTo:new THREE.Vector3(), returnDuration:1000,
         spin:false, spinElapsed:0, spinDuration:1,
@@ -472,7 +479,7 @@
         ud.targetRotation.set(0,0,0);
         ud.uiShown = false;
         ud.frontReturnTo = ud.frontBaseRotation;
-        ud.openDelay = ud.moveDuration;
+        ud.openDelay = 0;
       } else {
         ud.returning = true;
         ud.returnStart = performance.now();
