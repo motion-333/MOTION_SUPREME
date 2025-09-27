@@ -12,9 +12,6 @@
     }
     html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; overflow:hidden; cursor:default; }
     /* Top bar removed */
-    /* Glass overlay */
-    .glass { position:fixed; top:0; left:0; width:100vw; height:100vh; backdrop-filter:blur(14px) brightness(1.1); background:rgba(12,28,90,0.08); opacity:0; transition:opacity 0.6s ease; pointer-events:none; z-index:1; }
-    .glass.visible { opacity:1; }
     /* Canvas layers */
     #bgCanvas, #fgCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
     #bgCanvas { z-index:0; }
@@ -92,8 +89,6 @@
 <body>
   <!-- top bar removed -->
   <div id="sceneWrap" class="masked">
-    <div class="glass" id="glass"></div>
-
     <canvas id="bgCanvas"></canvas>
     <canvas id="fgCanvas"></canvas>
 
@@ -120,8 +115,7 @@
     // Renderer & scene setup
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas'),
-          fgCanvas = document.getElementById('fgCanvas'),
-          glass = document.getElementById('glass');
+          fgCanvas = document.getElementById('fgCanvas');
     // logo removed
 
     /* top bar scripts removed */
@@ -167,6 +161,9 @@
     });
 
     const ease = t => t < 0.5 ? 2*t*t : (-1+(4-2*t)*t);
+    const CLOSED_LID_ANGLE = THREE.MathUtils.degToRad(-2);
+    const HOVER_LID_ANGLE = THREE.MathUtils.degToRad(16);
+    const OPEN_LID_ANGLE = THREE.MathUtils.degToRad(115);
 
     // Folder factory
     function createFolder(name) {
@@ -180,12 +177,13 @@
            .lineTo(-w/2+r,h/2).quadraticCurveTo(-w/2,h/2,-w/2,h/2-r)
            .lineTo(-w/2,-h/2+r).quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
       const geom = new THREE.ExtrudeGeometry(shape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 });
-      const frontFlap = new THREE.Mesh(geom, frontMat);
-      frontFlap.geometry.translate(0,0.9,0);
+      const frontGeom = geom.clone();
+      const frontFlap = new THREE.Mesh(frontGeom, frontMat);
       frontFlap.castShadow = true;
       const frontPivot = new THREE.Group();
-      frontPivot.position.set(0,1.8,0.015);
-      frontFlap.position.set(0,-1.8,0);
+      frontPivot.position.set(0,-h/2,0.015);
+      frontFlap.position.set(0,h/2,0);
+      frontPivot.rotation.x = CLOSED_LID_ANGLE;
       frontFlap.userData.folder = g;
       frontPivot.userData.folder = g;
       frontPivot.add(frontFlap);
@@ -289,7 +287,7 @@
       sceneWrap.classList.remove('masked');
       overlayActive = true;
       const expandedHeight = window.innerHeight * 1.65;
-      parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true, iframeHeight: expandedHeight }, '*');
+      parent.postMessage({ topoColor: '#1449ff', fade: false, gridOpen: true, iframeHeight: expandedHeight }, '*');
     }
     function hideFolderUi(){
       if(uiFolder){
@@ -301,7 +299,7 @@
       sceneWrap.classList.add('masked');
       if(overlayActive){
         overlayActive = false;
-        parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false, iframeHeight: null }, '*');
+        parent.postMessage({ topoColor: '#ffffff', fade: false, gridOpen: false, iframeHeight: null }, '*');
       }
     }
     folderBackButton.addEventListener('click', e => {
@@ -388,8 +386,8 @@
       ud.rotationReturnFrom.copy(f.rotation);
       ud.rotationReturnTo.copy(ud.startRotation);
       ud.frontReturnFrom = ud.frontPivot.rotation.x;
+      ud.frontReturnTo = ud.frontBaseRotation;
       ud.uiShown = false;
-      glass.classList.remove('visible');
       hideFolderUi();
     }
 
@@ -418,12 +416,11 @@
         ud.startScale.copy(f.scale);
         ud.startRotation.copy(f.rotation);
         ud.rotationReturnTo.copy(ud.startRotation);
-        ud.targetPos.set(0,-0.2,4.6);
-        ud.targetScale.set(5.8,5.8,5.8);
+        ud.targetPos.set(0,-0.45,4.6);
+        ud.targetScale.set(4.4,4.4,4.4);
         ud.targetRotation.set(0,0,0);
         ud.uiShown = false;
         ud.frontReturnTo = ud.frontBaseRotation;
-        glass.classList.add('visible');
       } else {
         ud.returning = true;
         ud.returnStart = performance.now();
@@ -436,7 +433,6 @@
         ud.frontReturnFrom = ud.frontPivot.rotation.x;
         ud.frontReturnTo = ud.frontBaseRotation;
         ud.uiShown = false;
-        glass.classList.remove('visible');
         hideFolderUi();
       }
     });
@@ -496,7 +492,7 @@
             const offset=new THREE.Vector3(0,-0.9,0);
             f.position.lerp(cursor3D.clone().add(offset), 0.05);
             ud.hoverPhase += 0.1;
-            ud.frontPivot.rotation.x += (THREE.MathUtils.degToRad(15) - ud.frontPivot.rotation.x)*0.1;
+            ud.frontPivot.rotation.x += (HOVER_LID_ANGLE - ud.frontPivot.rotation.x)*0.1;
             const breeze = accel * 0.3;
             f.rotation.y += (Math.sin(ud.hoverPhase)*breeze - f.rotation.y)*0.2;
             f.rotation.z += (Math.cos(ud.hoverPhase)*breeze*0.5 - f.rotation.z)*0.2;
@@ -538,9 +534,9 @@
               const bob = Math.sin(now/900)*0.04;
               f.position.y = ud.targetPos.y + bob;
             }
-            const flatZ = THREE.MathUtils.lerp(ud.targetScale.z, ud.targetScale.z*0.06, openEase);
+            const flatZ = THREE.MathUtils.lerp(ud.targetScale.z, ud.targetScale.z*0.05, openEase);
             f.scale.z += (flatZ - f.scale.z)*0.18;
-            const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, Math.PI*0.98, openEase);
+            const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, OPEN_LID_ANGLE, openEase);
             ud.frontPivot.rotation.x += (lidRot - ud.frontPivot.rotation.x)*0.25;
             if(openEase>0.85 && !ud.uiShown){
               ud.uiShown = true;
@@ -551,8 +547,11 @@
           if(magnetized===f && d>=ud.innerR) magnetized=null;
           f.rotation.y += (0 - f.rotation.y)*0.2;
           f.rotation.z += (0 - f.rotation.z)*0.2;
-          if(hoverHits.find(h=>h.object===ud.frontFlap)) ud.frontPivot.rotation.x += (THREE.MathUtils.degToRad(15) - ud.frontPivot.rotation.x)*0.1;
-          else ud.frontPivot.rotation.x += (0 - ud.frontPivot.rotation.x)*0.1;
+          if(hoverHits.find(h=>h.object===ud.frontFlap)) {
+            ud.frontPivot.rotation.x += (HOVER_LID_ANGLE - ud.frontPivot.rotation.x)*0.1;
+          } else {
+            ud.frontPivot.rotation.x += (ud.frontBaseRotation - ud.frontPivot.rotation.x)*0.1;
+          }
           ud.curvePhase += 0.01;
           const repel2 = new THREE.Vector3();
           folders.forEach(o=>{ if(o!==f){ const dv=f.position.clone().sub(o.position); const sq=dv.lengthSq(); if(sq<100) repel2.add(dv.normalize().multiplyScalar(0.08/sq)); }});

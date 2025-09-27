@@ -20,6 +20,10 @@
       font-family: 'Outfit';
       src: url('/static/OutfitVariableFont.ttf') format('truetype');
     }
+    :root {
+      --orbit-extra: 0px;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
@@ -225,13 +229,13 @@
 
 .real-footer {
   position: absolute;
-  top: 642vh;
+  top: calc(642vh + var(--orbit-extra));
   left: 0.5vw;
   padding: 2vw;
   font-family: 'Ferrite Display', sans-serif;
   font-size: 0.5vw;
   color: #1449ff;
-  text-align: start; 
+  text-align: start;
   text-transform: uppercase;
   line-height: 1.6;
   z-index: 2;
@@ -239,13 +243,13 @@
 
 .copyright {
   position: absolute;
-  top: 642vh;
+  top: calc(642vh + var(--orbit-extra));
   left: 88vw;
   padding: 2vw;
   font-family: 'Ferrite Display', sans-serif;
   font-size: 0.5vw;
   color: #1449ff;
-  text-align: end;   
+  text-align: end;
   text-transform: uppercase;
   line-height: 1.6;
   z-index: 2;
@@ -821,15 +825,34 @@ document.addEventListener('DOMContentLoaded', () => {
   window.FOLDER_NAMES = ["Ads", "Zines", "Music Videos", "Events", "General Design"];
   const iframe = document.querySelector('iframe[src="orbit_inner.html"]');
   const defaultOrbitHeight = iframe ? (iframe.style.height || '100vh') : '100vh';
+  let requestedOrbitHeight = null;
+
+  function applyOrbitExtra(heightPx) {
+    const extra = Math.max(0, heightPx - window.innerHeight);
+    document.documentElement.style.setProperty('--orbit-extra', `${extra}px`);
+  }
+
+  function updateOrbitHeight() {
+    if (!iframe) return;
+    const targetHeight = requestedOrbitHeight == null
+      ? window.innerHeight
+      : Math.max(window.innerHeight, requestedOrbitHeight);
+    if (requestedOrbitHeight == null) {
+      iframe.style.height = defaultOrbitHeight;
+    } else {
+      iframe.style.height = `${targetHeight}px`;
+    }
+    applyOrbitExtra(targetHeight);
+  }
 
   function setOrbitHeight(value) {
     if (!iframe) return;
     if (typeof value === 'number' && Number.isFinite(value)) {
-      const minHeight = Math.max(window.innerHeight, value);
-      iframe.style.height = `${minHeight}px`;
+      requestedOrbitHeight = value;
     } else if (value === null) {
-      iframe.style.height = defaultOrbitHeight;
+      requestedOrbitHeight = null;
     }
+    updateOrbitHeight();
   }
 
   function sendFolders() {
@@ -849,6 +872,9 @@ document.addEventListener('DOMContentLoaded', () => {
       setOrbitHeight(e.data.iframeHeight);
     }
   });
+
+  window.addEventListener('resize', updateOrbitHeight);
+  updateOrbitHeight();
 </script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
