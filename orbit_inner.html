@@ -33,65 +33,93 @@
       from { opacity:0.4; }
       to   { opacity:0.8; }
     }
-    /* Grid overlay */
+    /* Backdrop overlay */
     #overlay {
       position:fixed;
       inset:0;
-      display:none;
-      opacity:0;
-      transition:opacity 0.5s ease;
+      display:flex;
       align-items:center;
       justify-content:center;
-      z-index:4;
       pointer-events:none;
+      opacity:0;
+      transition:opacity 0.5s ease;
+      z-index:4;
+      background:rgba(12,28,90,0.1);
     }
-    #overlay.show { display:flex; }
+    #overlay.show { pointer-events:auto; }
     #overlay.visible { opacity:1; }
-    #layoutWrapper { display:flex; flex-direction:column; align-items:center; pointer-events:auto; }
-    #header { width:calc(120vmin + 6px); display:flex; height:15vmin; margin-bottom:-3px; }
-    #viewport { position:relative; overflow:hidden; width:120vmin; height:calc(120vmin*9/16 + 6vmin); border:3px solid #1449ff; pointer-events:auto; }
-    #leftSquare { width:15vmin; height:100%; background:#faf8e5; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
-    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:3px solid #1449ff; border-left:3px solid #1449ff; background:#faf8e5; }
-    #rightBox .interactive-text {
-      display:inline-block;
-      width:100%;
-      white-space:nowrap;
-      overflow:visible;
-      font-family:'Ferrite', sans-serif;
-      font-size:12vmin;
-      color:#1449ff;
-      transform: translateY(4%);
+    #backdrop {
+      position:relative;
+      width:min(92vw, 1200px);
+      height:min(82vh, 720px);
+      background:#faf8e5;
+      border:6px solid #1449ff;
+      box-shadow:0 40px 120px rgba(20,73,255,0.28);
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
+      transform:perspective(1600px) scale(0.7) rotateX(12deg);
+      transition:transform 0.8s cubic-bezier(.22,1,.36,1);
+      overflow:hidden;
     }
-    #rightBox .interactive-text .letter {
+    #overlay.visible #backdrop {
+      transform:perspective(1600px) scale(1) rotateX(0deg);
+    }
+    #backdrop::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(250,248,229,0.95) 40%, #faf8e5 100%);
+      pointer-events:none;
+      mix-blend-mode:screen;
+      opacity:0.75;
+    }
+    #backdrop > * { position:relative; z-index:1; }
+    #backButton {
+      align-self:flex-start;
+      margin:24px 24px 12px;
+      width:64px;
+      height:64px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:4px solid #1449ff;
+      background:transparent;
+      color:#1449ff;
+      cursor:pointer;
+      transition:transform 0.3s ease;
+    }
+    #backButton:hover {
+      transform:translateX(-6px);
+    }
+    #backButton svg { width:32px; height:32px; }
+    #projectTitle {
+      margin:0 24px;
+      font-family:'Ferrite', sans-serif;
+      font-size:10vmin;
+      color:#1449ff;
+      white-space:nowrap;
+      overflow:hidden;
+    }
+    #projectTitle .letter {
       display:inline-block;
       overflow:hidden;
       transition:width 0.3s cubic-bezier(.25,.1,.25,1);
     }
-    #rightBox .interactive-text .letter .char {
+    #projectTitle .letter .char {
       display:inline-block;
       transform-origin:left center;
       transition:transform 0.3s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.3s cubic-bezier(.25,.1,.25,1);
       font-variation-settings:'wght' 400;
     }
-    #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#faf8e5; }
-    #gridContainer::after { content:""; position:absolute; left:0; right:0; bottom:-var(--extra-bg,0); height:var(--extra-bg,0); background:#faf8e5; pointer-events:none; }
-    #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
-    .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
-    .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
-    .text-item {
-      width:100%;
-      height:100%;
-      display:block;
+    #projectCopy {
+      margin:24px 24px 40px;
       font-family:'Ferrite', sans-serif;
-      background:#faf8e5;
-      margin:0;
-      padding:0;
-      white-space:pre-wrap;
-      box-sizing:border-box;
-      outline:none;
-      font-variation-settings:'wght' 400;
+      font-size:2.2vmin;
       color:#1449ff;
+      text-transform:uppercase;
+      line-height:1.5;
+      max-width:60ch;
     }
   </style>
 </head>
@@ -105,14 +133,15 @@
 
     <!-- moved overlay inside sceneWrap -->
     <div id="overlay">
-      <div id="layoutWrapper">
-        <div id="header">
-          <div id="leftSquare"></div>
-          <div id="rightBox"><div class="interactive-text"></div></div>
-        </div>
-        <div id="viewport">
-          <div id="gridContainer"><div id="grid"></div></div>
-        </div>
+      <div id="backdrop">
+        <button id="backButton" aria-label="Close folder">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M15 5L9 12l6 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+            <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+          </svg>
+        </button>
+        <div id="projectTitle" class="interactive-text"></div>
+        <div id="projectCopy"></div>
       </div>
     </div>
 
@@ -223,7 +252,16 @@
         startScale:new THREE.Vector3(),
         targetScale:new THREE.Vector3(),
         scaleReturnFrom:new THREE.Vector3(),
-        scaleReturnTo:new THREE.Vector3()
+        scaleReturnTo:new THREE.Vector3(),
+        openStart:0, openDuration:800, backdropShown:false,
+        startRotation:new THREE.Euler(),
+        targetRotation:new THREE.Euler(),
+        rotationReturnFrom:new THREE.Euler(),
+        rotationReturnTo:new THREE.Euler(),
+        frontBaseRotation: front.rotation.x,
+        frontBasePosition: front.position.clone(),
+        frontReturnFrom:front.rotation.x,
+        frontReturnTo:front.rotation.x
       };
       return g;
     }
@@ -254,149 +292,68 @@
     const introDur=3000, scatterDur=2000;
     let startTime = performance.now();
 
-    // grid overlay setup
+    // backdrop overlay setup
     const overlay = document.getElementById('overlay');
-    const gridContainer=document.getElementById('gridContainer');
-    const grid=document.getElementById('grid');
-    const viewport=document.getElementById('viewport');
-    const cols=80, rows=45, gap=1;
-    for(let i=0;i<cols*rows;i++){ const c=document.createElement('div'); c.className='cell'; grid.appendChild(c); }
-    function getSizes(){ const cell=grid.querySelector('.cell'); const rect=cell.getBoundingClientRect(); return {size:rect.width, step:rect.width+gap}; }
-    let currentFolder=null, key='', items=[]; let offsetX=0, offsetY=0; let lastLayout=null;
+    const backButton = document.getElementById('backButton');
+    const projectTitle = document.getElementById('projectTitle');
+    const projectCopy = document.getElementById('projectCopy');
+    const folderDescriptions = {
+      en: {
+        Ads: 'CAMPAIGNS, PACKSHOTS, STORE REVEALS OR PRODUCT SPOTS — HIGH-ENERGY VISUALS DESIGNED TO LAND THE MESSAGE IN SECONDS.',
+        Zines: 'PRINTED STORIES, VISUAL ESSAYS AND COLLECTIBLE EDITORIALS — CUSTOM TYPE, GRID SYSTEMS AND TACTILE TEXTURES INCLUDED.',
+        'Music Videos': 'FROM TREATMENT TO FINAL GRADE — FAST-CUT WORLDS, LIVE ENERGY, CGI LAYERS AND IMMERSIVE CAMERA MOVES FOR ARTISTS AND BANDS.',
+        Events: 'TOUR RECAPS, CLUB AFTERMOVIES, CONFERENCE REBRANDS — DOCUMENTING THE ATMOSPHERE AND SHAPING THE EXPERIENCE END TO END.',
+        'General Design': 'BRAND SYSTEMS, DIGITAL PRODUCTS AND DAILY VISUAL LABS — MODULAR DESIGN THAT TRANSLATES ACROSS EVERY MEDIUM.'
+      },
+      fr: {
+        Ads: 'CAMPAGNES, PACKSHOTS, INAUGURATIONS DE BOUTIQUES OU SPOTS PRODUIT — VISUELS HAUTE ENERGIE QUI TRANSMETTENT LE MESSAGE EN QUELQUES SECONDES.',
+        Zines: 'RECITS IMPRIMES, ESSAIS VISUELS ET EDITIONS DE COLLECTION — TYPO SUR MESURE, SYSTEMES DE GRILLES ET TEXTURES TACTILES INCLUS.',
+        'Music Videos': 'DU TRAITEMENT AU MASTER FINAL — UNIVERS RYTHMES, ENERGIE LIVE, COUCHES CGI ET MOUVEMENTS IMMERSIFS POUR ARTISTES ET GROUPES.',
+        Events: 'AFTERMOVIES, TOURS, CONFERENCES — CAPTER L’ATMOSPHERE ET FACONNER L’EXPERIENCE DE BOUT EN BOUT.',
+        'General Design': 'SYSTEMES DE MARQUE, PRODUITS DIGITAUX ET LABOS VISUELS QUOTIDIENS — DESIGN MODULAIRE QUI S’ADAPTE A TOUS LES SUPPORTS.'
+      }
+    };
+    function currentLang(){
+      try { return parent.document.documentElement.lang || 'en'; }
+      catch (err) { return 'en'; }
+    }
+    function resolveCopy(name){
+      const lang = currentLang();
+      const table = folderDescriptions[lang] || folderDescriptions.en;
+      return (table && table[name]) || folderDescriptions.en[name] || '';
+    }
     let selectedName = null;
-    function applyTransform(){
-      const {step} = getSizes();
-      gridContainer.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-      gridContainer.style.setProperty('--extra-bg', '0px');
+    function showBackdrop(name){
+      selectedName = name;
+      overlay.classList.add('show');
+      requestAnimationFrame(()=>overlay.classList.add('visible'));
+      labelsContainer.classList.add('hidden');
+      setupInteractiveText(name.toUpperCase());
+      projectCopy.textContent = resolveCopy(name);
+      sceneWrap.classList.remove('masked');
+      parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true }, '*');
     }
-    function render(){
-      const {size,step}=getSizes();
-      gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
-      items.forEach((item,i)=>{
-        const col=Math.min(Math.max(0,item.col),cols-item.cols);
-        const row=Math.min(Math.max(0,item.row),rows-item.rows);
-        const w=item.cols*size+(item.cols-1)*gap;
-        const h=item.rows*size+(item.rows-1)*gap;
-        const wrap=document.createElement('div');
-        wrap.className='placed';
-        wrap.style.zIndex=i+1;
-        wrap.style.left=`${col*step}px`;
-        wrap.style.top=`${row*step}px`;
-        wrap.style.width=`${w}px`;
-        wrap.style.height=`${h}px`;
-        let media;
-        if(item.type==='text'){
-          wrap.style.background = '#faf8e5';
-          media=document.createElement('div');
-          media.className='text-item';
-          media.textContent=item.text||'';
-          wrap.dataset.fontScale=item.fontScale||1;
-          wrap.dataset.fontWeight=item.fontWeight||400;
-          const upd=()=>{
-            const {size:sz}=getSizes();
-            const scale=parseFloat(wrap.dataset.fontScale);
-            const wght=parseInt(wrap.dataset.fontWeight);
-            media.style.fontSize=`${sz*scale}px`;
-            media.style.lineHeight=`${sz*scale}px`;
-            media.style.fontVariationSettings=`'wght' ${wght}`;
-          };
-          upd();
-          window.addEventListener('resize', upd);
-        } else {
-          const tag=/(mp4|webm)$/i.test(item.src)?'video':'img';
-          media=document.createElement(tag);
-          if(media.tagName==='VIDEO'){
-            media.controls=false; media.autoplay=true; media.loop=true; media.muted=true; media.playsInline=true;
-          }
-          media.src=item.src;
-        }
-        wrap.appendChild(media);
-        gridContainer.appendChild(wrap);
-        if(item.type!=='text') attachBitmapHold(wrap, media);
-      });
+    function hideBackdrop(){
+      const wasShown = overlay.classList.contains('show');
+      if(wasShown){
+        overlay.classList.remove('visible');
+        overlay.addEventListener('transitionend', () => overlay.classList.remove('show'), { once: true });
+      }
+      else {
+        overlay.classList.remove('show');
+      }
+      labelsContainer.classList.remove('hidden');
+      selectedName = null;
+      sceneWrap.classList.add('masked');
+      parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false }, '*');
     }
-    function loadLayout(name){ key=`layout_${name}`; const raw=localStorage.getItem(key); items=raw?JSON.parse(raw):[]; lastLayout=raw; render(); }
-    let panDirX=0, panDirY=0, panVX=0, panVY=0;
-    const margin=120;
-    viewport.addEventListener('mousemove',e=>{
-      const rect=viewport.getBoundingClientRect();
-      panDirX = (e.clientX-rect.left<margin) ? 1 : (rect.right-e.clientX<margin? -1:0);
-      panDirY = (e.clientY-rect.top<margin) ? 1 : (rect.bottom-e.clientY<margin? -1:0);
+    backButton.addEventListener('click', e => {
+      e.stopPropagation();
+      closeActive();
     });
-    function panStep(){
-      const {size,step}=getSizes();
-      const gridW=cols*size+(cols-1)*gap;
-      const gridH=rows*size+(rows-1)*gap;
-      const maxX=Math.max(0,(gridW-viewport.clientWidth)/2 - step*2);
-      const maxY=Math.max(0,(gridH-viewport.clientHeight)/2 - step*2);
-      const accel=step/10;
-      panVX += panDirX*accel;
-      panVY += panDirY*accel;
-      panVX *= 0.85; panVY *= 0.85;
-      offsetX = Math.max(-maxX, Math.min(maxX, offsetX + panVX));
-      offsetY = Math.max(-maxY, Math.min(maxY, offsetY + panVY));
-      applyTransform();
-      requestAnimationFrame(panStep);
-    }
-    panStep();
-    window.addEventListener('storage',e=>{ if(e.key===key){ items=e.newValue?JSON.parse(e.newValue):[]; render(); }});
-    setInterval(()=>{ const cur=localStorage.getItem(key); if(cur!==lastLayout){ lastLayout=cur; items=cur?JSON.parse(cur):[]; render(); } },1000);
-
-    function attachBitmapHold(wrap, media){
-      if(!(media.tagName==='VIDEO' || media.tagName==='IMG')) return;
-      let timer=null, state=null;
-      const startBitmap=()=>{
-        const canvas=document.createElement('canvas');
-        const ctx=canvas.getContext('2d');
-        canvas.width=media.videoWidth||media.naturalWidth||wrap.offsetWidth;
-        canvas.height=media.videoHeight||media.naturalHeight||wrap.offsetHeight;
-        canvas.style.width='100%';
-        canvas.style.height='100%';
-        wrap.appendChild(canvas);
-        media.style.display='none';
-        const fps=12,pixelSize=10,maxRadius=pixelSize*0.45;
-        function draw(){
-          const cols=Math.floor(canvas.width/pixelSize);
-          const rows=Math.floor(canvas.height/pixelSize);
-          const off=document.createElement('canvas');
-          off.width=cols; off.height=rows;
-          off.getContext('2d').drawImage(media,0,0,cols,rows);
-          const data=off.getContext('2d').getImageData(0,0,cols,rows).data;
-          ctx.fillStyle='#fff';
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          for(let y=0;y<rows;y++){
-            for(let x=0;x<cols;x++){
-              const i=(y*cols+x)*4;
-              const br=(data[i]+data[i+1]+data[i+2])/(3*255);
-              const rad=(1-br)*maxRadius;
-              const cx=x*pixelSize+pixelSize/2;
-              const cy=y*pixelSize+pixelSize/2;
-              ctx.fillStyle='#1449ff';
-              ctx.beginPath();
-              ctx.arc(cx,cy,rad,0,Math.PI*2);
-              ctx.fill();
-            }
-          }
-        }
-        draw();
-        const interval=setInterval(draw,1000/fps);
-        state={canvas,interval};
-      };
-      const stopBitmap=()=>{
-        if(!state) return;
-        clearInterval(state.interval); state.canvas.remove();
-        media.style.display='';
-        state=null;
-      };
-      wrap.addEventListener('mousedown',e=>{
-        if(e.button!==0) return;
-        timer=setTimeout(()=>{ if(state) stopBitmap(); else startBitmap(); },2000);
-      });
-      ['mouseup','mouseleave'].forEach(ev=>wrap.addEventListener(ev,()=>clearTimeout(timer)));
-    }
 
     function setupInteractiveText(text){
-      const C = document.querySelector('#rightBox .interactive-text');
+      const C = document.getElementById('projectTitle');
       if(!C) return;
       const hoverScale=1.8, neighborScale=1.2,
             normalWght=400, neighborWght=600, hoverWght=900;
@@ -461,26 +418,6 @@
       });
     }
 
-    function showGrid(name){
-      currentFolder = name;
-      selectedName = name.toUpperCase();
-      overlay.classList.add('show');
-      requestAnimationFrame(()=>overlay.classList.add('visible'));
-      labelsContainer.classList.add('hidden');
-      setupInteractiveText(name);
-      loadLayout(name);
-      sceneWrap.classList.remove('masked');
-      parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true }, '*');
-    }
-    function hideGrid(){
-      overlay.classList.remove('visible');
-      overlay.addEventListener('transitionend', () => overlay.classList.remove('show'), { once: true });
-      labelsContainer.classList.remove('hidden');
-      selectedName = null;
-      sceneWrap.classList.add('masked');
-      parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false }, '*');
-    }
-
     function closeActive(){
       const f = folders.find(o=>o.userData.focused);
       if(!f) return;
@@ -491,8 +428,13 @@
       ud.returnTo.copy(ud.startPos);
       ud.scaleReturnFrom.copy(f.scale);
       ud.scaleReturnTo.copy(ud.startScale);
+      ud.rotationReturnFrom.copy(f.rotation);
+      ud.rotationReturnTo.copy(ud.startRotation);
+      ud.frontReturnFrom = ud.front.rotation.x;
+      ud.backdropShown = false;
+      ud.openStart = 0;
       glass.classList.remove('visible');
-      hideGrid();
+      hideBackdrop();
     }
 
     // click behavior
@@ -509,10 +451,15 @@
         ud.clickStart = performance.now();
         ud.startPos.copy(f.position);
         ud.startScale.copy(f.scale);
-        ud.targetPos.set(-5.7,3.5,8);
-        ud.targetScale.set(0.6,0.6,0.6);
+        ud.startRotation.copy(f.rotation);
+        ud.rotationReturnTo.copy(ud.startRotation);
+        ud.targetPos.set(0,0,6);
+        ud.targetScale.set(3.8,3.8,3.8);
+        ud.targetRotation.set(0,0,0);
+        ud.openStart = 0;
+        ud.backdropShown = false;
+        ud.frontReturnTo = ud.frontBaseRotation;
         glass.classList.add('visible');
-        showGrid(ud.name);
       } else {
         ud.returning = true;
         ud.returnStart = performance.now();
@@ -520,8 +467,14 @@
         ud.returnTo.copy(ud.startPos);
         ud.scaleReturnFrom.copy(f.scale);
         ud.scaleReturnTo.copy(ud.startScale);
+        ud.rotationReturnFrom.copy(f.rotation);
+        ud.rotationReturnTo.copy(ud.startRotation);
+        ud.frontReturnFrom = ud.front.rotation.x;
+        ud.frontReturnTo = ud.frontBaseRotation;
+        ud.backdropShown = false;
+        ud.openStart = 0;
         glass.classList.remove('visible');
-        hideGrid();
+        hideBackdrop();
       }
     });
 
@@ -588,18 +541,56 @@
           }
           if(ud.returning){
             const t = Math.min((now-ud.returnStart)/ud.returnDuration,1);
-            f.position.lerpVectors(ud.returnFrom, ud.returnTo, ease(t));
-            f.scale.lerpVectors(ud.scaleReturnFrom, ud.scaleReturnTo, ease(t));
-            if(t>=1){ ud.returning=false; ud.focused=false; }
+            const eased = ease(t);
+            f.position.lerpVectors(ud.returnFrom, ud.returnTo, eased);
+            f.scale.lerpVectors(ud.scaleReturnFrom, ud.scaleReturnTo, eased);
+            f.rotation.set(
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.x, ud.rotationReturnTo.x, eased),
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.y, ud.rotationReturnTo.y, eased),
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.z, ud.rotationReturnTo.z, eased)
+            );
+            ud.front.rotation.x += (ud.frontReturnTo - ud.front.rotation.x)*0.2;
+            ud.front.position.y += (ud.frontBasePosition.y - ud.front.position.y)*0.2;
+            if(t>=1){
+              ud.returning=false;
+              ud.focused=false;
+              f.rotation.copy(ud.rotationReturnTo);
+              ud.front.rotation.x = ud.frontBaseRotation;
+              ud.front.position.copy(ud.frontBasePosition);
+            }
             return;
           }
           if(ud.focused){
             const t = Math.min((now-ud.clickStart)/ud.duration,1);
-            f.position.lerpVectors(ud.startPos, ud.targetPos, ease(t));
-            f.scale.lerpVectors(ud.startScale, ud.targetScale, ease(t));
+            const eased = ease(t);
+            f.position.lerpVectors(ud.startPos, ud.targetPos, eased);
+            f.scale.lerpVectors(ud.startScale, ud.targetScale, eased);
+            f.rotation.set(
+              THREE.MathUtils.lerp(ud.startRotation.x, ud.targetRotation.x, eased),
+              THREE.MathUtils.lerp(ud.startRotation.y, ud.targetRotation.y, eased),
+              THREE.MathUtils.lerp(ud.startRotation.z, ud.targetRotation.z, eased)
+            );
             if(t>=1){
+              if(!ud.openStart) ud.openStart = now;
+              const openT = Math.min((now-ud.openStart)/ud.openDuration,1);
+              const openEase = ease(openT);
               const bob = Math.sin(now/800)*0.1;
               f.position.y = ud.targetPos.y + bob;
+              const flatZ = THREE.MathUtils.lerp(ud.targetScale.z, ud.targetScale.z*0.22, openEase);
+              f.scale.x += (ud.targetScale.x - f.scale.x)*0.2;
+              f.scale.y += (ud.targetScale.y - f.scale.y)*0.2;
+              f.scale.z += (flatZ - f.scale.z)*0.2;
+              const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, -Math.PI*0.85, openEase);
+              ud.front.rotation.x += (lidRot - ud.front.rotation.x)*0.2;
+              const lidPosY = THREE.MathUtils.lerp(ud.frontBasePosition.y, ud.frontBasePosition.y + 0.4, openEase);
+              ud.front.position.y += (lidPosY - ud.front.position.y)*0.2;
+              if(openEase>0.6 && !ud.backdropShown){
+                ud.backdropShown = true;
+                showBackdrop(ud.name);
+              }
+            } else {
+              ud.front.rotation.x += (ud.frontBaseRotation - ud.front.rotation.x)*0.2;
+              ud.front.position.y += (ud.frontBasePosition.y - ud.front.position.y)*0.2;
             }
             return;
           }
