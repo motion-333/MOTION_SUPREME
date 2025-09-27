@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" class="i18n-loading">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="mobileTitle">Mobile</title>
+  <style>
+    @font-face { font-family: 'Ferrite Display'; src: url('/static/FERRITEDISPLAYVF.ttf') format('truetype'); }
+    html, body { margin:0; padding:0; width:100vw; height:100vh; overflow:hidden; background:transparent; font-family:'Ferrite Display', sans-serif; }
+    #topo-bg { position:fixed; top:0; left:0; width:100%; height:100%; border:none; z-index:-1; pointer-events:none; }
+    #lang-toggle { position:fixed; top:10px; left:10px; border:3px solid blue; background:transparent; padding:5px 10px; cursor:pointer; z-index:1000; color:#1449ff; font-size:32px; font-weight:700; visibility:hidden; }
+    .message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; text-align:center; font-size:2vw; color:#1449ff; text-transform:uppercase; line-height:1.6; padding:0 5vw; box-sizing:border-box; user-select:none; visibility:hidden; }
+    .i18n-loading [data-i18n], .i18n-loading #lang-toggle, .i18n-loading .message { visibility:hidden; }
+  </style>
+</head>
+<body>
+  <iframe id="topo-bg" src="topo.html" scrolling="no" loading="eager" title="Topographic background"></iframe>
+  <button id="lang-toggle">FR</button>
+  <div class="message" data-i18n="mobileMessage"></div>
+
+  <script>
+    document.documentElement.classList.add('i18n-loading');
+    document.addEventListener('DOMContentLoaded', function() {
+      var translations = {};
+      var messageEl = document.querySelector('.message');
+      var toggleEl = document.getElementById('lang-toggle');
+
+      // Helper to wrap text into spans
+      function wrapText(el, text) {
+        el.innerHTML = '';
+        var chars = text.split('');
+        for (var i = 0; i < chars.length; i++) {
+          var span = document.createElement('span');
+          span.textContent = '';
+          span.setAttribute('data-char', chars[i]);
+          el.appendChild(span);
+        }
+      }
+      // Type effect
+      function typeText(el, speed, cb) {
+        speed = typeof speed === 'number' ? speed : 50;
+        var spans = Array.prototype.slice.call(el.children);
+        var i = 0;
+        var iv = setInterval(function() {
+          if (i < spans.length) {
+            spans[i].textContent = spans[i].getAttribute('data-char');
+            i++;
+          } else {
+            clearInterval(iv);
+            if (typeof cb === 'function') cb();
+          }
+        }, speed);
+      }
+
+      // Load translations
+      fetch('lang.json')
+        .then(function(r) { return r.json(); })
+        .then(function(json) {
+          translations = json;
+          var saved = localStorage.getItem('lang');
+          var lang = saved === 'fr' ? 'fr' : 'en';
+          // prepare message
+          var msg = translations[lang] && translations[lang].mobileMessage ? translations[lang].mobileMessage : '';
+          wrapText(messageEl, msg);
+          // set toggle label
+          toggleEl.textContent = lang === 'en' ? 'FR' : 'ENG';
+          document.documentElement.lang = lang;
+          // reveal button
+          toggleEl.style.visibility = 'visible';
+          // after short delay type message
+          setTimeout(function() {
+            messageEl.style.visibility = 'visible';
+            typeText(messageEl, 50);
+          }, 500);
+          document.documentElement.classList.remove('i18n-loading');
+        }).catch(function(err) { console.error(err); });
+
+      // Toggle click
+      toggleEl.addEventListener('click', function() {
+        var current = document.documentElement.lang;
+        var next = current === 'fr' ? 'en' : 'fr';
+        localStorage.setItem('lang', next);
+        // reset and retype
+        var msg = translations[next] && translations[next].mobileMessage ? translations[next].mobileMessage : '';
+        wrapText(messageEl, msg);
+        messageEl.style.visibility = 'visible';
+        typeText(messageEl, 50);
+        toggleEl.textContent = next === 'en' ? 'FR' : 'ENG';
+        document.documentElement.lang = next;
+      });
+    });
+  </script>
+</body>
+</html>
+
