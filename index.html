@@ -653,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- CONTACT TEXT TYPING ---
   const altOptions = ['+33635942106', '@MOTION.333'];
-  let altIndex = 0, lastSwapTime = 0, contactTyped = false;
+  let altIndex = 0, lastSwapTime = 0, contactTyped = false, contactTypingStarted = false;
   function typeContactText(text, container, cb) {
     container.textContent = '';
     let idx = 0;
@@ -665,11 +665,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 50);
   }
-  typeContactText('CONTACT@MOTION333.COM', contactText, () => {
-    contactTyped = true;
-    descriptionText.style.visibility = 'visible';
-    typeContactText('Multi-Disciplinary Artist, specialized in:', descriptionText);
-  });
+  function startContactTyping() {
+    if (contactTypingStarted) return;
+    contactTypingStarted = true;
+    typeContactText('CONTACT@MOTION333.COM', contactText, () => {
+      contactTyped = true;
+      descriptionText.style.visibility = 'visible';
+      typeContactText('Multi-Disciplinary Artist, specialized in:', descriptionText);
+    });
+  }
+  startContactTyping();
   contactText.style.pointerEvents = 'auto';
   contactText.addEventListener('mouseenter', () => {
     if (!contactTyped) return;
@@ -994,7 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="copyright" data-i18n="copyright">© Don't steal my shit pls</div>
 
 <script>
-  window.FOLDER_NAMES = ["Ads", "Music Videos", "Events", "Graphics", "Zines", "Web"];
+  window.FOLDER_NAMES = ["Ads", "Music Videos", "Zines", "Events", "Graphics"];
   const iframe = document.querySelector('iframe[src="orbit_inner.html"]');
 
   function sendFolders() {
