@@ -51,16 +51,18 @@
       position: absolute;
       transform: translate(-50%, 0);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      text-shadow: 0 0 6px rgba(255,255,255,0.75);
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      font-variation-settings: 'wght' 780;
+      text-shadow: 0 0 3px rgba(20,73,255,0.16), 0 0 7px rgba(255,255,255,0.65);
       transition: opacity 0.3s ease;
-      opacity: 0.82;
+      opacity: 0.9;
       white-space: nowrap;
       font-size: clamp(0.5rem, 0.9vw, 0.95rem);
     }
     .label.selected {
       opacity: 1;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.08em;
     }
   </style>
 </head>
@@ -91,12 +93,12 @@
     const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 16;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.88);
     scene.add(ambient);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.22);
-    dirLight.position.set(0, 0, 4);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.12);
+    dirLight.position.set(0, 0.5, 6);
     scene.add(dirLight);
-    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.18);
+    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.12);
     rimLight.position.set(-6, 3.5, -6);
     scene.add(rimLight);
 
@@ -117,11 +119,11 @@
     let alignActivatedAt = 0;
     let alignIntroDone = false;
     const alignDuration = 1000;
-    const alignSpacing = 3.8;
-    const alignTopY = 5.5;
-    const selectedScale = 1.4;
-    const neighbourScale = 1.03;
-    const farScale = 0.8;
+    const alignSpacing = 4.35;
+    const alignTopY = 6.2;
+    const selectedScale = 1.58;
+    const neighbourScale = 1.22;
+    const farScale = 1.02;
     const baseAlignTilt = THREE.MathUtils.degToRad(-8);
 
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
@@ -207,7 +209,8 @@
       back.position.set(0, 0.05, -0.015);
       back.receiveShadow = true;
       g.add(back);
-      g.scale.set(0.9, 0.9, 0.9);
+      const baseScale = 1.05;
+      g.scale.set(baseScale, baseScale, baseScale);
 
       const lipShape = new THREE.Shape();
       lipShape.moveTo(-1.25, 0)
@@ -264,7 +267,9 @@
         alignFromRot: null,
         orbitAnchor: new THREE.Vector3(),
         lastAlignPos: new THREE.Vector3(),
-        twist: { y: 0, z: 0 }
+        twist: { y: 0, z: 0 },
+        loopShift: 0,
+        baseScale
       };
       return g;
     }
@@ -356,8 +361,8 @@
       });
     }
 
-    function initFolders(names) {
-      const list = names && names.length ? names : DEFAULT_FOLDERS;
+    function initFolders() {
+      const list = DEFAULT_FOLDERS;
       folders.forEach(f => scene.remove(f));
       folders.length = 0;
       labelsContainer.innerHTML = '';
@@ -432,6 +437,9 @@
         ud.alignFromScale = f.scale.clone();
         ud.alignFromRot = f.rotation.clone();
         ud.lastAlignPos.copy(f.position);
+        if (stagger) {
+          ud.loopShift = 0;
+        }
       });
     }
 
@@ -446,7 +454,8 @@
         ud.returnFrom.copy(f.position);
         ud.returnTo.copy(ud.orbitAnchor);
         ud.scaleReturnFrom.copy(f.scale);
-        ud.scaleReturnTo.set(0.9, 0.9, 0.9);
+        const base = ud.baseScale || 1.05;
+        ud.scaleReturnTo.set(base, base, base);
       });
       selectedIndex = -1;
       targetSelection = 0;
@@ -461,7 +470,7 @@
         const f = folders[i];
         const v = f.position.clone().project(camera);
         const x = (v.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-v.y * 0.5 + 0.5) * window.innerHeight + 10;
+        const y = (-v.y * 0.5 + 0.5) * window.innerHeight + 8;
         lbl.style.left = `${x}px`;
         lbl.style.top = `${y}px`;
         if (normalized >= 0 && i === normalized) lbl.classList.add('selected');
@@ -479,7 +488,7 @@
 
       if (mode === 'align') {
         magnetized = null;
-        dirLight.position.lerp(new THREE.Vector3(0, 2.5, 12), 0.06);
+        dirLight.position.lerp(new THREE.Vector3(0, 3.5, 14), 0.08);
         currentSelection += (targetSelection - currentSelection) * 0.08;
         const len = folders.length || 1;
         const selectedRounded = wrapIndex(Math.round(currentSelection));
@@ -490,12 +499,27 @@
           const t = THREE.MathUtils.clamp((now - start) / alignDuration, 0, 1);
           if (t < 1) allComplete = false;
           const tt = alignEase(t);
-          const offset = circularOffset(i, currentSelection, len);
-          const targetX = offset * alignSpacing;
-          const depth = Math.abs(offset);
-          const targetY = alignTopY - Math.min(depth, 2) * 0.22 + Math.sin(now / 1400 + i) * 0.06;
-          const targetZ = depth * 0.12;
-          const targetScaleValue = depth < 0.5 ? selectedScale : (depth < 1.5 ? neighbourScale : farScale);
+          const rawOffset = i - currentSelection;
+          const prevX = ud.lastAlignPos.x;
+          let loopBase = rawOffset + (ud.loopShift || 0);
+          let targetX = loopBase * alignSpacing;
+          const span = alignSpacing * len;
+          if (!Number.isFinite(prevX)) {
+            ud.lastAlignPos.x = targetX;
+          }
+          if (prevX - targetX > span * 0.5) {
+            ud.loopShift += 1;
+            loopBase = rawOffset + ud.loopShift;
+            targetX = loopBase * alignSpacing;
+          } else if (targetX - prevX > span * 0.5) {
+            ud.loopShift -= 1;
+            loopBase = rawOffset + ud.loopShift;
+            targetX = loopBase * alignSpacing;
+          }
+          const visualDepth = Math.abs(rawOffset);
+          const targetY = alignTopY - Math.min(visualDepth, 2) * 0.22 + Math.sin(now / 1400 + i) * 0.06;
+          const targetZ = visualDepth * 0.12;
+          const targetScaleValue = visualDepth < 0.5 ? selectedScale : (visualDepth < 1.5 ? neighbourScale : farScale);
           if (!ud.alignFrom) {
             ud.alignFrom = f.position.clone();
             ud.alignFromScale = f.scale.clone();
@@ -522,17 +546,17 @@
           alignIntroDone = true;
         }
         if (alignIntroDone && edgeHover.dir !== 0 && folders.length > 1) {
-          edgeHover.accumulator += edgeHover.strength * dt / 520;
+          edgeHover.accumulator += edgeHover.strength * dt / 760;
           if (edgeHover.accumulator >= 1) {
             const next = selectedIndex + edgeHover.dir;
             setTargetSelection(next, edgeHover.dir);
-            edgeHover.accumulator = 0.1;
+            edgeHover.accumulator = 0.4;
           }
         }
         updateLabels(selectedRounded);
         drawNetwork(dt);
       } else {
-        dirLight.position.lerp(new THREE.Vector3(0, 0, 5.5), 0.04);
+        dirLight.position.lerp(new THREE.Vector3(0, 0.2, 6.5), 0.06);
         const dtTotal = now - startTime;
         const activeFolder = null;
         if (dtTotal < introDur) {
@@ -661,11 +685,11 @@
 
     window.addEventListener('message', e => {
       if (e.data && Array.isArray(e.data.folders)) {
-        initFolders(e.data.folders);
+        initFolders();
       }
     });
 
-    initFolders(DEFAULT_FOLDERS);
+    initFolders();
     parent.postMessage({ requestFolders: true }, '*');
   </script>
 </body>
