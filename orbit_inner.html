@@ -51,17 +51,16 @@
       position: absolute;
       transform: translate(-50%, 0);
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      text-shadow: 0 0 6px rgba(255,255,255,0.85);
-      transition: transform 0.4s ease, opacity 0.4s ease;
-      opacity: 0.9;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 6px rgba(255,255,255,0.75);
+      transition: opacity 0.3s ease;
+      opacity: 0.82;
       white-space: nowrap;
-      font-size: clamp(0.65rem, 1.2vw, 1.25rem);
+      font-size: clamp(0.5rem, 0.9vw, 0.95rem);
     }
     .label.selected {
       opacity: 1;
-      letter-spacing: 0.22em;
-      transform: translate(-50%, 0) scale(1.12);
+      letter-spacing: 0.1em;
     }
   </style>
 </head>
@@ -75,7 +74,7 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
+    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -119,10 +118,11 @@
     let alignIntroDone = false;
     const alignDuration = 1000;
     const alignSpacing = 3.8;
-    const alignTopY = 4.6;
+    const alignTopY = 5.5;
     const selectedScale = 1.4;
-    const neighbourScale = 1.05;
-    const farScale = 0.82;
+    const neighbourScale = 1.03;
+    const farScale = 0.8;
+    const baseAlignTilt = THREE.MathUtils.degToRad(-8);
 
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
     const orbitEase = alignEase;
@@ -168,7 +168,7 @@
         } else {
           edgeHover.dir = 0;
           edgeHover.strength = 0;
-          edgeHover.accumulator = Math.max(0, edgeHover.accumulator - 0.01);
+          edgeHover.accumulator = Math.max(0, edgeHover.accumulator - 0.015);
         }
       }
     });
@@ -262,9 +262,43 @@
         alignFrom: null,
         alignFromScale: null,
         alignFromRot: null,
-        orbitAnchor: new THREE.Vector3()
+        orbitAnchor: new THREE.Vector3(),
+        lastAlignPos: new THREE.Vector3(),
+        twist: { y: 0, z: 0 }
       };
       return g;
+    }
+
+    const modFloat = (n, m) => ((n % m) + m) % m;
+
+    function wrapIndex(idx) {
+      const len = folders.length || 1;
+      return ((idx % len) + len) % len;
+    }
+
+    function setTargetSelection(index, directionHint = 0) {
+      if (!folders.length) return;
+      const len = folders.length;
+      const normalizedTarget = wrapIndex(index);
+      const currentWrapped = modFloat(currentSelection, len);
+      let delta = normalizedTarget - currentWrapped;
+      if (directionHint > 0 && delta < 0) delta += len;
+      else if (directionHint < 0 && delta > 0) delta -= len;
+      else {
+        if (delta > len / 2) delta -= len;
+        if (delta < -len / 2) delta += len;
+      }
+      targetSelection = currentSelection + delta;
+      selectedIndex = normalizedTarget;
+      prepareAlignTargets(false);
+      rebuildNetwork();
+    }
+
+    function circularOffset(index, center, length) {
+      if (!length) return 0;
+      let diff = index - center;
+      diff = modFloat(diff + length / 2, length) - length / 2;
+      return diff;
     }
 
     function rebuildNetwork() {
@@ -361,17 +395,14 @@
       if (idx === -1) return;
       if (mode === 'orbit') {
         selectedIndex = idx;
-        targetSelection = idx;
         currentSelection = idx;
+        targetSelection = idx;
         enterAlign();
       } else {
         if (idx === selectedIndex) {
           exitAlign();
         } else {
-          selectedIndex = idx;
-          targetSelection = idx;
-          prepareAlignTargets();
-          rebuildNetwork();
+          setTargetSelection(idx, 0);
         }
       }
     });
@@ -380,26 +411,27 @@
       mode = 'align';
       alignActivatedAt = performance.now();
       alignIntroDone = false;
-      folders.forEach((f, i) => {
+      folders.forEach(f => {
         const ud = f.userData;
-        ud.alignDelay = Math.abs(i - selectedIndex) * 160;
-        ud.alignFrom = f.position.clone();
-        ud.alignFromScale = f.scale.clone();
-        ud.alignFromRot = f.rotation.clone();
         ud.orbitAnchor.copy(f.position);
+        ud.lastAlignPos.copy(f.position);
       });
+      prepareAlignTargets(true);
       rebuildNetwork();
       networkCanvas.classList.add('visible');
     }
 
-    function prepareAlignTargets() {
+    function prepareAlignTargets(stagger = false) {
       alignActivatedAt = performance.now();
+      const len = folders.length || 1;
       folders.forEach((f, i) => {
         const ud = f.userData;
-        ud.alignDelay = Math.abs(i - selectedIndex) * 160;
+        const delayFactor = stagger ? Math.abs(circularOffset(i, selectedIndex, len)) : 0;
+        ud.alignDelay = delayFactor * 140;
         ud.alignFrom = f.position.clone();
         ud.alignFromScale = f.scale.clone();
         ud.alignFromRot = f.rotation.clone();
+        ud.lastAlignPos.copy(f.position);
       });
     }
 
@@ -422,6 +454,8 @@
     }
 
     function updateLabels(selectedRounded) {
+      const len = folders.length;
+      const normalized = len > 0 && selectedRounded >= 0 ? wrapIndex(selectedRounded) : selectedRounded;
       labels.forEach((lbl, i) => {
         if (!folders[i]) return;
         const f = folders[i];
@@ -430,13 +464,9 @@
         const y = (-v.y * 0.5 + 0.5) * window.innerHeight + 10;
         lbl.style.left = `${x}px`;
         lbl.style.top = `${y}px`;
-        if (i === selectedRounded) lbl.classList.add('selected');
+        if (normalized >= 0 && i === normalized) lbl.classList.add('selected');
         else lbl.classList.remove('selected');
       });
-    }
-
-    function clampIndex(idx) {
-      return Math.max(0, Math.min(folders.length - 1, idx));
     }
 
     let lastTime = performance.now();
@@ -449,10 +479,10 @@
 
       if (mode === 'align') {
         magnetized = null;
-        const roundedSelection = Math.round(currentSelection);
         dirLight.position.lerp(new THREE.Vector3(0, 2.5, 12), 0.06);
         currentSelection += (targetSelection - currentSelection) * 0.08;
-        const selectedRounded = Math.round(currentSelection);
+        const len = folders.length || 1;
+        const selectedRounded = wrapIndex(Math.round(currentSelection));
         let allComplete = true;
         folders.forEach((f, i) => {
           const ud = f.userData;
@@ -460,9 +490,10 @@
           const t = THREE.MathUtils.clamp((now - start) / alignDuration, 0, 1);
           if (t < 1) allComplete = false;
           const tt = alignEase(t);
-          const targetX = (i - currentSelection) * alignSpacing;
-          const depth = Math.abs(i - currentSelection);
-          const targetY = alignTopY - Math.min(depth, 2) * 0.25 + Math.sin(now / 1200 + i) * 0.08;
+          const offset = circularOffset(i, currentSelection, len);
+          const targetX = offset * alignSpacing;
+          const depth = Math.abs(offset);
+          const targetY = alignTopY - Math.min(depth, 2) * 0.22 + Math.sin(now / 1400 + i) * 0.06;
           const targetZ = depth * 0.12;
           const targetScaleValue = depth < 0.5 ? selectedScale : (depth < 1.5 ? neighbourScale : farScale);
           if (!ud.alignFrom) {
@@ -472,38 +503,33 @@
           }
           const fromPos = ud.alignFrom;
           const targetPos = new THREE.Vector3(targetX, targetY, targetZ);
+          const prevPos = f.position.clone();
           f.position.copy(fromPos.clone().lerp(targetPos, tt));
           const targetScale = new THREE.Vector3(targetScaleValue, targetScaleValue, targetScaleValue);
           const fromScale = ud.alignFromScale || new THREE.Vector3().copy(f.scale);
           f.scale.copy(fromScale.clone().lerp(targetScale, tt));
-          const rotTarget = {
-            x: THREE.MathUtils.degToRad(-6 + Math.sin(now / 1000 + i) * 2),
-            y: (i - currentSelection) * 0.22,
-            z: (i - currentSelection) * 0.12
-          };
+          const dx = f.position.x - prevPos.x;
+          ud.twist.y += (dx * 0.06 - ud.twist.y) * 0.2;
+          ud.twist.z += (-dx * 0.04 - ud.twist.z) * 0.2;
           const fromRot = ud.alignFromRot || f.rotation.clone();
-          f.rotation.x = THREE.MathUtils.lerp(fromRot.x, rotTarget.x, tt);
-          f.rotation.y = THREE.MathUtils.lerp(fromRot.y, rotTarget.y, tt);
-          f.rotation.z = THREE.MathUtils.lerp(fromRot.z, rotTarget.z, tt);
-          ud.front.rotation.x += (THREE.MathUtils.degToRad(10) - ud.front.rotation.x) * 0.08;
+          const rotTargetX = baseAlignTilt;
+          const rotX = THREE.MathUtils.lerp(fromRot.x, rotTargetX, tt);
+          f.rotation.set(rotX, ud.twist.y, ud.twist.z);
+          ud.front.rotation.x += (THREE.MathUtils.degToRad(9) - ud.front.rotation.x) * 0.08;
+          ud.lastAlignPos.copy(f.position);
         });
         if (!alignIntroDone && allComplete) {
           alignIntroDone = true;
         }
         if (alignIntroDone && edgeHover.dir !== 0 && folders.length > 1) {
-          edgeHover.accumulator += edgeHover.strength * dt / 420;
+          edgeHover.accumulator += edgeHover.strength * dt / 520;
           if (edgeHover.accumulator >= 1) {
-            const next = clampIndex(selectedIndex + edgeHover.dir);
-            if (next !== selectedIndex) {
-              selectedIndex = next;
-              targetSelection = next;
-              prepareAlignTargets();
-              rebuildNetwork();
-            }
-            edgeHover.accumulator = 0.2;
+            const next = selectedIndex + edgeHover.dir;
+            setTargetSelection(next, edgeHover.dir);
+            edgeHover.accumulator = 0.1;
           }
         }
-        updateLabels(Math.round(currentSelection));
+        updateLabels(selectedRounded);
         drawNetwork(dt);
       } else {
         dirLight.position.lerp(new THREE.Vector3(0, 0, 5.5), 0.04);
