@@ -13,7 +13,7 @@
     html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; overflow:hidden; cursor:default; }
     /* Top bar removed */
     /* Glass overlay */
-    .glass { position:fixed; top:0; left:0; width:100vw; height:100vh; backdrop-filter:brightness(1); opacity:0; transition:opacity 0.8s ease-in-out; pointer-events:none; z-index:1; }
+    .glass { position:fixed; top:0; left:0; width:100vw; height:100vh; backdrop-filter:blur(14px) brightness(1.1); background:rgba(12,28,90,0.08); opacity:0; transition:opacity 0.6s ease; pointer-events:none; z-index:1; }
     .glass.visible { opacity:1; }
     /* Canvas layers */
     #bgCanvas, #fgCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
@@ -33,93 +33,59 @@
       from { opacity:0.4; }
       to   { opacity:0.8; }
     }
-    /* Backdrop overlay */
-    #overlay {
+    /* Folder UI overlay */
+    #folderUi {
       position:fixed;
-      inset:0;
+      left:50%;
+      top:50%;
       display:flex;
-      align-items:center;
-      justify-content:center;
+      align-items:flex-end;
+      gap:clamp(12px, 3vw, 48px);
       pointer-events:none;
       opacity:0;
-      transition:opacity 0.5s ease;
-      z-index:4;
-      background:rgba(12,28,90,0.1);
+      transform:translate(-60%, -90%);
+      transition:opacity 0.3s ease;
+      z-index:7;
+      color:#1449ff;
+      font-family:'Ferrite', sans-serif;
     }
-    #overlay.show { pointer-events:auto; }
-    #overlay.visible { opacity:1; }
-    #backdrop {
-      position:relative;
-      width:min(92vw, 1200px);
-      height:min(82vh, 720px);
-      background:#faf8e5;
-      border:6px solid #1449ff;
-      box-shadow:0 40px 120px rgba(20,73,255,0.28);
-      display:flex;
-      flex-direction:column;
-      justify-content:flex-start;
-      transform:perspective(1600px) scale(0.7) rotateX(12deg);
-      transition:transform 0.8s cubic-bezier(.22,1,.36,1);
-      overflow:hidden;
+    #folderUi.visible {
+      opacity:1;
+      pointer-events:auto;
     }
-    #overlay.visible #backdrop {
-      transform:perspective(1600px) scale(1) rotateX(0deg);
-    }
-    #backdrop::before {
-      content:"";
-      position:absolute;
-      inset:0;
-      background:linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(250,248,229,0.95) 40%, #faf8e5 100%);
-      pointer-events:none;
-      mix-blend-mode:screen;
-      opacity:0.75;
-    }
-    #backdrop > * { position:relative; z-index:1; }
-    #backButton {
-      align-self:flex-start;
-      margin:24px 24px 12px;
-      width:64px;
-      height:64px;
+    #folderBackButton {
+      width:clamp(52px, 6vw, 72px);
+      height:clamp(52px, 6vw, 72px);
+      border:4px solid #1449ff;
+      background:rgba(250,248,229,0.92);
       display:flex;
       align-items:center;
       justify-content:center;
-      border:4px solid #1449ff;
-      background:transparent;
-      color:#1449ff;
       cursor:pointer;
+      color:#1449ff;
       transition:transform 0.3s ease;
     }
-    #backButton:hover {
+    #folderBackButton:hover {
       transform:translateX(-6px);
     }
-    #backButton svg { width:32px; height:32px; }
-    #projectTitle {
-      margin:0 24px;
-      font-family:'Ferrite', sans-serif;
-      font-size:10vmin;
-      color:#1449ff;
+    #folderBackButton svg { width:60%; height:60%; }
+    #folderTitle.interactive-text {
+      font-size:clamp(32px, 6vw, 96px);
       white-space:nowrap;
-      overflow:hidden;
+      display:flex;
+      align-items:flex-end;
+      gap:0;
     }
-    #projectTitle .letter {
+    #folderTitle .letter {
       display:inline-block;
       overflow:hidden;
-      transition:width 0.3s cubic-bezier(.25,.1,.25,1);
+      transition:width 0.25s cubic-bezier(.25,.1,.25,1);
     }
-    #projectTitle .letter .char {
+    #folderTitle .letter .char {
       display:inline-block;
       transform-origin:left center;
-      transition:transform 0.3s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.3s cubic-bezier(.25,.1,.25,1);
+      transition:transform 0.25s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.25s cubic-bezier(.25,.1,.25,1);
       font-variation-settings:'wght' 400;
-    }
-    #projectCopy {
-      margin:24px 24px 40px;
-      font-family:'Ferrite', sans-serif;
-      font-size:2.2vmin;
-      color:#1449ff;
-      text-transform:uppercase;
-      line-height:1.5;
-      max-width:60ch;
     }
   </style>
 </head>
@@ -131,18 +97,14 @@
     <canvas id="bgCanvas"></canvas>
     <canvas id="fgCanvas"></canvas>
 
-    <!-- moved overlay inside sceneWrap -->
-    <div id="overlay">
-      <div id="backdrop">
-        <button id="backButton" aria-label="Close folder">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M15 5L9 12l6 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
-            <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
-          </svg>
-        </button>
-        <div id="projectTitle" class="interactive-text"></div>
-        <div id="projectCopy"></div>
-      </div>
+    <div id="folderUi">
+      <button id="folderBackButton" aria-label="Close folder">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M14 6 8 12l6 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M20 12H8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+        </svg>
+      </button>
+      <div id="folderTitle" class="interactive-text"></div>
     </div>
 
     <div id="labels"></div>
@@ -189,7 +151,8 @@
     // Raycaster & cursor
     const raycaster = new THREE.Raycaster(),
           mouse = new THREE.Vector2(),
-          cursor3D = new THREE.Vector3();
+          cursor3D = new THREE.Vector3(),
+          tempVec = new THREE.Vector3();
     let targetMouse = {x:0,y:0}, currentMouse = {x:0,y:0}, magnetized = null;
     window.addEventListener('mousemove', e => {
       const nx = (e.clientX/window.innerWidth - 0.5)*2;
@@ -238,6 +201,10 @@
       lip.receiveShadow=true;
       g.add(lip);
 
+      const anchor = new THREE.Object3D();
+      anchor.position.set(-1.2, 2.05, 0.08);
+      g.add(anchor);
+
       const dir = new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0).normalize();
       g.userData = {
         name, front, dir,
@@ -253,7 +220,7 @@
         targetScale:new THREE.Vector3(),
         scaleReturnFrom:new THREE.Vector3(),
         scaleReturnTo:new THREE.Vector3(),
-        openStart:0, openDuration:800, backdropShown:false,
+        openDuration:1000, uiShown:false,
         startRotation:new THREE.Euler(),
         targetRotation:new THREE.Euler(),
         rotationReturnFrom:new THREE.Euler(),
@@ -261,7 +228,8 @@
         frontBaseRotation: front.rotation.x,
         frontBasePosition: front.position.clone(),
         frontReturnFrom:front.rotation.x,
-        frontReturnTo:front.rotation.x
+        frontReturnTo:front.rotation.x,
+        uiAnchor: anchor
       };
       return g;
     }
@@ -271,6 +239,7 @@
 
     function initFolders(names) {
       FOLDER_NAMES = names || FOLDER_NAMES;
+      hideFolderUi();
       folders.forEach(f => scene.remove(f));
       folders.length = 0;
       labelsContainer.innerHTML = '';
@@ -292,68 +261,35 @@
     const introDur=3000, scatterDur=2000;
     let startTime = performance.now();
 
-    // backdrop overlay setup
-    const overlay = document.getElementById('overlay');
-    const backButton = document.getElementById('backButton');
-    const projectTitle = document.getElementById('projectTitle');
-    const projectCopy = document.getElementById('projectCopy');
-    const folderDescriptions = {
-      en: {
-        Ads: 'CAMPAIGNS, PACKSHOTS, STORE REVEALS OR PRODUCT SPOTS — HIGH-ENERGY VISUALS DESIGNED TO LAND THE MESSAGE IN SECONDS.',
-        Zines: 'PRINTED STORIES, VISUAL ESSAYS AND COLLECTIBLE EDITORIALS — CUSTOM TYPE, GRID SYSTEMS AND TACTILE TEXTURES INCLUDED.',
-        'Music Videos': 'FROM TREATMENT TO FINAL GRADE — FAST-CUT WORLDS, LIVE ENERGY, CGI LAYERS AND IMMERSIVE CAMERA MOVES FOR ARTISTS AND BANDS.',
-        Events: 'TOUR RECAPS, CLUB AFTERMOVIES, CONFERENCE REBRANDS — DOCUMENTING THE ATMOSPHERE AND SHAPING THE EXPERIENCE END TO END.',
-        'General Design': 'BRAND SYSTEMS, DIGITAL PRODUCTS AND DAILY VISUAL LABS — MODULAR DESIGN THAT TRANSLATES ACROSS EVERY MEDIUM.'
-      },
-      fr: {
-        Ads: 'CAMPAGNES, PACKSHOTS, INAUGURATIONS DE BOUTIQUES OU SPOTS PRODUIT — VISUELS HAUTE ENERGIE QUI TRANSMETTENT LE MESSAGE EN QUELQUES SECONDES.',
-        Zines: 'RECITS IMPRIMES, ESSAIS VISUELS ET EDITIONS DE COLLECTION — TYPO SUR MESURE, SYSTEMES DE GRILLES ET TEXTURES TACTILES INCLUS.',
-        'Music Videos': 'DU TRAITEMENT AU MASTER FINAL — UNIVERS RYTHMES, ENERGIE LIVE, COUCHES CGI ET MOUVEMENTS IMMERSIFS POUR ARTISTES ET GROUPES.',
-        Events: 'AFTERMOVIES, TOURS, CONFERENCES — CAPTER L’ATMOSPHERE ET FACONNER L’EXPERIENCE DE BOUT EN BOUT.',
-        'General Design': 'SYSTEMES DE MARQUE, PRODUITS DIGITAUX ET LABOS VISUELS QUOTIDIENS — DESIGN MODULAIRE QUI S’ADAPTE A TOUS LES SUPPORTS.'
-      }
-    };
-    function currentLang(){
-      try { return parent.document.documentElement.lang || 'en'; }
-      catch (err) { return 'en'; }
-    }
-    function resolveCopy(name){
-      const lang = currentLang();
-      const table = folderDescriptions[lang] || folderDescriptions.en;
-      return (table && table[name]) || folderDescriptions.en[name] || '';
-    }
-    let selectedName = null;
-    function showBackdrop(name){
-      selectedName = name;
-      overlay.classList.add('show');
-      requestAnimationFrame(()=>overlay.classList.add('visible'));
+    // folder UI overlay
+    const folderUi = document.getElementById('folderUi');
+    const folderBackButton = document.getElementById('folderBackButton');
+    const folderTitle = document.getElementById('folderTitle');
+    let uiFolder = null;
+    function showFolderUi(folder){
+      uiFolder = folder;
+      folderUi.classList.add('visible');
       labelsContainer.classList.add('hidden');
-      setupInteractiveText(name.toUpperCase());
-      projectCopy.textContent = resolveCopy(name);
+      setupInteractiveText(folder.userData.name.toUpperCase());
       sceneWrap.classList.remove('masked');
       parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true }, '*');
     }
-    function hideBackdrop(){
-      const wasShown = overlay.classList.contains('show');
-      if(wasShown){
-        overlay.classList.remove('visible');
-        overlay.addEventListener('transitionend', () => overlay.classList.remove('show'), { once: true });
-      }
-      else {
-        overlay.classList.remove('show');
-      }
+    function hideFolderUi(){
+      if(!uiFolder) return;
+      folderUi.classList.remove('visible');
       labelsContainer.classList.remove('hidden');
-      selectedName = null;
+      if(folderTitle) folderTitle.textContent = '';
+      uiFolder = null;
       sceneWrap.classList.add('masked');
       parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false }, '*');
     }
-    backButton.addEventListener('click', e => {
+    folderBackButton.addEventListener('click', e => {
       e.stopPropagation();
       closeActive();
     });
 
     function setupInteractiveText(text){
-      const C = document.getElementById('projectTitle');
+      const C = folderTitle;
       if(!C) return;
       const hoverScale=1.8, neighborScale=1.2,
             normalWght=400, neighborWght=600, hoverWght=900;
@@ -431,10 +367,9 @@
       ud.rotationReturnFrom.copy(f.rotation);
       ud.rotationReturnTo.copy(ud.startRotation);
       ud.frontReturnFrom = ud.front.rotation.x;
-      ud.backdropShown = false;
-      ud.openStart = 0;
+      ud.uiShown = false;
       glass.classList.remove('visible');
-      hideBackdrop();
+      hideFolderUi();
     }
 
     // click behavior
@@ -453,11 +388,10 @@
         ud.startScale.copy(f.scale);
         ud.startRotation.copy(f.rotation);
         ud.rotationReturnTo.copy(ud.startRotation);
-        ud.targetPos.set(0,0,6);
-        ud.targetScale.set(3.8,3.8,3.8);
+        ud.targetPos.set(0,0.35,4.8);
+        ud.targetScale.set(5.2,5.2,5.2);
         ud.targetRotation.set(0,0,0);
-        ud.openStart = 0;
-        ud.backdropShown = false;
+        ud.uiShown = false;
         ud.frontReturnTo = ud.frontBaseRotation;
         glass.classList.add('visible');
       } else {
@@ -471,10 +405,9 @@
         ud.rotationReturnTo.copy(ud.startRotation);
         ud.frontReturnFrom = ud.front.rotation.x;
         ud.frontReturnTo = ud.frontBaseRotation;
-        ud.backdropShown = false;
-        ud.openStart = 0;
+        ud.uiShown = false;
         glass.classList.remove('visible');
-        hideBackdrop();
+        hideFolderUi();
       }
     });
 
@@ -551,6 +484,7 @@
             );
             ud.front.rotation.x += (ud.frontReturnTo - ud.front.rotation.x)*0.2;
             ud.front.position.y += (ud.frontBasePosition.y - ud.front.position.y)*0.2;
+            ud.front.position.z += (ud.frontBasePosition.z - ud.front.position.z)*0.2;
             if(t>=1){
               ud.returning=false;
               ud.focused=false;
@@ -561,36 +495,32 @@
             return;
           }
           if(ud.focused){
-            const t = Math.min((now-ud.clickStart)/ud.duration,1);
-            const eased = ease(t);
-            f.position.lerpVectors(ud.startPos, ud.targetPos, eased);
-            f.scale.lerpVectors(ud.startScale, ud.targetScale, eased);
+            const elapsed = now - ud.clickStart;
+            const moveT = Math.min(elapsed/ud.duration,1);
+            const openT = Math.min(elapsed/ud.openDuration,1);
+            const moveEase = ease(moveT);
+            const openEase = ease(openT);
+            f.position.lerpVectors(ud.startPos, ud.targetPos, moveEase);
+            f.scale.lerpVectors(ud.startScale, ud.targetScale, moveEase);
             f.rotation.set(
-              THREE.MathUtils.lerp(ud.startRotation.x, ud.targetRotation.x, eased),
-              THREE.MathUtils.lerp(ud.startRotation.y, ud.targetRotation.y, eased),
-              THREE.MathUtils.lerp(ud.startRotation.z, ud.targetRotation.z, eased)
+              THREE.MathUtils.lerp(ud.startRotation.x, ud.targetRotation.x, moveEase),
+              THREE.MathUtils.lerp(ud.startRotation.y, ud.targetRotation.y, moveEase),
+              THREE.MathUtils.lerp(ud.startRotation.z, ud.targetRotation.z, moveEase)
             );
-            if(t>=1){
-              if(!ud.openStart) ud.openStart = now;
-              const openT = Math.min((now-ud.openStart)/ud.openDuration,1);
-              const openEase = ease(openT);
-              const bob = Math.sin(now/800)*0.1;
+            if(moveT>=1){
+              const bob = Math.sin(now/900)*0.08;
               f.position.y = ud.targetPos.y + bob;
-              const flatZ = THREE.MathUtils.lerp(ud.targetScale.z, ud.targetScale.z*0.22, openEase);
-              f.scale.x += (ud.targetScale.x - f.scale.x)*0.2;
-              f.scale.y += (ud.targetScale.y - f.scale.y)*0.2;
-              f.scale.z += (flatZ - f.scale.z)*0.2;
-              const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, -Math.PI*0.85, openEase);
-              ud.front.rotation.x += (lidRot - ud.front.rotation.x)*0.2;
-              const lidPosY = THREE.MathUtils.lerp(ud.frontBasePosition.y, ud.frontBasePosition.y + 0.4, openEase);
-              ud.front.position.y += (lidPosY - ud.front.position.y)*0.2;
-              if(openEase>0.6 && !ud.backdropShown){
-                ud.backdropShown = true;
-                showBackdrop(ud.name);
-              }
-            } else {
-              ud.front.rotation.x += (ud.frontBaseRotation - ud.front.rotation.x)*0.2;
-              ud.front.position.y += (ud.frontBasePosition.y - ud.front.position.y)*0.2;
+            }
+            const flatZ = THREE.MathUtils.lerp(ud.targetScale.z, ud.targetScale.z*0.12, openEase);
+            f.scale.z += (flatZ - f.scale.z)*0.18;
+            const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, -Math.PI*0.98, openEase);
+            ud.front.rotation.x += (lidRot - ud.front.rotation.x)*0.25;
+            ud.front.position.y += (ud.frontBasePosition.y - ud.front.position.y)*0.25;
+            const lidOffsetZ = THREE.MathUtils.lerp(ud.frontBasePosition.z, ud.frontBasePosition.z - 0.09, openEase);
+            ud.front.position.z += (lidOffsetZ - ud.front.position.z)*0.25;
+            if(openEase>0.85 && !ud.uiShown){
+              ud.uiShown = true;
+              showFolderUi(f);
             }
             return;
           }
@@ -636,6 +566,19 @@
       folders.forEach(f=> f.visible = !active || f===active );
       fgRenderer.render(scene,camera);
       folders.forEach(f=> f.visible = true );
+
+      if(uiFolder){
+        if(uiFolder.userData.focused){
+          const anchorPos = uiFolder.userData.uiAnchor.getWorldPosition(tempVec);
+          anchorPos.project(camera);
+          const px = (anchorPos.x * 0.5 + 0.5) * window.innerWidth;
+          const py = (-anchorPos.y * 0.5 + 0.5) * window.innerHeight;
+          folderUi.style.left = `${px}px`;
+          folderUi.style.top = `${py}px`;
+        } else {
+          hideFolderUi();
+        }
+      }
 
       // update labels
       labels.forEach((lbl,i)=>{
