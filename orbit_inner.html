@@ -10,666 +10,445 @@
       src: url('/static/FERRITEDISPLAYVF.ttf') format('truetype');
       font-weight: 100 900;
     }
-    html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; overflow:hidden; cursor:default; }
-    /* Top bar removed */
-    /* Glass overlay */
-    .glass { position:fixed; top:0; left:0; width:100vw; height:100vh; backdrop-filter:brightness(1); opacity:0; transition:opacity 0.8s ease-in-out; pointer-events:none; z-index:1; }
-    .glass.visible { opacity:1; }
-    /* Canvas layers */
-    #bgCanvas, #fgCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
-    #bgCanvas { z-index:0; }
-    /* raise front canvas well above overlay */
-    #fgCanvas { z-index:5; pointer-events:none; }
-    /* Labels */
-    #labels { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:6; font-family:'Ferrite',sans-serif; opacity:1; transition:opacity 0.5s; }
-    #labels.hidden { opacity:0; }
-    .label { position:absolute; transform:translate(-50%,0); color:#1449ff; font-size:14px; text-shadow:0 0 4px #fff; font-variation-settings:'wght' 700; }
-    #sceneWrap { position:fixed; inset:0; }
-    #sceneWrap.masked {
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 100%);
-              mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 100%);
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      cursor: default;
     }
-    @keyframes breathe {
-      from { opacity:0.4; }
-      to   { opacity:0.8; }
+    #sceneWrap {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
     }
-    /* Grid overlay */
-    #overlay {
-      position:fixed;
-      inset:0;
-      display:none;
-      opacity:0;
-      transition:opacity 0.5s ease;
-      align-items:center;
-      justify-content:center;
-      z-index:4;
-      pointer-events:none;
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
     }
-    #overlay.show { display:flex; }
-    #overlay.visible { opacity:1; }
-    #layoutWrapper { display:flex; flex-direction:column; align-items:center; pointer-events:auto; }
-    #header { width:calc(120vmin + 6px); display:flex; height:15vmin; margin-bottom:-3px; }
-    #viewport { position:relative; overflow:hidden; width:120vmin; height:calc(120vmin*9/16 + 6vmin); border:3px solid #1449ff; pointer-events:auto; }
-    #leftSquare { width:15vmin; height:100%; background:#faf8e5; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
-    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:3px solid #1449ff; border-left:3px solid #1449ff; background:#faf8e5; }
-    #rightBox .interactive-text {
-      display:inline-block;
-      width:100%;
-      white-space:nowrap;
-      overflow:visible;
-      font-family:'Ferrite', sans-serif;
-      font-size:12vmin;
-      color:#1449ff;
-      transform: translateY(4%);
+    #bgCanvas {
+      z-index: 1;
     }
-    #rightBox .interactive-text .letter {
-      display:inline-block;
-      overflow:hidden;
-      transition:width 0.3s cubic-bezier(.25,.1,.25,1);
+    #networkCanvas {
+      z-index: 2;
+      pointer-events: none;
     }
-    #rightBox .interactive-text .letter .char {
-      display:inline-block;
-      transform-origin:left center;
-      transition:transform 0.3s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.3s cubic-bezier(.25,.1,.25,1);
-      font-variation-settings:'wght' 400;
+    #labels {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      font-family: 'Ferrite', sans-serif;
+      color: #1449ff;
     }
-    #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#faf8e5; }
-    #gridContainer::after { content:""; position:absolute; left:0; right:0; bottom:-var(--extra-bg,0); height:var(--extra-bg,0); background:#faf8e5; pointer-events:none; }
-    #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
-    .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
-    .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
-    .text-item {
-      width:100%;
-      height:100%;
-      display:block;
-      font-family:'Ferrite', sans-serif;
-      background:#faf8e5;
-      margin:0;
-      padding:0;
-      white-space:pre-wrap;
-      box-sizing:border-box;
-      outline:none;
-      font-variation-settings:'wght' 400;
-      color:#1449ff;
+    .label {
+      position: absolute;
+      transform: translate(-50%, -100%) scale(1);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      opacity: 0.85;
+      white-space: nowrap;
+    }
+    .label.selected {
+      opacity: 1;
+      letter-spacing: 0.2em;
+    }
+    .label.hidden {
+      opacity: 0;
     }
   </style>
 </head>
 <body>
-  <!-- top bar removed -->
-  <div id="sceneWrap" class="masked">
-    <div class="glass" id="glass"></div>
-
+  <div id="sceneWrap">
     <canvas id="bgCanvas"></canvas>
-    <canvas id="fgCanvas"></canvas>
-
-    <!-- moved overlay inside sceneWrap -->
-    <div id="overlay">
-      <div id="layoutWrapper">
-        <div id="header">
-          <div id="leftSquare"></div>
-          <div id="rightBox"><div class="interactive-text"></div></div>
-        </div>
-        <div id="viewport">
-          <div id="gridContainer"><div id="grid"></div></div>
-        </div>
-      </div>
-    </div>
-
+    <canvas id="networkCanvas"></canvas>
     <div id="labels"></div>
   </div>
-  <!-- removed original overlay here -->
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    let FOLDER_NAMES = [];
-  </script>
-  <script>
-    // Renderer & scene setup
+    const FOLDER_NAMES = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
+
     const sceneWrap = document.getElementById('sceneWrap');
-    const bgCanvas = document.getElementById('bgCanvas'),
-          fgCanvas = document.getElementById('fgCanvas'),
-          glass = document.getElementById('glass');
-    // logo removed
-
-    /* top bar scripts removed */
-    const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias:true, alpha:true });
-    bgRenderer.setClearColor(0x000000, 0);
-    const fgRenderer = new THREE.WebGLRenderer({ canvas: fgCanvas, antialias:true, alpha:true });
-    fgRenderer.setClearColor(0,0);
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.position.z = 16;
-
-    window.addEventListener('resize', ()=>{
-      bgRenderer.setSize(window.innerWidth, window.innerHeight);
-      fgRenderer.setSize(window.innerWidth, window.innerHeight);
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      render();
-    });
-    bgRenderer.setSize(window.innerWidth, window.innerHeight);
-    fgRenderer.setSize(window.innerWidth, window.innerHeight);
-
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.1);
-    dirLight.position.set(0,0,4);
-    scene.add(dirLight);
-
-    // Raycaster & cursor
-    const raycaster = new THREE.Raycaster(),
-          mouse = new THREE.Vector2(),
-          cursor3D = new THREE.Vector3();
-    let targetMouse = {x:0,y:0}, currentMouse = {x:0,y:0}, magnetized = null;
-    window.addEventListener('mousemove', e => {
-      const nx = (e.clientX/window.innerWidth - 0.5)*2;
-      const ny = -(e.clientY/window.innerHeight - 0.5)*2;
-      targetMouse.x = nx; targetMouse.y = ny;
-      mouse.x = (e.clientX/window.innerWidth)*2 - 1;
-      mouse.y = -(e.clientY/window.innerHeight)*2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const d = -raycaster.ray.origin.z / raycaster.ray.direction.z;
-      cursor3D.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(d)));
-    });
-
-    const ease = t => t < 0.5 ? 2*t*t : (-1+(4-2*t)*t);
-
-    // Folder factory
-    function createFolder(name) {
-      const g = new THREE.Group();
-      const frontMat = new THREE.MeshStandardMaterial({ color:0x89d8fd, roughness:0.4, metalness:0.2 });
-      const backMat  = new THREE.MeshStandardMaterial({ color:0x5bbde9, roughness:0.45, metalness:0.15 });
-      const w=2.5, h=1.8, r=0.15;
-      const shape = new THREE.Shape();
-      shape.moveTo(-w/2+r,-h/2).lineTo(w/2-r,-h/2).quadraticCurveTo(w/2,-h/2,w/2,-h/2+r)
-           .lineTo(w/2,h/2-r).quadraticCurveTo(w/2,h/2,w/2-r,h/2)
-           .lineTo(-w/2+r,h/2).quadraticCurveTo(-w/2,h/2,-w/2,h/2-r)
-           .lineTo(-w/2,-h/2+r).quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
-      const geom = new THREE.ExtrudeGeometry(shape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 });
-      const front = new THREE.Mesh(geom, frontMat);
-      front.geometry.translate(0,0.9,0);
-      front.position.z=0.015;
-      front.castShadow=true;
-      g.add(front);
-      const back = new THREE.Mesh(geom.clone(), backMat);
-      back.scale.y=1.07;
-      back.position.set(0,0.05,-0.015);
-      back.receiveShadow=true;
-      g.add(back);
-      g.scale.set(0.9,0.9,0.9);
-
-      const lipShape = new THREE.Shape();
-      lipShape.moveTo(-1.25,0).quadraticCurveTo(-1.25,0.2,-1.1,0.2).lineTo(-0.6,0.2)
-              .quadraticCurveTo(-0.45,0.2,-0.3,0).lineTo(-0.3,-0.3)
-              .quadraticCurveTo(-0.32,-0.43,-0.6,-0.43).lineTo(-1.22,-0.42)
-              .quadraticCurveTo(-1.28,-0.38,-1.24,-0.3).lineTo(-1.25,0);
-      const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(lipShape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 }), backMat);
-      lip.position.set(0,1.9,-0.015);
-      lip.receiveShadow=true;
-      g.add(lip);
-
-      const dir = new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0).normalize();
-      g.userData = {
-        name, front, dir,
-        speed:0.002 + Math.random()*0.001,
-        curvePhase:Math.random()*Math.PI*2,
-        curveScale:0.005 + Math.random()*0.003,
-        focused:false, clickStart:0, startPos:new THREE.Vector3(), targetPos:new THREE.Vector3(), duration:1000,
-        innerR:1.2, hoverPhase:0,
-        returning:false, returnStart:0, returnFrom:new THREE.Vector3(), returnTo:new THREE.Vector3(), returnDuration:1000,
-        spin:false, spinElapsed:0, spinDuration:1,
-        magnetStart:0,
-        startScale:new THREE.Vector3(),
-        targetScale:new THREE.Vector3(),
-        scaleReturnFrom:new THREE.Vector3(),
-        scaleReturnTo:new THREE.Vector3()
-      };
-      return g;
-    }
-
-    const folders = [], labels = [];
+    const bgCanvas = document.getElementById('bgCanvas');
+    const networkCanvas = document.getElementById('networkCanvas');
     const labelsContainer = document.getElementById('labels');
 
-    function initFolders(names) {
-      FOLDER_NAMES = names || FOLDER_NAMES;
-      folders.forEach(f => scene.remove(f));
-      folders.length = 0;
-      labelsContainer.innerHTML = '';
-      labels.length = 0;
-      FOLDER_NAMES.forEach(name => {
-        const f = createFolder(name);
-        scene.add(f);
-        folders.push(f);
-        const lbl = document.createElement('div');
-        lbl.className = 'label';
-        lbl.textContent = name.toUpperCase();
-        labelsContainer.appendChild(lbl);
-        labels.push(lbl);
+    const renderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 2.4, 14);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.92);
+    scene.add(ambient);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    keyLight.position.set(3, 6, 8);
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight(0x8ecbff, 0.35);
+    rimLight.position.set(-6, 4, -6);
+    scene.add(rimLight);
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    const folders = [];
+    const labels = [];
+
+    const topY = 3.4;
+    const spacing = 3.1;
+    const selectedScale = 1.55;
+    const baseScale = 1.05;
+
+    let selectedIndex = -1;
+    let targetSelection = 0;
+    let currentSelection = 0;
+    let selectionVelocity = 0;
+    let selectionChangeTime = 0;
+
+    const networkCtx = networkCanvas.getContext('2d');
+    let networkPoints = [];
+    let networkEdges = [];
+
+    const clock = new THREE.Clock();
+
+    function easeInOut(t) {
+      return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+
+    function createFolder(name) {
+      const group = new THREE.Group();
+
+      const frontMat = new THREE.MeshStandardMaterial({ color: 0x89d8fd, roughness: 0.4, metalness: 0.18 });
+      const backMat = new THREE.MeshStandardMaterial({ color: 0x5bbde9, roughness: 0.46, metalness: 0.14 });
+
+      const w = 2.5, h = 1.8, r = 0.15;
+      const bodyShape = new THREE.Shape();
+      bodyShape.moveTo(-w / 2 + r, -h / 2);
+      bodyShape.lineTo(w / 2 - r, -h / 2);
+      bodyShape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+      bodyShape.lineTo(w / 2, h / 2 - r);
+      bodyShape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
+      bodyShape.lineTo(-w / 2 + r, h / 2);
+      bodyShape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
+      bodyShape.lineTo(-w / 2, -h / 2 + r);
+      bodyShape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+
+      const geom = new THREE.ExtrudeGeometry(bodyShape, {
+        depth: 0.05,
+        bevelEnabled: true,
+        bevelThickness: 0.04,
+        bevelSize: 0.035,
+        bevelSegments: 2,
       });
-      startTime = performance.now();
-    }
+      geom.translate(0, 0.9, 0);
 
-    // intro animation timings
-    const introDur=3000, scatterDur=2000;
-    let startTime = performance.now();
+      const front = new THREE.Mesh(geom, frontMat);
+      front.position.z = 0.025;
+      front.castShadow = true;
+      group.add(front);
 
-    // grid overlay setup
-    const overlay = document.getElementById('overlay');
-    const gridContainer=document.getElementById('gridContainer');
-    const grid=document.getElementById('grid');
-    const viewport=document.getElementById('viewport');
-    const cols=80, rows=45, gap=1;
-    for(let i=0;i<cols*rows;i++){ const c=document.createElement('div'); c.className='cell'; grid.appendChild(c); }
-    function getSizes(){ const cell=grid.querySelector('.cell'); const rect=cell.getBoundingClientRect(); return {size:rect.width, step:rect.width+gap}; }
-    let currentFolder=null, key='', items=[]; let offsetX=0, offsetY=0; let lastLayout=null;
-    let selectedName = null;
-    function applyTransform(){
-      const {step} = getSizes();
-      gridContainer.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-      gridContainer.style.setProperty('--extra-bg', '0px');
-    }
-    function render(){
-      const {size,step}=getSizes();
-      gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
-      items.forEach((item,i)=>{
-        const col=Math.min(Math.max(0,item.col),cols-item.cols);
-        const row=Math.min(Math.max(0,item.row),rows-item.rows);
-        const w=item.cols*size+(item.cols-1)*gap;
-        const h=item.rows*size+(item.rows-1)*gap;
-        const wrap=document.createElement('div');
-        wrap.className='placed';
-        wrap.style.zIndex=i+1;
-        wrap.style.left=`${col*step}px`;
-        wrap.style.top=`${row*step}px`;
-        wrap.style.width=`${w}px`;
-        wrap.style.height=`${h}px`;
-        let media;
-        if(item.type==='text'){
-          wrap.style.background = '#faf8e5';
-          media=document.createElement('div');
-          media.className='text-item';
-          media.textContent=item.text||'';
-          wrap.dataset.fontScale=item.fontScale||1;
-          wrap.dataset.fontWeight=item.fontWeight||400;
-          const upd=()=>{
-            const {size:sz}=getSizes();
-            const scale=parseFloat(wrap.dataset.fontScale);
-            const wght=parseInt(wrap.dataset.fontWeight);
-            media.style.fontSize=`${sz*scale}px`;
-            media.style.lineHeight=`${sz*scale}px`;
-            media.style.fontVariationSettings=`'wght' ${wght}`;
-          };
-          upd();
-          window.addEventListener('resize', upd);
-        } else {
-          const tag=/(mp4|webm)$/i.test(item.src)?'video':'img';
-          media=document.createElement(tag);
-          if(media.tagName==='VIDEO'){
-            media.controls=false; media.autoplay=true; media.loop=true; media.muted=true; media.playsInline=true;
-          }
-          media.src=item.src;
-        }
-        wrap.appendChild(media);
-        gridContainer.appendChild(wrap);
-        if(item.type!=='text') attachBitmapHold(wrap, media);
+      const back = new THREE.Mesh(geom.clone(), backMat);
+      back.scale.y = 1.06;
+      back.position.set(0, 0.08, -0.025);
+      back.receiveShadow = true;
+      group.add(back);
+
+      const lipShape = new THREE.Shape();
+      lipShape.moveTo(-1.25, 0)
+        .quadraticCurveTo(-1.25, 0.2, -1.1, 0.2)
+        .lineTo(-0.6, 0.2)
+        .quadraticCurveTo(-0.45, 0.2, -0.3, 0)
+        .lineTo(-0.3, -0.28)
+        .quadraticCurveTo(-0.32, -0.42, -0.62, -0.42)
+        .lineTo(-1.22, -0.42)
+        .quadraticCurveTo(-1.28, -0.38, -1.24, -0.3)
+        .lineTo(-1.25, 0);
+
+      const lipGeom = new THREE.ExtrudeGeometry(lipShape, {
+        depth: 0.05,
+        bevelEnabled: true,
+        bevelThickness: 0.035,
+        bevelSize: 0.03,
+        bevelSegments: 2,
       });
-    }
-    function loadLayout(name){ key=`layout_${name}`; const raw=localStorage.getItem(key); items=raw?JSON.parse(raw):[]; lastLayout=raw; render(); }
-    let panDirX=0, panDirY=0, panVX=0, panVY=0;
-    const margin=120;
-    viewport.addEventListener('mousemove',e=>{
-      const rect=viewport.getBoundingClientRect();
-      panDirX = (e.clientX-rect.left<margin) ? 1 : (rect.right-e.clientX<margin? -1:0);
-      panDirY = (e.clientY-rect.top<margin) ? 1 : (rect.bottom-e.clientY<margin? -1:0);
-    });
-    function panStep(){
-      const {size,step}=getSizes();
-      const gridW=cols*size+(cols-1)*gap;
-      const gridH=rows*size+(rows-1)*gap;
-      const maxX=Math.max(0,(gridW-viewport.clientWidth)/2 - step*2);
-      const maxY=Math.max(0,(gridH-viewport.clientHeight)/2 - step*2);
-      const accel=step/10;
-      panVX += panDirX*accel;
-      panVY += panDirY*accel;
-      panVX *= 0.85; panVY *= 0.85;
-      offsetX = Math.max(-maxX, Math.min(maxX, offsetX + panVX));
-      offsetY = Math.max(-maxY, Math.min(maxY, offsetY + panVY));
-      applyTransform();
-      requestAnimationFrame(panStep);
-    }
-    panStep();
-    window.addEventListener('storage',e=>{ if(e.key===key){ items=e.newValue?JSON.parse(e.newValue):[]; render(); }});
-    setInterval(()=>{ const cur=localStorage.getItem(key); if(cur!==lastLayout){ lastLayout=cur; items=cur?JSON.parse(cur):[]; render(); } },1000);
+      const lip = new THREE.Mesh(lipGeom, backMat);
+      lip.position.set(0, 1.85, -0.025);
+      group.add(lip);
 
-    function attachBitmapHold(wrap, media){
-      if(!(media.tagName==='VIDEO' || media.tagName==='IMG')) return;
-      let timer=null, state=null;
-      const startBitmap=()=>{
-        const canvas=document.createElement('canvas');
-        const ctx=canvas.getContext('2d');
-        canvas.width=media.videoWidth||media.naturalWidth||wrap.offsetWidth;
-        canvas.height=media.videoHeight||media.naturalHeight||wrap.offsetHeight;
-        canvas.style.width='100%';
-        canvas.style.height='100%';
-        wrap.appendChild(canvas);
-        media.style.display='none';
-        const fps=12,pixelSize=10,maxRadius=pixelSize*0.45;
-        function draw(){
-          const cols=Math.floor(canvas.width/pixelSize);
-          const rows=Math.floor(canvas.height/pixelSize);
-          const off=document.createElement('canvas');
-          off.width=cols; off.height=rows;
-          off.getContext('2d').drawImage(media,0,0,cols,rows);
-          const data=off.getContext('2d').getImageData(0,0,cols,rows).data;
-          ctx.fillStyle='#fff';
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          for(let y=0;y<rows;y++){
-            for(let x=0;x<cols;x++){
-              const i=(y*cols+x)*4;
-              const br=(data[i]+data[i+1]+data[i+2])/(3*255);
-              const rad=(1-br)*maxRadius;
-              const cx=x*pixelSize+pixelSize/2;
-              const cy=y*pixelSize+pixelSize/2;
-              ctx.fillStyle='#1449ff';
-              ctx.beginPath();
-              ctx.arc(cx,cy,rad,0,Math.PI*2);
-              ctx.fill();
-            }
-          }
-        }
-        draw();
-        const interval=setInterval(draw,1000/fps);
-        state={canvas,interval};
+      group.scale.setScalar(baseScale);
+      group.userData = {
+        name,
+        startPosition: new THREE.Vector3(),
+        startScale: baseScale,
+        delay: 0,
       };
-      const stopBitmap=()=>{
-        if(!state) return;
-        clearInterval(state.interval); state.canvas.remove();
-        media.style.display='';
-        state=null;
-      };
-      wrap.addEventListener('mousedown',e=>{
-        if(e.button!==0) return;
-        timer=setTimeout(()=>{ if(state) stopBitmap(); else startBitmap(); },2000);
-      });
-      ['mouseup','mouseleave'].forEach(ev=>wrap.addEventListener(ev,()=>clearTimeout(timer)));
+
+      return group;
     }
 
-    function setupInteractiveText(text){
-      const C = document.querySelector('#rightBox .interactive-text');
-      if(!C) return;
-      const hoverScale=1.8, neighborScale=1.2,
-            normalWght=400, neighborWght=600, hoverWght=900;
-      C.textContent = '';
-      for(const ch of (text||'').trim()){
-        const out=document.createElement('span');
-        out.className='letter';
-        const inn=document.createElement('span');
-        inn.className='char';
-        inn.textContent=ch;
-        out.appendChild(inn);
-        C.appendChild(out);
+    function initFolders() {
+      FOLDER_NAMES.forEach((name, index) => {
+        const folder = createFolder(name);
+        folder.position.set((index - (FOLDER_NAMES.length - 1) / 2) * spacing, 0, 0);
+        scene.add(folder);
+        folders.push(folder);
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = name.toUpperCase();
+        labelsContainer.appendChild(label);
+        labels.push(label);
+      });
+
+      setSelected(0, true);
+      updateLabels();
+      regenerateNetwork();
+    }
+
+    function setSelected(index, immediate = false) {
+      if (folders.length === 0) return;
+      const clamped = Math.max(0, Math.min(index, folders.length - 1));
+      const firstSelection = selectedIndex === -1;
+      if (!firstSelection && clamped === selectedIndex && !immediate) return;
+
+      selectedIndex = clamped;
+      targetSelection = clamped;
+      selectionChangeTime = performance.now();
+
+      folders.forEach((folder, i) => {
+        folder.userData.startPosition.copy(folder.position);
+        folder.userData.startScale = folder.scale.x;
+        folder.userData.delay = Math.abs(i - selectedIndex) * 140;
+      });
+
+      labels.forEach((label, i) => {
+        label.classList.toggle('selected', i === selectedIndex);
+      });
+
+      regenerateNetwork();
+
+      if (immediate) {
+        currentSelection = targetSelection;
+        selectionVelocity = 0;
+        folders.forEach((folder, i) => {
+          const offset = i - selectedIndex;
+          const targetX = offset * spacing;
+          const targetY = topY - Math.min(Math.abs(offset) * 0.25, 0.6);
+          folder.position.set(targetX, targetY, 0);
+          const scale = i === selectedIndex ? selectedScale : Math.max(baseScale - Math.abs(offset) * 0.04, 0.85);
+          folder.scale.setScalar(scale);
+        });
+        updateLabels();
       }
+    }
 
-      const letters=Array.from(C.children);
-      let baseWidths=[], scaled=[], sumBase=0, totalW=0;
-      requestAnimationFrame(()=>{
-        letters.forEach(o=>{
-          const inn=o.firstElementChild;
-          inn.style.transform='scaleX(1)';
-          const w=inn.getBoundingClientRect().width;
-          baseWidths.push(w);
-          sumBase+=w;
+    function regenerateNetwork() {
+      networkCanvas.width = window.innerWidth;
+      networkCanvas.height = window.innerHeight;
+      networkPoints = [];
+      networkEdges = [];
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const topLimit = height * 0.38;
+      const bottomLimit = height * 0.92;
+      for (let i = 0; i < 17; i++) {
+        const baseX = width * 0.1 + Math.random() * width * 0.8;
+        const baseY = topLimit + Math.random() * (bottomLimit - topLimit);
+        networkPoints.push({
+          baseX,
+          baseY,
+          x: baseX,
+          y: baseY,
+          angle: Math.random() * Math.PI * 2,
+          amplitude: 14 + Math.random() * 22,
+          speed: 0.35 + Math.random() * 0.55,
         });
-        totalW=C.getBoundingClientRect().width;
-        const S=totalW/sumBase;
-        scaled=baseWidths.map(w=>w*S);
-        letters.forEach((o,i)=>{
-          const inn=o.firstElementChild;
-          o.style.width=scaled[i]+'px';
-          inn.style.width=baseWidths[i]+'px';
-          inn.style.transform=`scaleX(${S})`;
-          inn.style.fontVariationSettings=`'wght' ${normalWght}`;
+      }
+      for (let i = 0; i < networkPoints.length; i++) {
+        const neighbors = networkPoints
+          .map((p, idx) => ({ idx, dist: Math.hypot(p.baseX - networkPoints[i].baseX, p.baseY - networkPoints[i].baseY) }))
+          .filter(n => n.idx !== i)
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 3);
+        neighbors.forEach(n => {
+          if (!networkEdges.some(e => (e.a === i && e.b === n.idx) || (e.a === n.idx && e.b === i))) {
+            networkEdges.push({ a: i, b: n.idx });
+          }
         });
-        letters.forEach((o,i)=>{
-          o.onmouseenter=()=>{
-            const wH=scaled[i];
-            const wN=(i>0?scaled[i-1]:0)+(i<letters.length-1?scaled[i+1]:0);
-            const wO=totalW-wH-wN;
-            const R_h=hoverScale, R_n=neighborScale;
-            const R_o=(totalW-wH*R_h-wN*R_n)/wO;
-            letters.forEach((oo,j)=>{
-              const ch=oo.firstElementChild;
-              let R,wght;
-              if(j===i){R=R_h; wght=hoverWght;}
-              else if(j===i-1||j===i+1){R=R_n; wght=neighborWght;}
-              else {R=R_o; wght=normalWght;}
-              oo.style.width=scaled[j]*R+'px';
-              ch.style.transform=`scaleX(${S*R})`;
-              ch.style.fontVariationSettings=`'wght' ${wght}`;
-            });
-          };
-          o.onmouseleave=()=>{
-            letters.forEach((oo,j)=>{
-              const ch=oo.firstElementChild;
-              oo.style.width=scaled[j]+'px';
-              ch.style.transform=`scaleX(${S})`;
-              ch.style.fontVariationSettings=`'wght' ${normalWght}`;
-            });
-          };
-        });
-      });
+      }
     }
 
-    function showGrid(name){
-      currentFolder = name;
-      selectedName = name.toUpperCase();
-      overlay.classList.add('show');
-      requestAnimationFrame(()=>overlay.classList.add('visible'));
-      labelsContainer.classList.add('hidden');
-      setupInteractiveText(name);
-      loadLayout(name);
-      sceneWrap.classList.remove('masked');
-      parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true }, '*');
-    }
-    function hideGrid(){
-      overlay.classList.remove('visible');
-      overlay.addEventListener('transitionend', () => overlay.classList.remove('show'), { once: true });
-      labelsContainer.classList.remove('hidden');
-      selectedName = null;
-      sceneWrap.classList.add('masked');
-      parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false }, '*');
-    }
+    let edgeDir = 0;
+    let edgeTimer = 0;
+    const edgeThreshold = 120;
+    const hoverDelay = 550;
 
-    function closeActive(){
-      const f = folders.find(o=>o.userData.focused);
-      if(!f) return;
-      const ud = f.userData;
-      ud.returning = true;
-      ud.returnStart = performance.now();
-      ud.returnFrom.copy(f.position);
-      ud.returnTo.copy(ud.startPos);
-      ud.scaleReturnFrom.copy(f.scale);
-      ud.scaleReturnTo.copy(ud.startScale);
-      glass.classList.remove('visible');
-      hideGrid();
-    }
+    window.addEventListener('mousemove', (event) => {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    // click behavior
-    window.addEventListener('click', ()=>{
+      if (event.clientX < edgeThreshold) edgeDir = -1;
+      else if (window.innerWidth - event.clientX < edgeThreshold) edgeDir = 1;
+      else edgeDir = 0;
+    });
+
+    window.addEventListener('mouseleave', () => {
+      edgeDir = 0;
+    });
+
+    window.addEventListener('click', () => {
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(folders.map(f=>f.userData.front));
-      if(!hits.length) return;
-      const f = hits[0].object.parent, ud = f.userData;
-      const active = folders.find(o=>o.userData.focused);
-      if(active && active!==f) return; // disable other folders while grid shown
-      if(!ud.focused) {
-        folders.forEach(o=>o.userData.focused=false); // only one active
-        ud.focused = true;
-        ud.clickStart = performance.now();
-        ud.startPos.copy(f.position);
-        ud.startScale.copy(f.scale);
-        ud.targetPos.set(-5.7,3.5,8);
-        ud.targetScale.set(0.6,0.6,0.6);
-        glass.classList.add('visible');
-        showGrid(ud.name);
-      } else {
-        ud.returning = true;
-        ud.returnStart = performance.now();
-        ud.returnFrom.copy(f.position);
-        ud.returnTo.copy(ud.startPos);
-        ud.scaleReturnFrom.copy(f.scale);
-        ud.scaleReturnTo.copy(ud.startScale);
-        glass.classList.remove('visible');
-        hideGrid();
-      }
+      const intersections = raycaster.intersectObjects(folders, true);
+      if (!intersections.length) return;
+      let obj = intersections[0].object;
+      while (obj && !folders.includes(obj)) obj = obj.parent;
+      if (!obj) return;
+      const index = folders.indexOf(obj);
+      setSelected(index);
     });
 
-    // animation loop
-    function animate(){
-      requestAnimationFrame(animate);
-      const now = performance.now(), dt = now - startTime;
-      const activeFolder = folders.find(f=>f.userData.focused);
-      if(activeFolder){
-        targetMouse.x = 0;
-        targetMouse.y = 0;
-      }
-      // intro
-      if(dt < introDur) {
-        const a = (dt/introDur)*Math.PI*2;
-        folders.forEach((f,i)=>{
-          const th = (i/folders.length)*Math.PI*2 + a;
-          f.position.set(Math.cos(th)*5, Math.sin(th)*5, 0);
-        });
-      }
-      // scatter
-      else if(dt < introDur+scatterDur) {
-        const p = (dt-introDur)/scatterDur;
-        folders.forEach((f,i)=>{
-          const ti = Math.max(Math.min(p*folders.length-i,1),0), ei = ease(ti);
-          const th = (i/folders.length)*Math.PI*2;
-          const ctr = new THREE.Vector3(Math.cos(th)*5, Math.sin(th)*5, 0);
-          f.position.copy(ctr.add(f.userData.dir.clone().multiplyScalar(ei*3)));
-        });
-      }
-      // main
-      else {
-        raycaster.setFromCamera(mouse, camera);
-        const hoverHits = raycaster.intersectObjects(folders.map(f=>f.userData.front));
-        folders.forEach(f=>{ f.userData.hovered = hoverHits.some(h=>h.object===f.userData.front); });
-        const accel = Math.hypot(targetMouse.x-currentMouse.x, targetMouse.y-currentMouse.y);
-        if(magnetized && accel>2) magnetized = null;
-        folders.forEach((f,idx)=>{
-          const ud = f.userData;
-          const to = cursor3D.clone().sub(f.position);
-          const d = to.length();
-          if(magnetized===f && now-ud.magnetStart>2000) magnetized=null;
-          if(d<ud.innerR && accel>3 && !ud.spin) { ud.spin=true; ud.spinElapsed=0; }
-          if(ud.spin) {
-            ud.spinElapsed+=0.1;
-            f.rotation.y = (ud.spinElapsed/ud.spinDuration)*Math.PI*2;
-            if(ud.spinElapsed>=ud.spinDuration) { ud.spin=false; f.rotation.y=0; }
-            return;
-          }
-          if((magnetized===null || magnetized===f) && d<ud.innerR && !ud.focused) {
-            magnetized = f;
-            ud.magnetStart = now;
-            const repel = new THREE.Vector3();
-            folders.forEach(o=>{ if(o!==f){ const dv=f.position.clone().sub(o.position); const distSq=dv.lengthSq(); if(distSq<16) repel.add(dv.normalize().multiplyScalar(0.05)); }});
-            f.position.add(repel);
-            const offset=new THREE.Vector3(0,-0.9,0);
-            f.position.lerp(cursor3D.clone().add(offset), 0.05);
-            ud.hoverPhase += 0.1;
-            ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x)*0.1;
-            const breeze = accel * 0.3;
-            f.rotation.y += (Math.sin(ud.hoverPhase)*breeze - f.rotation.y)*0.2;
-            f.rotation.z += (Math.cos(ud.hoverPhase)*breeze*0.5 - f.rotation.z)*0.2;
-            return;
-          }
-          if(ud.returning){
-            const t = Math.min((now-ud.returnStart)/ud.returnDuration,1);
-            f.position.lerpVectors(ud.returnFrom, ud.returnTo, ease(t));
-            f.scale.lerpVectors(ud.scaleReturnFrom, ud.scaleReturnTo, ease(t));
-            if(t>=1){ ud.returning=false; ud.focused=false; }
-            return;
-          }
-          if(ud.focused){
-            const t = Math.min((now-ud.clickStart)/ud.duration,1);
-            f.position.lerpVectors(ud.startPos, ud.targetPos, ease(t));
-            f.scale.lerpVectors(ud.startScale, ud.targetScale, ease(t));
-            if(t>=1){
-              const bob = Math.sin(now/800)*0.1;
-              f.position.y = ud.targetPos.y + bob;
-            }
-            return;
-          }
-          if(magnetized===f && d>=ud.innerR) magnetized=null;
-          f.rotation.y += (0 - f.rotation.y)*0.2;
-          f.rotation.z += (0 - f.rotation.z)*0.2;
-          if(hoverHits.find(h=>h.object===ud.front)) ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x)*0.1;
-          else ud.front.rotation.x += (0 - ud.front.rotation.x)*0.1;
-          ud.curvePhase += 0.01;
-          const repel2 = new THREE.Vector3();
-          folders.forEach(o=>{ if(o!==f){ const dv=f.position.clone().sub(o.position); const sq=dv.lengthSq(); if(sq<100) repel2.add(dv.normalize().multiplyScalar(0.08/sq)); }});
-          const curveVec = new THREE.Vector3(
-            Math.sin(ud.curvePhase),
-            Math.sin(ud.curvePhase*0.9),
-            Math.cos(ud.curvePhase*0.8)
-          ).multiplyScalar(ud.curveScale);
-          const cf = new THREE.Vector3();
-          const magR = 5;
-          if(d<magR && d>ud.innerR) cf.add(to.normalize().multiplyScalar((magR-d)/magR*0.02));
-          f.position.add(
-            ud.dir.clone().multiplyScalar(ud.speed)
-              .add(curveVec)
-              .add(repel2)
-              .add(cf)
-          );
-          ['x','y'].forEach(a=>{ if(f.position[a]>5||f.position[a]<-5) ud.dir[a]*=-1; });
-          f.position.z = Math.max(-0.4, Math.min(0.4, f.position.z));
-        });
-      }
-      dirLight.position.x += (targetMouse.x*10 - dirLight.position.x)*0.1;
-      dirLight.position.y += (targetMouse.y*10 - dirLight.position.y)*0.1;
-      const a2 = Math.hypot(targetMouse.x-currentMouse.x, targetMouse.y-currentMouse.y);
-      currentMouse.x += (targetMouse.x-currentMouse.x)*0.02*a2;
-      currentMouse.y += (targetMouse.y-currentMouse.y)*0.02*a2;
-      camera.position.set(currentMouse.x*3,currentMouse.y*3,16);
-      camera.lookAt(0,0,0);
-
-      // render background (all folders)
-      bgRenderer.render(scene,camera);
-
-      // render only focused folder in front
-      const active = folders.find(f=>f.userData.focused);
-      folders.forEach(f=> f.visible = !active || f===active );
-      fgRenderer.render(scene,camera);
-      folders.forEach(f=> f.visible = true );
-
-      // update labels
-      labels.forEach((lbl,i)=>{
-        const f = folders[i];
-        const v = f.position.clone().project(camera);
-        const x = (v.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
-        lbl.style.left = `${x}px`;
-        lbl.style.top  = `${y + 10}px`;
+    function updateLabels() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      labels.forEach((label, i) => {
+        const folder = folders[i];
+        const position = folder.position.clone().project(camera);
+        if (position.z > 1) {
+          label.classList.add('hidden');
+          return;
+        }
+        label.classList.remove('hidden');
+        const x = (position.x * 0.5 + 0.5) * width;
+        const y = (-position.y * 0.5 + 0.5) * height;
+        const scale = 0.95 + (folder.scale.x - baseScale) * 1.6;
+        label.style.left = `${x}px`;
+        label.style.top = `${y - 40}px`;
+        label.style.transform = `translate(-50%, -100%) scale(${scale})`;
+        label.style.opacity = i === selectedIndex ? '1' : '0.8';
       });
     }
+
+    function drawNetwork(delta) {
+      if (!networkCtx) return;
+      networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
+      if (selectedIndex === -1) return;
+
+      networkCtx.lineWidth = 1.1;
+      networkCtx.strokeStyle = 'rgba(20, 73, 255, 0.55)';
+      networkCtx.fillStyle = '#1449ff';
+
+      networkPoints.forEach(point => {
+        point.angle += point.speed * delta;
+        point.x = point.baseX + Math.cos(point.angle) * point.amplitude;
+        point.y = point.baseY + Math.sin(point.angle * 0.8) * point.amplitude * 0.6;
+      });
+
+      networkCtx.beginPath();
+      networkEdges.forEach(edge => {
+        const a = networkPoints[edge.a];
+        const b = networkPoints[edge.b];
+        networkCtx.moveTo(a.x, a.y);
+        networkCtx.lineTo(b.x, b.y);
+      });
+      networkCtx.stroke();
+
+      networkPoints.forEach(point => {
+        networkCtx.beginPath();
+        networkCtx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+        networkCtx.fill();
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const now = performance.now();
+
+      if (selectedIndex !== -1) {
+        selectionVelocity += (targetSelection - currentSelection) * 0.14;
+        selectionVelocity *= 0.82;
+        currentSelection += selectionVelocity;
+        currentSelection = Math.max(0, Math.min(folders.length - 1, currentSelection));
+      }
+
+      folders.forEach((folder, i) => {
+        const ud = folder.userData;
+        const dt = Math.max(0, now - selectionChangeTime - ud.delay);
+        const progress = Math.min(1, dt / 600);
+        const eased = easeInOut(progress);
+
+        const targetX = (i - currentSelection) * spacing;
+        const targetY = topY - Math.min(Math.abs(i - currentSelection) * 0.25, 0.6);
+        const targetZ = -Math.min(Math.abs(i - currentSelection) * 0.12, 0.6);
+        const targetScale = i === Math.round(currentSelection)
+          ? selectedScale
+          : Math.max(baseScale - Math.abs(i - currentSelection) * 0.04, 0.82);
+
+        const lerpX = THREE.MathUtils.lerp(ud.startPosition.x, targetX, eased);
+        const lerpY = THREE.MathUtils.lerp(ud.startPosition.y, targetY, eased);
+        const lerpZ = THREE.MathUtils.lerp(ud.startPosition.z || 0, targetZ, eased);
+        const lerpScale = THREE.MathUtils.lerp(ud.startScale, targetScale, eased);
+
+        folder.position.x += (lerpX - folder.position.x) * 0.2;
+        folder.position.y += (lerpY - folder.position.y) * 0.2;
+        folder.position.z += (lerpZ - folder.position.z) * 0.18;
+        const newScale = THREE.MathUtils.lerp(folder.scale.x, lerpScale, 0.25);
+        folder.scale.setScalar(newScale);
+
+        const velocityInfluence = selectionVelocity * (i - currentSelection);
+        const twistTarget = Math.max(-0.45, Math.min(0.45, velocityInfluence * 1.35));
+        const sway = Math.sin(now * 0.0012 + i) * 0.04;
+        const bob = Math.sin(now * 0.0015 + i * 0.6) * 0.03;
+
+        folder.rotation.y += (twistTarget - folder.rotation.y) * 0.18;
+        folder.rotation.x += (sway + bob - folder.rotation.x) * 0.16;
+        folder.rotation.z += ((-velocityInfluence * 0.55) - folder.rotation.z) * 0.15;
+      });
+
+      if (edgeDir !== 0 && folders.length) {
+        edgeTimer += delta * 1000;
+        if (edgeTimer > hoverDelay) {
+          edgeTimer = 0;
+          setSelected(selectedIndex + edgeDir);
+        }
+      } else {
+        edgeTimer = 0;
+      }
+
+      keyLight.position.x += (mouse.x * 8 - keyLight.position.x) * 0.06;
+      keyLight.position.y += (4 + mouse.y * 4 - keyLight.position.y) * 0.06;
+
+      renderer.render(scene, camera);
+      updateLabels();
+      drawNetwork(delta);
+    }
+
+    function onResize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      networkCanvas.width = window.innerWidth;
+      networkCanvas.height = window.innerHeight;
+      regenerateNetwork();
+      updateLabels();
+    }
+
+    window.addEventListener('resize', onResize);
+
+    initFolders();
     animate();
-
-    window.addEventListener('message', e => {
-      if (e.data && Array.isArray(e.data.folders)) {
-        initFolders(e.data.folders);
-      }
-      if (e.data && e.data.closeGrid) {
-        closeActive();
-      }
-    });
-
-    // request folder list from parent on load
-    parent.postMessage({ requestFolders: true }, '*');
   </script>
 </body>
 </html>
-
