@@ -64,6 +64,10 @@
       opacity: 0;
       transition: opacity 0.4s ease;
       z-index: 4;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 4px;
+      scrollbar-width: thin;
     }
     #showcasePanel.visible {
       opacity: 1;
@@ -71,10 +75,14 @@
     .showcase-line {
       position: relative;
       --word-scale: 1;
+      --line-scale: 1;
       display: flex;
       align-items: flex-start;
       gap: clamp(14px, 2.4vw, 36px);
-      transition: gap 0.3s ease;
+      transition: gap 0.35s ease, margin 0.35s ease, transform 0.35s ease;
+      transform-origin: left top;
+      transform: scaleY(var(--line-scale));
+      margin: 0 0 clamp(16px, 2.8vh, 26px) 0;
     }
     .showcase-line .index {
       font-size: clamp(0.58rem, 1.4vw, 0.92rem);
@@ -97,7 +105,7 @@
       pointer-events: auto;
       font-family: 'Roboto Flex', 'Ferrite', sans-serif;
       transform-origin: left top;
-      transition: transform 0.3s ease;
+      transition: transform 0.35s ease;
     }
     .showcase-word .letter {
       display: inline-block;
@@ -145,7 +153,34 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
+    const DEFAULT_SHOWCASE = {
+      'Ads': [
+        { index: '01', label: 'REDSTAR' },
+        { index: '02', label: 'AUXDESCALES' },
+        { index: '03', label: 'BURGERKING' }
+      ],
+      'Music Videos': [
+        { index: '01', label: 'CANINE' },
+        { index: '02', label: 'SOF' },
+        { index: '03', label: 'EDMOND WELLS' }
+      ],
+      'Events': [
+        { index: '01', label: 'AGORA' },
+        { index: '02', label: 'LULUVANTRAPP' }
+      ],
+      'Graphics': [
+        { index: '01', label: 'COVERS' }
+      ],
+      'Web': [
+        { index: '01', label: 'TRATT' },
+        { index: '02', label: 'ADELE' }
+      ],
+      'Zines': [
+        { index: '01', label: 'NARVIK' }
+      ]
+    };
+
+    const DEFAULT_FOLDERS = Object.keys(DEFAULT_SHOWCASE);
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -220,14 +255,46 @@
     let accentColor = '#1449ff';
     let networkAccent = accentColor;
     const CHARACTER_SEQUENCE = ['M', 'O', 'T', 'I', 'O', 'N', '3', '3', '3'];
-    const SHOWCASE_MAP = {
-      'Ads': ['REDSTAR', 'AUXDESCALES', 'BURGERKING'],
-      'Music Videos': ['CANINE', 'SOF', 'EDMOND WELLS'],
-      'Events': ['AGORA', 'LULUVANTRAPP'],
-      'Graphics': ['COVERS'],
-      'Zines': ['NARVIK']
-    };
-    let showcaseActiveIndex = 0;
+
+    function cloneShowcase(map = {}) {
+      const result = {};
+      Object.keys(map).forEach(key => {
+        const list = Array.isArray(map[key]) ? map[key] : [];
+        result[key] = list.map((entry, idx) => {
+          if (entry && typeof entry === 'object') {
+            const label = String(entry.label ?? '').trim() || String(entry.id ?? '').replace(/^[0-9]+_/, '').replace(/_/g, ' ');
+            const index = String(entry.index ?? entry.id ?? idx + 1).split('_')[0];
+            return {
+              index: index ? index.padStart(2, '0') : String(idx + 1).padStart(2, '0'),
+              label: label.toUpperCase()
+            };
+          }
+          const raw = String(entry ?? '').replace(/^[0-9]+_/, '');
+          return {
+            index: String(idx + 1).padStart(2, '0'),
+            label: raw.replace(/_/g, ' ').toUpperCase()
+          };
+        });
+      });
+      return result;
+    }
+
+    function setPortfolioShowcase(map) {
+      const clone = cloneShowcase(map);
+      portfolioShowcase = Object.keys(clone).length ? clone : cloneShowcase(DEFAULT_SHOWCASE);
+    }
+
+    function getShowcaseEntries(folderName) {
+      const entries = portfolioShowcase[folderName];
+      if (!entries || !entries.length) return [];
+      return entries.map((entry, idx) => ({
+        index: entry.index ? String(entry.index).padStart(2, '0') : String(idx + 1).padStart(2, '0'),
+        label: entry.label ? String(entry.label).toUpperCase() : ''
+      }));
+    }
+
+    let portfolioShowcase = cloneShowcase(DEFAULT_SHOWCASE);
+    let showcaseActiveIndex = -1;
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -418,7 +485,7 @@
       if (selectedIndex === normalized) return;
       lastSelectionChange = now;
       selectedIndex = normalized;
-      showcaseActiveIndex = 0;
+      showcaseActiveIndex = -1;
       prepareAlignTargets(false);
       rebuildNetwork();
       notifyTopoPulse(0.85);
@@ -536,6 +603,7 @@
       showcasePanel.innerHTML = '';
       showcasePanel.style.width = '';
       showcasePanel.style.transform = 'translate(-50%, -50%)';
+      showcasePanel.scrollTop = 0;
     }
 
     function makeInteractive(container) {
@@ -601,15 +669,24 @@
       if (!showcasePanel) return;
       const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
       if (!lines.length) return;
-      const clamped = Math.max(0, Math.min(index, lines.length - 1));
-      showcaseActiveIndex = clamped;
+      const hasSelection = typeof index === 'number' && index >= 0 && index < lines.length;
+      showcaseActiveIndex = hasSelection ? index : -1;
+      const inactiveScale = hasSelection ? 0.74 : 1;
+      const inactiveLine = hasSelection ? 0.88 : 1;
       lines.forEach((line, idx) => {
         const selected = idx === showcaseActiveIndex;
-        const scale = selected ? 3 : 0.72;
+        const scale = selected ? 3 : inactiveScale;
         line.classList.toggle('selected', selected);
         line.setAttribute('data-selected', selected ? 'true' : 'false');
         line.style.setProperty('--word-scale', scale);
+        line.style.setProperty('--line-scale', selected ? 1 : inactiveLine);
+        line.style.gap = selected ? 'clamp(18px, 2.8vw, 44px)' : 'clamp(12px, 2vw, 32px)';
+        line.style.marginBottom = selected ? 'clamp(26px, 4vh, 42px)' : 'clamp(16px, 2.8vh, 26px)';
+        if (selected) {
+          line.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
       });
+      requestAnimationFrame(() => positionShowcasePanel());
     }
 
     function createInteractiveWord(text) {
@@ -636,19 +713,18 @@
       }
       clearShowcasePanel();
       const folderName = folders[selectedIndex].userData.name;
-      const entries = SHOWCASE_MAP[folderName] || [];
+      const entries = getShowcaseEntries(folderName);
       if (!entries.length) {
         showcasePanel.classList.remove('visible');
         return;
       }
-      showcaseActiveIndex = 0;
-      entries.forEach((label, idx) => {
+      entries.forEach((entry, idx) => {
         const line = document.createElement('div');
         line.className = 'showcase-line';
         const indexLabel = document.createElement('span');
         indexLabel.className = 'index';
-        indexLabel.textContent = String(idx + 1).padStart(2, '0');
-        const word = createInteractiveWord(label);
+        indexLabel.textContent = entry.index || String(idx + 1).padStart(2, '0');
+        const word = createInteractiveWord(entry.label || '');
         line.appendChild(indexLabel);
         line.appendChild(word);
         line.tabIndex = 0;
@@ -663,6 +739,42 @@
             notifyTopoPulse(0.55);
           }
         });
+        let holdTimer = null;
+        let holdOrigin = null;
+        const cancelHold = () => {
+          if (holdTimer) {
+            clearTimeout(holdTimer);
+            holdTimer = null;
+          }
+        };
+        line.addEventListener('pointerenter', evt => {
+          holdOrigin = { x: evt.clientX, y: evt.clientY };
+          cancelHold();
+          holdTimer = window.setTimeout(() => {
+            setShowcaseActive(idx);
+            notifyTopoPulse(0.45);
+            cancelHold();
+          }, 3000);
+        });
+        line.addEventListener('pointerleave', () => {
+          holdOrigin = null;
+          cancelHold();
+        });
+        line.addEventListener('pointermove', evt => {
+          if (!holdTimer || !holdOrigin) return;
+          const dist = Math.hypot(evt.clientX - holdOrigin.x, evt.clientY - holdOrigin.y);
+          if (dist > 12) {
+            holdOrigin = { x: evt.clientX, y: evt.clientY };
+            cancelHold();
+            holdTimer = window.setTimeout(() => {
+              setShowcaseActive(idx);
+              notifyTopoPulse(0.45);
+              cancelHold();
+            }, 3000);
+          }
+        });
+        line.addEventListener('pointerdown', cancelHold);
+        line.addEventListener('pointercancel', cancelHold);
         showcasePanel.appendChild(line);
       });
       showcasePanel.style.setProperty('--accent-color', accentColor);
@@ -729,12 +841,14 @@
       showcasePanel.style.transform = 'none';
     }
 
-    function initFolders(list = DEFAULT_FOLDERS) {
+    function initFolders(list) {
+      const source = Array.isArray(list) && list.length ? list : Object.keys(portfolioShowcase);
+      const names = source.length ? source : DEFAULT_FOLDERS;
       folders.forEach(f => scene.remove(f));
       folders.length = 0;
       labelsContainer.innerHTML = '';
       labels.length = 0;
-      list.forEach(name => {
+      names.forEach(name => {
         const f = createFolder(name);
         scene.add(f);
         folders.push(f);
@@ -751,6 +865,7 @@
       });
       mode = 'orbit';
       selectedIndex = -1;
+      showcaseActiveIndex = -1;
       magnetized = null;
       rebuildNetwork();
       networkCanvas.classList.remove('visible');
@@ -992,10 +1107,19 @@
     animate();
 
     window.addEventListener('message', e => {
-      if (e.data && Array.isArray(e.data.folders)) {
-        initFolders(e.data.folders);
+      if (!e.data) return;
+      let pendingReinit = false;
+      if (e.data.showcase) {
+        setPortfolioShowcase(e.data.showcase);
+        pendingReinit = true;
       }
-      if (e.data && e.data.theme && e.data.theme.accent) {
+      if (Array.isArray(e.data.folders)) {
+        initFolders(e.data.folders);
+        pendingReinit = false;
+      } else if (pendingReinit) {
+        initFolders();
+      }
+      if (e.data.theme && e.data.theme.accent) {
         accentColor = e.data.theme.accent;
         networkAccent = accentColor;
         labelsContainer.style.setProperty('--accent-color', accentColor);
