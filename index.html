@@ -26,7 +26,6 @@
       --bg-alt: #ffffff;
       --text-primary: #1449ff;
       --topo-light: #ffffff;
-      --cursor-shadow: rgba(20, 73, 255, 0.18);
     }
 
     body.dark-mode {
@@ -35,7 +34,6 @@
       --bg-alt: #1d1f24;
       --text-primary: #d72b2b;
       --topo-light: #1d1f24;
-      --cursor-shadow: rgba(215, 43, 43, 0.22);
     }
 
     html, body {
@@ -53,47 +51,8 @@
       background: transparent;
     }
 
-    body, body * {
-      cursor: none !important;
-    }
-
     body::-webkit-scrollbar {
       display: none;
-    }
-
-    #customCursor {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 24px;
-      height: 24px;
-      pointer-events: none;
-      z-index: 20;
-      opacity: 0;
-      transform: translate(-50%, -50%) scale(1);
-      transition: opacity 0.15s ease, filter 0.2s ease;
-      will-change: transform, opacity;
-      filter: drop-shadow(0 0 3px var(--cursor-shadow));
-    }
-
-    #customCursor::before,
-    #customCursor::after {
-      content: '';
-      position: absolute;
-      background: var(--accent);
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-    }
-
-    #customCursor::before {
-      width: 1.5px;
-      height: 100%;
-    }
-
-    #customCursor::after {
-      width: 100%;
-      height: 1.5px;
     }
 
     .i18n-loading [data-i18n] {
@@ -428,7 +387,6 @@
     document.documentElement.classList.add('i18n-loading');
   </script>
 <body>
-  <div id="customCursor"></div>
   <!-- Language switch button -->
   <button id="lang-toggle">FR</button>
 
@@ -516,50 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const scrollArrow       = document.getElementById('scrollArrow');
   const modeToggle        = document.getElementById('modeToggle');
   const scrollbarProgress = document.getElementById('scrollbarProgress');
-  const customCursor      = document.getElementById('customCursor');
-
-  const cursorTarget = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-  const cursorPos = { x: cursorTarget.x, y: cursorTarget.y };
-  let cursorScale = 1;
-  let cursorScaleTarget = 1;
-  let cursorVisible = false;
-
-  function animateCursor() {
-    if (!customCursor) return;
-    cursorPos.x += (cursorTarget.x - cursorPos.x) * 0.35;
-    cursorPos.y += (cursorTarget.y - cursorPos.y) * 0.35;
-    cursorScale += (cursorScaleTarget - cursorScale) * 0.2;
-    customCursor.style.transform = `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%) scale(${cursorScale})`;
-    requestAnimationFrame(animateCursor);
-  }
-
-  if (customCursor) {
-    requestAnimationFrame(animateCursor);
-    document.addEventListener('pointermove', event => {
-      cursorTarget.x = event.clientX;
-      cursorTarget.y = event.clientY;
-      if (!cursorVisible) {
-        cursorVisible = true;
-        customCursor.style.opacity = '1';
-      }
-    });
-    document.addEventListener('pointerout', event => {
-      if (!event.relatedTarget) {
-        cursorVisible = false;
-        customCursor.style.opacity = '0';
-      }
-    });
-    window.addEventListener('blur', () => {
-      cursorVisible = false;
-      customCursor.style.opacity = '0';
-    });
-    document.addEventListener('pointerdown', () => {
-      cursorScaleTarget = 0.75;
-    });
-    document.addEventListener('pointerup', () => {
-      cursorScaleTarget = 1;
-    });
-  }
 
   const THEMES = {
     light: { accent: '#1449ff', topoBg: '#faf8e5', topoLine: '#ffffff' },
@@ -709,32 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('message', e => {
     if (e.source === orbitFrame.contentWindow && e.data) {
-      if (e.data.orbitPointer && customCursor && orbitFrame) {
-        const pointer = e.data.orbitPointer;
-        if (pointer.type === 'move' || pointer.type === 'enter') {
-          const rect = orbitFrame.getBoundingClientRect();
-          cursorTarget.x = rect.left + (pointer.x ?? 0);
-          cursorTarget.y = rect.top + (pointer.y ?? 0);
-          if (!cursorVisible) {
-            cursorVisible = true;
-            customCursor.style.opacity = '1';
-          }
-        }
-        if (pointer.type === 'enter') {
-          cursorVisible = true;
-          customCursor.style.opacity = '1';
-        }
-        if (pointer.type === 'leave') {
-          cursorVisible = false;
-          customCursor.style.opacity = '0';
-        }
-        if (pointer.type === 'down') {
-          cursorScaleTarget = 0.75;
-        }
-        if (pointer.type === 'up') {
-          cursorScaleTarget = 1;
-        }
-      }
       if (e.data.topoColor && bgFrame && bgFrame.contentWindow) {
         bgFrame.contentWindow.postMessage({ color: e.data.topoColor, fade: e.data.fade }, '*');
       }
@@ -1186,6 +1074,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const orbitIframe = document.querySelector('iframe[src="orbit_inner.html"]');
   let portfolioManifest = DEFAULT_PORTFOLIO;
 
+  function normaliseFeatureVideo(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+    if (!url) return null;
+    const aspectRatio = typeof raw.aspectRatio === 'string' ? raw.aspectRatio.trim() : '';
+    return {
+      url,
+      aspectRatio: aspectRatio || '16:9'
+    };
+  }
+
   function normaliseItems(items = []) {
     return items.map((item, idx) => {
       const label = (item && item.label) ? item.label : String(item && item.id || idx + 1).replace(/^[0-9]+_/, '').replace(/_/g, ' ').toUpperCase();
@@ -1193,7 +1092,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const media = Array.isArray(item?.media)
         ? item.media.map(entry => String(entry))
         : [];
-      return { index, label, media };
+      const featureVideo = normaliseFeatureVideo(item?.featureVideo);
+      return featureVideo ? { index, label, media, featureVideo } : { index, label, media };
     });
   }
 

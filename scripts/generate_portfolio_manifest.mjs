@@ -6,7 +6,7 @@ const PORTFOLIO_DIR = path.join(ROOT, 'Portfolio');
 const OUTPUT_FILE = path.join(ROOT, 'portfolio_manifest.json');
 const DEFAULT_ORDER = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
 
-const GIF_REGEX = /\.gif$/i;
+const MEDIA_REGEX = /\.(gif|png)$/i;
 
 function toPosix(filePath) {
   return filePath.split(path.sep).join('/');
@@ -30,7 +30,47 @@ function extractIndex(raw) {
   return '';
 }
 
-async function readPortfolio() {
+function sanitizeFeatureVideo(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+  const aspectRatio = typeof raw.aspectRatio === 'string' ? raw.aspectRatio.trim() : '';
+  if (!url) return null;
+  return {
+    url,
+    aspectRatio: aspectRatio || '16:9'
+  };
+}
+
+function buildExistingLookup(existing) {
+  const map = new Map();
+  if (!existing || !Array.isArray(existing.folders)) return map;
+  existing.folders.forEach(folder => {
+    if (!folder || typeof folder.name !== 'string') return;
+    const folderKey = folder.name;
+    if (!Array.isArray(folder.items)) return;
+    const itemMap = new Map();
+    folder.items.forEach(item => {
+      if (!item || typeof item.id !== 'string') return;
+      itemMap.set(item.id, item);
+    });
+    map.set(folderKey, itemMap);
+  });
+  return map;
+}
+
+async function readExistingManifest() {
+  try {
+    const raw = await fs.readFile(OUTPUT_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function readPortfolio(existingManifest) {
   const result = { folders: [] };
   let entries;
   try {
@@ -53,6 +93,8 @@ async function readPortfolio() {
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 
+  const lookup = buildExistingLookup(existingManifest);
+
   for (const dir of dirs) {
     const folderPath = path.join(PORTFOLIO_DIR, dir.name);
     let subEntries = [];
@@ -62,6 +104,7 @@ async function readPortfolio() {
       if (error.code !== 'ENOENT') throw error;
     }
     const items = [];
+    const previousItems = lookup.get(dir.name) ?? new Map();
     const foldersOnly = subEntries
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name)
@@ -77,15 +120,19 @@ async function readPortfolio() {
       }
 
       const media = mediaEntries
-        .filter(entry => entry.isFile() && GIF_REGEX.test(entry.name))
+        .filter(entry => entry.isFile() && MEDIA_REGEX.test(entry.name))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
         .map(entry => toPosix(path.relative(ROOT, path.join(itemPath, entry.name))));
+
+      const existingItem = previousItems.get(name);
+      const featureVideo = sanitizeFeatureVideo(existingItem?.featureVideo);
 
       items.push({
         id: name,
         index: extractIndex(name),
         label: normalizeLabel(name).toUpperCase(),
-        media
+        media,
+        ...(featureVideo ? { featureVideo } : {})
       });
     }
 
@@ -104,7 +151,8 @@ async function writeManifest(data) {
 }
 
 (async () => {
-  const data = await readPortfolio();
+  const existingManifest = await readExistingManifest();
+  const data = await readPortfolio(existingManifest);
   await writeManifest(data);
   console.log(`Wrote manifest with ${data.folders.length} folders to ${OUTPUT_FILE}`);
 })();
