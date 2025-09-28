@@ -81,22 +81,23 @@
     }
     .showcase-word {
       display: flex;
+      justify-content: flex-start;
       width: 100%;
       font-size: clamp(2.6rem, 7vw, 7.5rem);
       line-height: 0.92;
-      letter-spacing: 0.08em;
       text-transform: uppercase;
+      white-space: nowrap;
       pointer-events: auto;
     }
     .showcase-word .letter {
       display: inline-block;
       overflow: hidden;
-      transition: width 0.25s cubic-bezier(.25,.1,.25,1);
+      transition: width 0.2s cubic-bezier(.25,.1,.25,1);
     }
     .showcase-word .letter .char {
       display: inline-block;
       transform-origin: left center;
-      transition: transform 0.25s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.25s cubic-bezier(.25,.1,.25,1);
+      transition: transform 0.2s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.2s cubic-bezier(.25,.1,.25,1);
       font-variation-settings: 'wght' 400;
     }
     .label {
@@ -206,14 +207,14 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
-      const paddingTop = visibleHeight * 0.42;
+      const paddingTop = visibleHeight * 0.36;
       const paddingBottom = visibleHeight * 0.18;
       const len = Math.max(folders.length, 1);
       const usableHeight = Math.max(visibleHeight - paddingTop - paddingBottom, 0.1);
       const baseSpacing = visibleHeight * 0.12;
       alignSpacing = len > 1 ? Math.max(baseSpacing, usableHeight / (len - 1)) : 0;
       alignTopY = visibleHeight / 2 - paddingTop;
-      const leftInset = Math.min(visibleWidth * 0.08, 1.6);
+      const leftInset = Math.min(visibleWidth * 0.12, 2.2);
       alignColumnX = -visibleWidth / 2 + leftInset;
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
@@ -512,7 +513,8 @@
         baseWidths.push(width);
         sumBase += width;
       });
-      const totalWidth = container.getBoundingClientRect().width || 1;
+      const rect = container.getBoundingClientRect();
+      const totalWidth = Math.max(rect.width, container.offsetWidth, sumBase || 1);
       const S = sumBase > 0 ? totalWidth / sumBase : 1;
       const hoverScale = 1.8;
       const neighborScale = 1.2;
