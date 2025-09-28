@@ -244,23 +244,13 @@
   transition: opacity 1.2s ease, filter 1.2s ease;
 }
 
-    .lower-stack {
+    .footer-paragraph {
       position: absolute;
-      top: 430vh;
+      top: 450vh;
       left: 50%;
       transform: translateX(-50%);
       width: min(88vw, 1280px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: clamp(32px, 6vh, 72px);
-      z-index: 1;
-      padding-bottom: 120px;
-    }
-
-    .footer-paragraph {
-      width: 100%;
-      padding: clamp(16px, 4vw, 48px);
+      padding: clamp(24px, 4vw, 48px);
       font-family: 'Ferrite Display', sans-serif;
       font-size: clamp(18px, 2vw, 28px);
       color: var(--accent);
@@ -268,19 +258,20 @@
       text-transform: uppercase;
       line-height: 1.6;
       background: transparent;
+      z-index: 1;
     }
 
     .page-footer {
-      position: fixed;
-      bottom: 0;
+      position: absolute;
+      top: 642vh;
       left: 0;
-      width: 100%;
+      width: 100vw;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      padding: 12px 24px;
+      padding: 24px clamp(16px, 4vw, 48px);
       box-sizing: border-box;
-      z-index: 4;
+      z-index: 1;
     }
 
     .page-footer .real-footer,
@@ -365,9 +356,10 @@
     }
 
     #featureVideoShell {
-      position: relative;
-      width: 100%;
-      height: auto;
+      position: absolute;
+      top: 500vh;
+      left: 50%;
+      transform: translateX(-50%);
       display: inline-flex;
       align-items: flex-end;
       justify-content: center;
@@ -375,6 +367,8 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s ease;
+      width: auto;
+      z-index: 1;
     }
 
     #featureVideoShell.visible {
@@ -385,8 +379,8 @@
     .feature-video-frame {
       position: relative;
       height: clamp(360px, 48vh, 640px);
-      width: var(--feature-video-width, 100%);
-      max-width: 100%;
+      width: var(--feature-video-width, min(80vw, 960px));
+      max-width: min(80vw, 960px);
       background: var(--bg-alt);
       border: 4px solid var(--accent);
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
@@ -444,7 +438,7 @@
       font-weight: 700;
       box-sizing: border-box;
       transition: background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease, opacity 0.3s ease;
-      border-radius: 50%;
+      border-radius: 0;
     }
 
     #featureVideoSound.disabled {
@@ -458,8 +452,10 @@
     }
 
     .portfolio-orbit {
-      position: relative;
-      width: 100%;
+      position: absolute;
+      top: 550vh;
+      left: 0;
+      width: 100vw;
       height: clamp(520px, 90vh, 960px);
       border: none;
       background: transparent;
@@ -1286,23 +1282,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-  <div class="lower-stack">
-    <div class="footer-paragraph" data-i18n="footerDescription">
-      Proficient working solo or within a creative team. I’m adept at developing clean and productive workflows and efficient production systems. Detail-focused, sharp eyed for the micro as well as the full picture. Experience working in difficult spaces, musical environnements and challenging deadlines. Passion for developping unique image treatment media and effects. Strong ability with both sober briefs and maximalist detail-heavy scenes. Capable of further developping client ideas by finding creative solutions to design challenges.
-    </div>
-
-    <div id="featureVideoShell">
-      <div class="feature-video-frame no-video">
-        <video id="featureVideoPlayer" muted playsinline loop preload="metadata"></video>
-        <div id="featureVideoPlaceholder" class="feature-video-placeholder">VIDEO PLACEHOLDER</div>
-      </div>
-      <button id="featureVideoSound" type="button" class="disabled" aria-label="Video muted">
-        <span class="icon" aria-hidden="true">🔇</span>
-      </button>
-    </div>
-
-    <iframe src="orbit_inner.html" class="portfolio-orbit"></iframe>
+  <div class="footer-paragraph" data-i18n="footerDescription">
+    Proficient working solo or within a creative team. I’m adept at developing clean and productive workflows and efficient production systems. Detail-focused, sharp eyed for the micro as well as the full picture. Experience working in difficult spaces, musical environnements and challenging deadlines. Passion for developping unique image treatment media and effects. Strong ability with both sober briefs and maximalist detail-heavy scenes. Capable of further developping client ideas by finding creative solutions to design challenges.
   </div>
+
+  <div id="featureVideoShell">
+    <div class="feature-video-frame no-video">
+      <video id="featureVideoPlayer" muted playsinline loop preload="metadata"></video>
+      <div id="featureVideoPlaceholder" class="feature-video-placeholder">VIDEO PLACEHOLDER</div>
+    </div>
+    <button id="featureVideoSound" type="button" class="disabled" aria-label="Video muted">
+      <span class="icon" aria-hidden="true">🔇</span>
+    </button>
+  </div>
+
+  <iframe src="orbit_inner.html" class="portfolio-orbit"></iframe>
 
   <footer class="page-footer">
     <div class="real-footer" data-i18n="fontCredit">Ferrite Display Font by @willaggett</div>

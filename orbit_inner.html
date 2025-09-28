@@ -79,14 +79,14 @@
     .showcase-line {
       position: relative;
       display: block;
-      padding-right: clamp(32px, 5vw, 72px);
+      padding-right: clamp(48px, 6vw, 96px);
       transition: height 0.35s ease, padding-right 0.35s ease;
       height: auto;
     }
     .showcase-line .index {
       position: absolute;
-      top: clamp(-0.45rem, -1.4vh, -0.15rem);
-      right: clamp(-0.35rem, -1.4vw, -0.1rem);
+      top: clamp(-0.6rem, -1.6vh, -0.3rem);
+      right: 0;
       font-size: clamp(0.58rem, 1.4vw, 0.92rem);
       letter-spacing: 0.18em;
       font-variation-settings: 'wght' 650;
@@ -253,6 +253,12 @@
     const alignDepth = 0.22;
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
+    const EDGE_ZONE_RATIO = 0.12;
+    const EDGE_TRIGGER_MS = 1200;
+    const EDGE_DECAY_MS = 600;
+    let edgeDirection = 0;
+    let edgeStrength = 0;
+    let edgeAccumulator = 0;
 
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
     const orbitEase = alignEase;
@@ -404,9 +410,23 @@
       if (mode === 'align') {
         targetMouse.x = nx * 0.4;
         targetMouse.y = ny * 0.4;
+        const zone = Math.max(window.innerWidth * EDGE_ZONE_RATIO, 1);
+        if (e.clientX < zone) {
+          edgeDirection = -1;
+          edgeStrength = Math.min(1, (zone - e.clientX) / zone);
+        } else if (e.clientX > window.innerWidth - zone) {
+          edgeDirection = 1;
+          edgeStrength = Math.min(1, (e.clientX - (window.innerWidth - zone)) / zone);
+        } else {
+          edgeDirection = 0;
+          edgeStrength = 0;
+        }
       } else {
         targetMouse.x = nx;
         targetMouse.y = ny;
+        edgeDirection = 0;
+        edgeStrength = 0;
+        edgeAccumulator = 0;
       }
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -683,7 +703,8 @@
         loopShift: 0,
         baseScale,
         frontMat,
-        backMat
+        backMat,
+        alignSeed: Math.random() * Math.PI * 2
       };
       return g;
     }
@@ -1315,7 +1336,12 @@
 
       if (mode === 'align') {
         magnetized = null;
-        dirLight.position.lerp(new THREE.Vector3(0, 5.5, 22), 0.08);
+        dirLight.position.lerp(new THREE.Vector3(0, 6.2, 26), 0.08);
+        raycaster.setFromCamera(mouse, camera);
+        const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
+        folders.forEach(f => {
+          f.userData.hovered = hoverHits.some(h => h.object === f.userData.front);
+        });
         const len = folders.length || 1;
         folders.forEach((f, i) => {
           const ud = f.userData;
@@ -1325,17 +1351,36 @@
           const tt = alignEase(t);
           const fromPos = ud.alignFrom || f.position.clone();
           const targetInfo = ud.alignTo ? { position: ud.alignTo, scale: ud.alignToScale } : computeAlignTarget(i, len);
-          const targetPos = targetInfo.position;
-          f.position.copy(fromPos.clone().lerp(targetPos, tt));
+          const baseTarget = targetInfo.position.clone ? targetInfo.position.clone() : targetInfo.position;
+          const lerped = fromPos.clone().lerp(baseTarget, tt);
+          const wobblePhase = now * 0.0014 + (ud.alignSeed || 0);
+          const bob = Math.sin(wobblePhase) * 0.06;
+          const depthSway = Math.cos(wobblePhase * 1.05) * 0.035;
+          lerped.y += bob;
+          lerped.z = baseTarget.z + depthSway;
+          f.position.copy(lerped);
           const fromScale = ud.alignFromScale || f.scale.clone();
           const targetScaleValue = targetInfo.scale || ud.baseScale || 1;
           const targetScaleVec = new THREE.Vector3(targetScaleValue, targetScaleValue, targetScaleValue);
           f.scale.copy(fromScale.clone().lerp(targetScaleVec, tt));
           const fromRot = ud.alignFromRot || f.rotation.clone();
-          const rotX = THREE.MathUtils.lerp(fromRot.x, baseAlignTilt, tt);
-          f.rotation.set(rotX, 0, 0);
-          ud.front.rotation.x += (THREE.MathUtils.degToRad(9) - ud.front.rotation.x) * 0.12;
+          const baseRotX = THREE.MathUtils.lerp(fromRot.x, baseAlignTilt, tt);
+          const swayX = Math.sin(wobblePhase * 1.35) * 0.03;
+          const swayY = Math.sin(wobblePhase * 0.9) * 0.05;
+          const swayZ = Math.cos(wobblePhase * 0.8) * 0.04;
+          f.rotation.set(baseRotX + swayX, swayY, swayZ);
+          const openTarget = ud.hovered ? THREE.MathUtils.degToRad(15) : 0;
+          ud.front.rotation.x += (openTarget - ud.front.rotation.x) * 0.12;
         });
+        if (edgeDirection !== 0 && len > 1) {
+          edgeAccumulator += edgeStrength * dt / EDGE_TRIGGER_MS;
+          if (edgeAccumulator >= 1) {
+            setTargetSelection(selectedIndex + edgeDirection);
+            edgeAccumulator = 0.25;
+          }
+        } else {
+          edgeAccumulator = Math.max(0, edgeAccumulator - dt / EDGE_DECAY_MS);
+        }
         updateLabels(selectedIndex);
         drawNetwork(dt);
         positionShowcasePanel();
