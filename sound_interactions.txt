@@ -19,5 +19,7 @@ Sound Layer Plan for MOTION_SUPREME interactions
 16. topoPulse — soft whoosh that accompanies each background topo animation burst triggered by folder selections or showcase clicks.
 17. showcasePreviewAppear — airy harmonic swell that fades in as GIF preview squares rise into place when hovering project names.
 18. showcasePreviewDrop — percussive falloff that triggers when preview squares lose focus and drop off the page.
+19. featureVideoReveal — sustained pad that fades in when a project selection surfaces the feature video frame.
+20. featureVideoAudioToggle — short chime indicating the video sound button toggling between muted and unmuted states.
 
 Each layer is currently generated through Web Audio oscillators as placeholders. Replace with provided audio assets later by updating the SoundManager.createLayer configuration.

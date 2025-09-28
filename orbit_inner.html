@@ -11,6 +11,9 @@
       src: url('/static/FERRITEDISPLAYVF.ttf') format('truetype');
       font-weight: 100 900;
     }
+    :root {
+      --theme-transition: 0.45s;
+    }
     html, body {
       margin: 0;
       padding: 0;
@@ -46,7 +49,7 @@
       z-index: 3;
       font-family: 'Ferrite', sans-serif;
       color: var(--accent-color, #1449ff);
-      transition: color 0.35s ease;
+      transition: color var(--theme-transition, 0.45s);
     }
     #showcasePanel {
       position: absolute;
@@ -78,8 +81,8 @@
       display: grid;
       grid-template-columns: auto 1fr;
       align-items: flex-start;
-      gap: clamp(8px, 1.6vw, 24px);
-      transition: height 0.35s ease, gap 0.35s ease;
+      column-gap: clamp(6px, 1.1vw, 18px);
+      transition: height 0.35s ease, column-gap 0.35s ease;
       height: auto;
     }
     .showcase-line .index {
@@ -87,6 +90,7 @@
       letter-spacing: 0.18em;
       font-variation-settings: 'wght' 650;
       margin-top: clamp(0.12rem, 0.45vh, 0.4rem);
+      margin-right: -0.25em;
       font-family: 'Ferrite', sans-serif;
       pointer-events: none;
       transition: transform 0.3s ease;
@@ -146,22 +150,10 @@
       overflow: hidden;
       background: rgba(20, 73, 255, 0.08);
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
-      transform: translate(-50%, -50%) scale(0.85);
-      opacity: 0;
-      animation-name: gifEnter, cardBob;
-      animation-duration: 0.45s, var(--bob-duration, 7.2s);
-      animation-timing-function: ease, ease-in-out;
-      animation-delay: var(--enter-delay, 0s), var(--bob-delay, 0s);
-      animation-fill-mode: forwards, none;
-      animation-iteration-count: 1, infinite;
-      animation-direction: normal, alternate;
-    }
-
-    .gif-card .gif-card-inner {
-      width: 100%;
-      height: 100%;
-      transform-origin: center;
-      animation: cardFloat 6s ease-in-out infinite alternate;
+      transform: translate(-50%, -50%);
+      opacity: 1;
+      pointer-events: none;
+      transition: border-color var(--theme-transition, 0.45s), background-color var(--theme-transition, 0.45s);
     }
 
     .gif-card img {
@@ -169,50 +161,6 @@
       height: 100%;
       object-fit: cover;
       display: block;
-    }
-
-    .gif-card.dropping {
-      animation: gifDrop 0.5s cubic-bezier(.33, .8, .48, 1) forwards;
-    }
-
-    @keyframes gifEnter {
-      from {
-        opacity: 0;
-        transform: translate(-50%, -60%) scale(0.75);
-      }
-      to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
-    }
-
-    @keyframes gifDrop {
-      from {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
-      to {
-        opacity: 1;
-        transform: translate(-50%, 110vh) scale(0.94);
-      }
-    }
-
-    @keyframes cardFloat {
-      from {
-        transform: rotate(var(--float-from, -3deg));
-      }
-      to {
-        transform: rotate(var(--float-to, 3deg));
-      }
-    }
-
-    @keyframes cardBob {
-      from {
-        margin-top: calc(var(--bob-range, 18px) * -1);
-      }
-      to {
-        margin-top: var(--bob-range, 18px);
-      }
     }
   </style>
 </head>
@@ -333,6 +281,19 @@
       };
     }
 
+    function colorWithAlpha(hex, alpha) {
+      if (typeof hex !== 'string') return `rgba(20, 73, 255, ${alpha})`;
+      const clean = hex.replace('#', '');
+      if (!(clean.length === 3 || clean.length === 6)) {
+        return `rgba(20, 73, 255, ${alpha})`;
+      }
+      const expanded = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
+      const r = parseInt(expanded.slice(0, 2), 16);
+      const g = parseInt(expanded.slice(2, 4), 16);
+      const b = parseInt(expanded.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     function cloneShowcase(map = {}) {
       const result = {};
       Object.keys(map).forEach(key => {
@@ -421,6 +382,7 @@
       networkCanvas.width = w;
       networkCanvas.height = h;
       updateLayoutMetrics();
+      scheduleCardBounds();
     }
     window.addEventListener('resize', resize);
     resize();
@@ -443,6 +405,190 @@
     });
 
     const ease = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
+
+    const cardStates = new Set();
+    let cardBounds = { minX: 0, maxX: window.innerWidth, minY: 0, maxY: window.innerHeight };
+    let lastCardUpdate = performance.now();
+
+    function removeCardState(state) {
+      if (!state) return;
+      cardStates.delete(state);
+      if (state.el && state.el.parentElement) {
+        state.el.remove();
+      }
+    }
+
+    function scheduleCardBounds() {
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+      cardBounds = {
+        minX: viewportWidth * 0.55,
+        maxX: viewportWidth * 0.9,
+        minY: viewportHeight * 0.18,
+        maxY: viewportHeight * 0.86
+      };
+    }
+
+    function spawnCard(src, delay = 0) {
+      window.setTimeout(() => {
+        if (!gifPreview) return;
+        const size = Math.min(Math.max(110, Math.random() * 110 + 110), (window.innerWidth || 1280) * 0.2);
+        const spawnX = cardBounds.maxX + size * (1.4 + Math.random() * 0.6);
+        const spawnY = cardBounds.minY + Math.random() * Math.max(cardBounds.maxY - cardBounds.minY, size);
+        const card = document.createElement('div');
+        card.className = 'gif-card';
+        card.style.width = `${size}px`;
+        card.style.height = `${size}px`;
+        card.style.left = `${spawnX}px`;
+        card.style.top = `${spawnY}px`;
+        card.style.opacity = '1';
+        card.style.borderColor = accentColor;
+        card.style.backgroundColor = colorWithAlpha(accentColor, 0.12);
+
+        const img = document.createElement('img');
+        img.src = encodeURI(src);
+        img.alt = '';
+        card.appendChild(img);
+
+        gifPreview.appendChild(card);
+
+        const baseSpeed = -120 - Math.random() * 70;
+        const state = {
+          el: card,
+          size,
+          x: spawnX,
+          y: spawnY,
+          vx: baseSpeed,
+          vy: (Math.random() - 0.5) * 80,
+          targetVX: baseSpeed * 0.25,
+          targetVY: (Math.random() - 0.5) * 60,
+          rotation: (Math.random() - 0.5) * 10,
+          rotationVelocity: (Math.random() - 0.5) * 25,
+          targetRotationVelocity: (Math.random() - 0.5) * 20,
+          floatTimer: 0,
+          floatInterval: 2 + Math.random() * 2,
+          dropping: false,
+          dropTimer: 0
+        };
+        cardStates.add(state);
+      }, delay);
+    }
+
+    function refreshCardAccent() {
+      cardStates.forEach(state => {
+        state.el.style.borderColor = accentColor;
+        state.el.style.backgroundColor = colorWithAlpha(accentColor, 0.12);
+      });
+    }
+
+    function updateCardTargets(state) {
+      state.floatTimer = 0;
+      state.floatInterval = 2.5 + Math.random() * 2.5;
+      state.targetVX = (Math.random() - 0.6) * 110;
+      state.targetVY = (Math.random() - 0.5) * 90;
+      state.targetRotationVelocity = (Math.random() - 0.5) * 25;
+    }
+
+    function resolveCardCollisions() {
+      const states = Array.from(cardStates).filter(s => !s.dropping);
+      for (let i = 0; i < states.length; i++) {
+        for (let j = i + 1; j < states.length; j++) {
+          const a = states[i];
+          const b = states[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy) || 0.0001;
+          const minDist = (a.size + b.size) * 0.5 + 12;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) * 0.5;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.x -= nx * overlap;
+            a.y -= ny * overlap;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+            const relVel = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+            if (relVel < 0) {
+              const impulse = (-(1 + 0.6) * relVel) / 2;
+              a.vx -= impulse * nx;
+              a.vy -= impulse * ny;
+              b.vx += impulse * nx;
+              b.vy += impulse * ny;
+            }
+            a.rotationVelocity += (Math.random() - 0.5) * 12;
+            b.rotationVelocity += (Math.random() - 0.5) * 12;
+          }
+        }
+      }
+    }
+
+    function updateCardState(state, dt, now) {
+      const dtSec = dt / 1000;
+      if (state.dropping) {
+        state.dropTimer += dtSec;
+        const gravityFactor = Math.min(state.dropTimer / 2, 1);
+        state.vy += (380 + 320 * gravityFactor) * dtSec;
+        state.y += state.vy * dtSec;
+        state.x += state.vx * dtSec;
+        state.rotationVelocity += 28 * dtSec;
+        state.rotation += state.rotationVelocity * dtSec;
+        if (state.y - state.size * 0.5 > (window.innerHeight || 900) + state.size) {
+          removeCardState(state);
+        }
+        return;
+      }
+
+      state.floatTimer += dtSec;
+      if (state.floatTimer >= state.floatInterval) {
+        updateCardTargets(state);
+      }
+
+      state.vx += (state.targetVX - state.vx) * Math.min(dtSec * 2.2, 0.18);
+      state.vy += (state.targetVY - state.vy) * Math.min(dtSec * 2.2, 0.18);
+      state.rotationVelocity += (state.targetRotationVelocity - state.rotationVelocity) * Math.min(dtSec * 2.5, 0.2);
+
+      state.x += state.vx * dtSec;
+      state.y += state.vy * dtSec;
+      state.rotation += state.rotationVelocity * dtSec;
+
+      const minX = cardBounds.minX + state.size * 0.5;
+      const maxX = cardBounds.maxX - state.size * 0.5;
+      const minY = cardBounds.minY + state.size * 0.5;
+      const maxY = cardBounds.maxY - state.size * 0.5;
+
+      if (state.x < minX) {
+        state.x = minX;
+        state.vx = Math.abs(state.vx) * 0.72;
+        state.rotationVelocity += (Math.random() - 0.5) * 18;
+      } else if (state.x > maxX) {
+        state.x = maxX;
+        state.vx = -Math.abs(state.vx) * 0.72;
+        state.rotationVelocity += (Math.random() - 0.5) * 18;
+      }
+
+      if (state.y < minY) {
+        state.y = minY;
+        state.vy = Math.abs(state.vy) * 0.72;
+        state.rotationVelocity += (Math.random() - 0.5) * 18;
+      } else if (state.y > maxY) {
+        state.y = maxY;
+        state.vy = -Math.abs(state.vy) * 0.72;
+        state.rotationVelocity += (Math.random() - 0.5) * 18;
+      }
+    }
+
+    function updateGifCardsFrame(now) {
+      const dt = now - lastCardUpdate;
+      lastCardUpdate = now;
+      cardStates.forEach(state => updateCardState(state, dt, now));
+      resolveCardCollisions();
+      cardStates.forEach(state => {
+        if (!state.el.parentElement) return;
+        state.el.style.left = `${state.x}px`;
+        state.el.style.top = `${state.y}px`;
+        state.el.style.transform = `translate(-50%, -50%) rotate(${state.rotation}deg)`;
+      });
+    }
 
     function createFolder(name) {
       const g = new THREE.Group();
@@ -689,68 +835,22 @@
 
     function dropExistingCards({ immediate = false } = {}) {
       if (!gifPreview) return;
-      const cards = Array.from(gifPreview.children);
-      cards.forEach(card => {
+      Array.from(cardStates).forEach(state => {
         if (immediate) {
-          card.remove();
-          return;
+          removeCardState(state);
+        } else if (!state.dropping) {
+          state.dropping = true;
+          state.dropTimer = 0;
         }
-        card.classList.add('dropping');
-        card.style.animationDelay = '0s';
-        card.addEventListener('animationend', () => card.remove(), { once: true });
       });
     }
 
     function renderGifCards(list) {
       if (!gifPreview) return;
       const limited = list.slice(0, 5);
-      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-      const minX = viewportWidth * 0.55;
-      const maxX = viewportWidth * 0.9;
-      const minY = viewportHeight * 0.18;
-      const maxY = viewportHeight * 0.86;
-
+      scheduleCardBounds();
       limited.forEach((raw, idx) => {
-        const src = encodeURI(raw);
-        const card = document.createElement('div');
-        card.className = 'gif-card';
-
-        const baseSize = Math.random() * 80 + 120;
-        const size = Math.min(baseSize, viewportWidth * 0.18);
-        const posX = Math.min(Math.max(minX + Math.random() * (maxX - minX), minX), maxX);
-        const posY = Math.min(Math.max(minY + Math.random() * (maxY - minY), minY), maxY);
-
-        card.style.width = `${size}px`;
-        card.style.height = `${size}px`;
-        card.style.left = `${posX}px`;
-        card.style.top = `${posY}px`;
-        const enterDelay = (idx * 0.05).toFixed(2);
-        const bobDelay = (Math.random() * 1.4).toFixed(2);
-        const floatRange = (Math.random() * 4 + 2).toFixed(2);
-        const floatBase = (Math.random() * 10 - 5).toFixed(2);
-        const floatDuration = (Math.random() * 3 + 5).toFixed(2);
-        const bobRange = (Math.random() * 16 + 10).toFixed(2);
-
-        card.style.setProperty('--float-from', `${parseFloat(floatBase) - parseFloat(floatRange)}deg`);
-        card.style.setProperty('--float-to', `${parseFloat(floatBase) + parseFloat(floatRange)}deg`);
-        card.style.setProperty('--enter-delay', `${enterDelay}s`);
-        card.style.setProperty('--bob-delay', `${bobDelay}s`);
-        card.style.setProperty('--bob-duration', `${floatDuration}s`);
-        card.style.setProperty('--bob-range', `${bobRange}px`);
-
-        const inner = document.createElement('div');
-        inner.className = 'gif-card-inner';
-        inner.style.animationDuration = `${floatDuration}s`;
-        inner.style.animationDelay = `${Math.random() * 1.4}s`;
-
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = '';
-        inner.appendChild(img);
-        card.appendChild(inner);
-
-        gifPreview.appendChild(card);
+        spawnCard(raw, idx * 140 + Math.random() * 120);
       });
     }
 
@@ -800,6 +900,8 @@
       showcasePanel.style.width = '';
       showcasePanel.style.transform = 'translateY(-50%)';
       showcasePanel.scrollTop = 0;
+      showcasePanel._entries = [];
+      showcasePanel._folderName = '';
       setGifPreview(null);
     }
 
@@ -862,6 +964,14 @@
       makeInteractive(container);
     }
 
+    function postSelectionToParent(payload) {
+      try {
+        parent.postMessage({ showcaseSelection: payload }, '*');
+      } catch (error) {
+        /* ignore cross-origin issues */
+      }
+    }
+
     function setShowcaseActive(index) {
       if (!showcasePanel) return;
       const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
@@ -890,8 +1000,16 @@
           setGifPreview(activeLine._entryMedia);
         }
         activeLine.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        const entryData = (showcasePanel._entries || [])[showcaseActiveIndex];
+        if (entryData) {
+          postSelectionToParent({
+            folder: showcasePanel._folderName || '',
+            entry: entryData
+          });
+        }
       } else {
         setGifPreview(null);
+        postSelectionToParent(null);
       }
       requestAnimationFrame(() => positionShowcasePanel());
     }
@@ -931,6 +1049,7 @@
       if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
         showcasePanel.classList.remove('visible');
         clearShowcasePanel();
+        postSelectionToParent(null);
         return;
       }
       clearShowcasePanel();
@@ -938,8 +1057,16 @@
       const entries = getShowcaseEntries(folderName);
       if (!entries.length) {
         showcasePanel.classList.remove('visible');
+        postSelectionToParent(null);
         return;
       }
+      showcasePanel._entries = entries.map(entry => ({
+        index: entry.index,
+        label: entry.label,
+        media: Array.isArray(entry.media) ? entry.media.slice() : [],
+        featureVideo: entry.featureVideo ? { ...entry.featureVideo } : null
+      }));
+      showcasePanel._folderName = folderName;
       entries.forEach((entry, idx) => {
         const line = document.createElement('div');
         line.className = 'showcase-line';
@@ -951,6 +1078,7 @@
         line.appendChild(word);
         line.tabIndex = 0;
         line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
+        line._featureVideo = entry.featureVideo ? { ...entry.featureVideo } : null;
         line.addEventListener('click', () => {
           setShowcaseActive(idx);
           notifyTopoPulse(0.55);
@@ -1159,6 +1287,7 @@
         clearShowcasePanel();
       }
       notifyTopoPulse(0.6);
+      postSelectionToParent(null);
     }
 
     function updateLabels(selectedIdx) {
@@ -1182,6 +1311,8 @@
       const now = performance.now();
       const dt = now - lastTime;
       lastTime = now;
+
+      updateGifCardsFrame(now);
 
       if (mode === 'align') {
         magnetized = null;
@@ -1321,27 +1452,25 @@
 
     window.addEventListener('message', e => {
       if (!e.data) return;
-      let pendingReinit = false;
-      if (e.data.showcase) {
-        setPortfolioShowcase(e.data.showcase);
-        pendingReinit = true;
-      }
       if (Array.isArray(e.data.folders)) {
         initFolders(e.data.folders);
-        pendingReinit = false;
-      } else if (pendingReinit) {
-        initFolders();
+      }
+      if (e.data.showcase && typeof e.data.showcase === 'object') {
+        setPortfolioShowcase(e.data.showcase);
+        if (mode === 'align' && selectedIndex >= 0) {
+          updateShowcasePanel();
+        }
       }
       if (e.data.theme && e.data.theme.accent) {
         accentColor = e.data.theme.accent;
         networkAccent = accentColor;
         labelsContainer.style.setProperty('--accent-color', accentColor);
-        if (showcasePanel) {
-          showcasePanel.style.setProperty('--accent-color', accentColor);
-        }
-        if (gifPreview) {
-          gifPreview.style.setProperty('--accent-color', accentColor);
-        }
+        if (showcasePanel) showcasePanel.style.setProperty('--accent-color', accentColor);
+        if (gifPreview) gifPreview.style.setProperty('--accent-color', accentColor);
+        refreshCardAccent();
+      }
+      if (typeof e.data.closeGrid === 'boolean' && e.data.closeGrid) {
+        exitAlign();
       }
     });
 
