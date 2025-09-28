@@ -17,7 +17,7 @@
       height: 100%;
       background: transparent;
       overflow: hidden;
-      cursor: default;
+      cursor: none;
     }
     #sceneWrap {
       position: fixed;
@@ -129,7 +129,7 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
+    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -194,7 +194,6 @@
       'Music Videos': ['CANINE', 'SOF', 'EDMOND WELLS'],
       'Events': ['AGORA', 'LULUVANTRAPP'],
       'Graphics': ['COVERS'],
-      'Web': ['TRATT', 'ADELE'],
       'Zines': ['NARVIK']
     };
     function computeVisibleMetrics() {
@@ -207,14 +206,14 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
-      const paddingTop = visibleHeight * 0.36;
+      const paddingTop = visibleHeight * 0.24;
       const paddingBottom = visibleHeight * 0.18;
       const len = Math.max(folders.length, 1);
       const usableHeight = Math.max(visibleHeight - paddingTop - paddingBottom, 0.1);
       const baseSpacing = visibleHeight * 0.12;
       alignSpacing = len > 1 ? Math.max(baseSpacing, usableHeight / (len - 1)) : 0;
       alignTopY = visibleHeight / 2 - paddingTop;
-      const leftInset = Math.min(visibleWidth * 0.12, 2.2);
+      const leftInset = Math.min(visibleWidth * 0.18, 2.6);
       alignColumnX = -visibleWidth / 2 + leftInset;
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
@@ -513,14 +512,14 @@
         baseWidths.push(width);
         sumBase += width;
       });
-      const rect = container.getBoundingClientRect();
-      const totalWidth = Math.max(rect.width, container.offsetWidth, sumBase || 1);
+      const totalWidth = sumBase > 0 ? sumBase : Math.max(container.getBoundingClientRect().width, 1);
       const S = sumBase > 0 ? totalWidth / sumBase : 1;
       const hoverScale = 1.8;
       const neighborScale = 1.2;
       const normalWeight = 400;
       const neighborWeight = 600;
       const hoverWeight = 900;
+      container.style.width = `${totalWidth}px`;
       letters.forEach((out, i) => {
         const inn = out.firstElementChild;
         out.style.width = `${baseWidths[i] * S}px`;
