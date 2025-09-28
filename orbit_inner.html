@@ -53,7 +53,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: min(68vw, 960px);
+      width: min(34vw, 480px);
       display: flex;
       flex-direction: column;
       gap: clamp(18px, 3vh, 42px);
@@ -541,7 +541,8 @@
       const normalWeight = 400;
       const neighborWeight = 600;
       const hoverWeight = 900;
-      const strokeWidth = 1.1;
+      const hoverStroke = 1.2;
+      const neighborStroke = 0.55;
       const strokeShadow = '0 0 1px currentColor, 0 0 2px currentColor';
       container.style.width = `${totalWidth}px`;
       letters.forEach((out, i) => {
@@ -565,21 +566,21 @@
             const inn = node.firstElementChild;
             let ratio = R_o;
             let weight = normalWeight;
-            let stroked = false;
+            let strokeSize = 0;
             if (j === i) {
               ratio = R_h;
               weight = hoverWeight;
-              stroked = true;
+              strokeSize = hoverStroke;
             } else if (j === i - 1 || j === i + 1) {
               ratio = R_n;
               weight = neighborWeight;
-              stroked = true;
+              strokeSize = neighborStroke;
             }
             node.style.width = `${baseWidths[j] * S * ratio}px`;
             inn.style.transform = `scaleX(${S * ratio})`;
             inn.style.fontVariationSettings = `'wght' ${weight}`;
-            inn.style.webkitTextStroke = stroked ? `${strokeWidth}px currentColor` : '0 currentColor';
-            inn.style.textShadow = stroked ? strokeShadow : 'none';
+            inn.style.webkitTextStroke = strokeSize ? `${strokeSize}px currentColor` : '0 currentColor';
+            inn.style.textShadow = strokeSize ? strokeShadow : 'none';
           });
         });
         out.addEventListener('mouseleave', () => {
@@ -637,15 +638,31 @@
       });
       showcasePanel.style.setProperty('--accent-color', accentColor);
       requestAnimationFrame(() => {
-        const words = Array.from(showcasePanel.querySelectorAll('.showcase-word'));
-        const maxWidth = words.reduce((max, word) => {
-          const rect = word.getBoundingClientRect();
-          const measured = Math.max(rect.width, word.scrollWidth || 0, 1);
-          return Math.max(max, measured);
-        }, 0);
-        words.forEach(word => setupInteractiveWord(word, maxWidth || null));
-        showcasePanel.classList.add('visible');
         positionShowcasePanel();
+        requestAnimationFrame(() => {
+          const panelRect = showcasePanel.getBoundingClientRect();
+          const panelWidth = Math.max(panelRect.width, 1);
+          const words = Array.from(showcasePanel.querySelectorAll('.showcase-word'));
+          let targetWidth = 0;
+          const lineGaps = new WeakMap();
+          words.forEach(word => {
+            const line = word.parentElement;
+            const styles = window.getComputedStyle(line);
+            const gap = parseFloat(styles.columnGap || styles.gap || '0');
+            lineGaps.set(line, gap);
+          });
+          words.forEach(word => {
+            const line = word.parentElement;
+            const gap = lineGaps.get(line) || 0;
+            const indexEl = word.previousElementSibling;
+            const indexWidth = indexEl ? indexEl.getBoundingClientRect().width : 0;
+            const available = Math.max(panelWidth - indexWidth - gap, 1);
+            targetWidth = Math.max(targetWidth, available);
+          });
+          targetWidth = Math.max(targetWidth, 1);
+          words.forEach(word => setupInteractiveWord(word, targetWidth));
+          showcasePanel.classList.add('visible');
+        });
       });
     }
 
@@ -661,9 +678,15 @@
       const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
       const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
       const rawLeft = Math.max(screenX + 60, 60);
-      const availableWidth = Math.max(window.innerWidth - rawLeft - 40, 260);
-      showcasePanel.style.width = `${availableWidth}px`;
-      const panelWidth = showcasePanel.offsetWidth || availableWidth;
+      const availableWidth = Math.max(window.innerWidth - rawLeft - 40, 120);
+      const minWidth = 260;
+      let targetWidth = availableWidth;
+      if (availableWidth > minWidth) {
+        const halfWidth = availableWidth * 0.5;
+        targetWidth = Math.min(availableWidth, Math.max(halfWidth, minWidth));
+      }
+      showcasePanel.style.width = `${targetWidth}px`;
+      const panelWidth = showcasePanel.offsetWidth || targetWidth;
       const maxLeft = Math.max(window.innerWidth - panelWidth - 32, 60);
       const left = Math.min(Math.max(rawLeft, 60), maxLeft);
       showcasePanel.style.left = `${left}px`;
