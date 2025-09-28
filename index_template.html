@@ -356,8 +356,9 @@
     }
 
     #featureVideoShell {
+      --feature-video-offset: clamp(72px, 12vh, 140px);
       position: absolute;
-      top: 500vh;
+      top: calc(500vh + var(--feature-video-offset));
       left: 50%;
       transform: translateX(-50%);
       display: inline-flex;

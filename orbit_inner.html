@@ -67,11 +67,9 @@
       opacity: 0;
       transition: opacity 0.4s ease;
       z-index: 4;
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
-      padding-right: 4px;
-      padding-left: 4px;
-      scrollbar-width: thin;
+      max-height: none;
+      overflow: visible;
+      padding: 0;
     }
     #showcasePanel.visible {
       opacity: 1;
@@ -79,20 +77,25 @@
     .showcase-line {
       position: relative;
       display: block;
-      padding-right: clamp(48px, 6vw, 96px);
+      padding-right: clamp(28px, 3.2vw, 56px);
       transition: height 0.35s ease, padding-right 0.35s ease;
       height: auto;
+      pointer-events: auto;
     }
     .showcase-line .index {
       position: absolute;
-      top: clamp(-0.6rem, -1.6vh, -0.3rem);
-      right: 0;
+      top: clamp(-0.4rem, -1.2vh, -0.2rem);
+      right: clamp(-18px, -1.8vw, -6px);
       font-size: clamp(0.58rem, 1.4vw, 0.92rem);
       letter-spacing: 0.18em;
       font-variation-settings: 'wght' 650;
       font-family: 'Ferrite', sans-serif;
       pointer-events: none;
-      transition: transform 0.3s ease, top 0.3s ease, right 0.3s ease;
+      opacity: 0;
+      transition: transform 0.3s ease, top 0.3s ease, right 0.3s ease, opacity 0.25s ease;
+    }
+    .showcase-line .index.visible {
+      opacity: 1;
     }
     .showcase-word {
       display: flex;
@@ -115,8 +118,12 @@
     .showcase-word .letter .char {
       display: inline-block;
       transform-origin: left center;
-      transition: transform 0.2s ease, font-variation-settings 0.2s ease;
+      transition: opacity 0.2s ease, transform 0.2s ease, font-variation-settings 0.2s ease;
       font-variation-settings: 'wght' 400;
+      opacity: 0;
+    }
+    .showcase-word .letter .char.visible {
+      opacity: 1;
     }
     .label {
       position: absolute;
@@ -254,7 +261,9 @@
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
     const EDGE_ZONE_RATIO = 0.12;
-    const EDGE_TRIGGER_MS = 1200;
+    const EDGE_ACTIVE_Y_RATIO = 0.6;
+    const EDGE_STRENGTH_EXPONENT = 1.35;
+    const EDGE_TRIGGER_MS = 1500;
     const EDGE_DECAY_MS = 600;
     let edgeDirection = 0;
     let edgeStrength = 0;
@@ -262,6 +271,10 @@
 
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
     const orbitEase = alignEase;
+
+    let alignSettled = false;
+    let typingPending = false;
+    const typingTimers = new Set();
 
     function notifyTopoPulse(strength = 0.8) {
       if (!parent) return;
@@ -274,6 +287,58 @@
     let accentColor = '#1449ff';
     let networkAccent = accentColor;
     const CHARACTER_SEQUENCE = ['M', 'O', 'T', 'I', 'O', 'N', '3', '3', '3'];
+
+    function clearTypingTimers() {
+      typingTimers.forEach(timer => window.clearTimeout(timer));
+      typingTimers.clear();
+    }
+
+    function resetTypingVisibility({ animate = false } = {}) {
+      if (!showcasePanel) return;
+      clearTypingTimers();
+      const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
+      lines.forEach(line => {
+        const indexLabel = line.querySelector('.index');
+        if (indexLabel) indexLabel.classList.remove('visible');
+        const chars = Array.from(line.querySelectorAll('.char'));
+        chars.forEach((ch, idx) => {
+          if (!animate) {
+            ch.classList.remove('visible');
+            return;
+          }
+          const handle = window.setTimeout(() => {
+            ch.classList.remove('visible');
+          }, idx * 14);
+          typingTimers.add(handle);
+        });
+      });
+    }
+
+    function startShowcaseTyping() {
+      if (!showcasePanel) return;
+      const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
+      if (!lines.length) {
+        return;
+      }
+      clearTypingTimers();
+      let delay = 60;
+      lines.forEach(line => {
+        const indexLabel = line.querySelector('.index');
+        if (indexLabel) {
+          const indexTimer = window.setTimeout(() => indexLabel.classList.add('visible'), delay - 40);
+          typingTimers.add(indexTimer);
+        }
+        const chars = Array.from(line.querySelectorAll('.char'));
+        chars.forEach((ch, idx) => {
+          const handle = window.setTimeout(() => {
+            ch.classList.add('visible');
+          }, delay + idx * 28);
+          typingTimers.add(handle);
+        });
+        delay += chars.length * 28 + 140;
+      });
+      typingPending = false;
+    }
 
     function sanitizeFeatureVideo(raw) {
       if (!raw || typeof raw !== 'object') return null;
@@ -411,12 +476,20 @@
         targetMouse.x = nx * 0.4;
         targetMouse.y = ny * 0.4;
         const zone = Math.max(window.innerWidth * EDGE_ZONE_RATIO, 1);
-        if (e.clientX < zone) {
-          edgeDirection = -1;
-          edgeStrength = Math.min(1, (zone - e.clientX) / zone);
-        } else if (e.clientX > window.innerWidth - zone) {
-          edgeDirection = 1;
-          edgeStrength = Math.min(1, (e.clientX - (window.innerWidth - zone)) / zone);
+        const activeBandTop = window.innerHeight * EDGE_ACTIVE_Y_RATIO;
+        if (e.clientY >= activeBandTop) {
+          if (e.clientX < zone) {
+            edgeDirection = -1;
+            const raw = (zone - e.clientX) / zone;
+            edgeStrength = Math.pow(Math.min(1, Math.max(raw, 0)), EDGE_STRENGTH_EXPONENT);
+          } else if (e.clientX > window.innerWidth - zone) {
+            edgeDirection = 1;
+            const raw = (e.clientX - (window.innerWidth - zone)) / zone;
+            edgeStrength = Math.pow(Math.min(1, Math.max(raw, 0)), EDGE_STRENGTH_EXPONENT);
+          } else {
+            edgeDirection = 0;
+            edgeStrength = 0;
+          }
         } else {
           edgeDirection = 0;
           edgeStrength = 0;
@@ -786,8 +859,8 @@
         }
       });
       networkCtx.strokeStyle = networkAccent;
-      networkCtx.lineWidth = 2.2;
-      networkCtx.globalAlpha = 0.22;
+      networkCtx.lineWidth = 3;
+      networkCtx.globalAlpha = 0.36;
       const edges = new Set();
       for (let i = 0; i < networkPoints.length; i++) {
         const a = networkPoints[i];
@@ -914,15 +987,31 @@
       showcasePanel.addEventListener('pointerenter', () => clearTimeout(previewClearTimer));
     }
 
-    function clearShowcasePanel() {
-      if (!showcasePanel) return;
-      showcasePanel.innerHTML = '';
-      showcasePanel.style.width = '';
-      showcasePanel.style.transform = 'translateY(-50%)';
-      showcasePanel.scrollTop = 0;
-      showcasePanel._entries = [];
-      showcasePanel._folderName = '';
-      setGifPreview(null);
+    function clearShowcasePanel({ immediate = false, animate = false } = {}) {
+      if (!showcasePanel) return Promise.resolve();
+      const finalize = () => {
+        showcasePanel.innerHTML = '';
+        showcasePanel.style.width = '';
+        showcasePanel.style.transform = 'translateY(-50%)';
+        showcasePanel._entries = [];
+        showcasePanel._folderName = '';
+        setGifPreview(null);
+      };
+      const shouldAnimate = !immediate && animate && showcasePanel.childElementCount > 0;
+      if (!shouldAnimate) {
+        resetTypingVisibility({ animate: false });
+        finalize();
+        return Promise.resolve();
+      }
+      resetTypingVisibility({ animate: true });
+      return new Promise(resolve => {
+        const handle = window.setTimeout(() => {
+          typingTimers.delete(handle);
+          finalize();
+          resolve();
+        }, 260);
+        typingTimers.add(handle);
+      });
     }
 
     function makeInteractive(container) {
@@ -1019,7 +1108,6 @@
         if (activeLine) {
           setGifPreview(activeLine._entryMedia);
         }
-        activeLine.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         const entryData = (showcasePanel._entries || [])[showcaseActiveIndex];
         if (entryData) {
           postSelectionToParent({
@@ -1066,77 +1154,74 @@
 
     function updateShowcasePanel() {
       if (!showcasePanel) return;
-      if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
+      const updateToken = Symbol('showcaseUpdate');
+      showcasePanel._updateToken = updateToken;
+      const finalizeHide = () => {
         showcasePanel.classList.remove('visible');
-        clearShowcasePanel();
         postSelectionToParent(null);
+      };
+      if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
+        typingPending = false;
+        clearShowcasePanel({ animate: true }).then(() => {
+          if (showcasePanel._updateToken === updateToken) finalizeHide();
+        });
         return;
       }
-      clearShowcasePanel();
+
       const folderName = folders[selectedIndex].userData.name;
       const entries = getShowcaseEntries(folderName);
       if (!entries.length) {
-        showcasePanel.classList.remove('visible');
-        postSelectionToParent(null);
+        typingPending = false;
+        clearShowcasePanel({ animate: true }).then(() => {
+          if (showcasePanel._updateToken === updateToken) finalizeHide();
+        });
         return;
       }
-      showcasePanel._entries = entries.map(entry => ({
-        index: entry.index,
-        label: entry.label,
-        media: Array.isArray(entry.media) ? entry.media.slice() : [],
-        featureVideo: entry.featureVideo ? { ...entry.featureVideo } : null
-      }));
-      showcasePanel._folderName = folderName;
-      entries.forEach((entry, idx) => {
-        const line = document.createElement('div');
-        line.className = 'showcase-line';
-        const indexLabel = document.createElement('span');
-        indexLabel.className = 'index';
-        indexLabel.textContent = entry.index || String(idx + 1).padStart(2, '0');
-        const word = createInteractiveWord(entry.label || '');
-        line.appendChild(indexLabel);
-        line.appendChild(word);
-        line.tabIndex = 0;
-        line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
-        line._featureVideo = entry.featureVideo ? { ...entry.featureVideo } : null;
-        line.addEventListener('click', () => {
-          setShowcaseActive(idx);
-          notifyTopoPulse(0.55);
-        });
-        line.addEventListener('keydown', evt => {
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
+
+      typingPending = true;
+      const animateOut = showcasePanel.childElementCount > 0;
+      clearShowcasePanel({ animate: animateOut }).then(() => {
+        if (showcasePanel._updateToken !== updateToken) return;
+        showcasePanel._entries = entries.map(entry => ({
+          index: entry.index,
+          label: entry.label,
+          media: Array.isArray(entry.media) ? entry.media.slice() : [],
+          featureVideo: entry.featureVideo ? { ...entry.featureVideo } : null
+        }));
+        showcasePanel._folderName = folderName;
+        entries.forEach((entry, idx) => {
+          const line = document.createElement('div');
+          line.className = 'showcase-line';
+          const indexLabel = document.createElement('span');
+          indexLabel.className = 'index';
+          indexLabel.textContent = entry.index || String(idx + 1).padStart(2, '0');
+          const word = createInteractiveWord(entry.label || '');
+          line.appendChild(indexLabel);
+          line.appendChild(word);
+          line.tabIndex = 0;
+          line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
+          line._featureVideo = entry.featureVideo ? { ...entry.featureVideo } : null;
+          line.addEventListener('click', () => {
             setShowcaseActive(idx);
             notifyTopoPulse(0.55);
-          }
-        });
-        let holdTimer = null;
-        let holdOrigin = null;
-        const cancelHold = () => {
-          if (holdTimer) {
-            clearTimeout(holdTimer);
-            holdTimer = null;
-          }
-        };
-        line.addEventListener('pointerenter', evt => {
-          setGifPreview(line._entryMedia);
-          holdOrigin = { x: evt.clientX, y: evt.clientY };
-          cancelHold();
-          holdTimer = window.setTimeout(() => {
-            setShowcaseActive(idx);
-            notifyTopoPulse(0.45);
-            cancelHold();
-          }, 3000);
-        });
-        line.addEventListener('pointerleave', () => {
-          holdOrigin = null;
-          cancelHold();
-          schedulePreviewClear();
-        });
-        line.addEventListener('pointermove', evt => {
-          if (!holdTimer || !holdOrigin) return;
-          const dist = Math.hypot(evt.clientX - holdOrigin.x, evt.clientY - holdOrigin.y);
-          if (dist > 12) {
+          });
+          line.addEventListener('keydown', evt => {
+            if (evt.key === 'Enter' || evt.key === ' ') {
+              evt.preventDefault();
+              setShowcaseActive(idx);
+              notifyTopoPulse(0.55);
+            }
+          });
+          let holdTimer = null;
+          let holdOrigin = null;
+          const cancelHold = () => {
+            if (holdTimer) {
+              clearTimeout(holdTimer);
+              holdTimer = null;
+            }
+          };
+          line.addEventListener('pointerenter', evt => {
+            setGifPreview(line._entryMedia);
             holdOrigin = { x: evt.clientX, y: evt.clientY };
             cancelHold();
             holdTimer = window.setTimeout(() => {
@@ -1144,54 +1229,75 @@
               notifyTopoPulse(0.45);
               cancelHold();
             }, 3000);
-          }
+          });
+          line.addEventListener('pointerleave', () => {
+            holdOrigin = null;
+            cancelHold();
+            schedulePreviewClear();
+          });
+          line.addEventListener('pointermove', evt => {
+            if (!holdTimer || !holdOrigin) return;
+            const dist = Math.hypot(evt.clientX - holdOrigin.x, evt.clientY - holdOrigin.y);
+            if (dist > 12) {
+              holdOrigin = { x: evt.clientX, y: evt.clientY };
+              cancelHold();
+              holdTimer = window.setTimeout(() => {
+                setShowcaseActive(idx);
+                notifyTopoPulse(0.45);
+                cancelHold();
+              }, 3000);
+            }
+          });
+          line.addEventListener('pointerdown', () => {
+            cancelHold();
+          });
+          line.addEventListener('pointercancel', () => {
+            cancelHold();
+            schedulePreviewClear();
+          });
+          line.addEventListener('focus', () => {
+            setGifPreview(line._entryMedia);
+          });
+          line.addEventListener('blur', () => {
+            schedulePreviewClear();
+          });
+          showcasePanel.appendChild(line);
         });
-        line.addEventListener('pointerdown', () => {
-          cancelHold();
-        });
-        line.addEventListener('pointercancel', () => {
-          cancelHold();
-          schedulePreviewClear();
-        });
-        line.addEventListener('focus', () => {
-          setGifPreview(line._entryMedia);
-        });
-        line.addEventListener('blur', () => {
-          schedulePreviewClear();
-        });
-      showcasePanel.appendChild(line);
-      });
-      showcasePanel.style.setProperty('--accent-color', accentColor);
-      if (gifPreview) {
-        gifPreview.style.setProperty('--accent-color', accentColor);
-      }
-      requestAnimationFrame(() => {
-        positionShowcasePanel();
+        showcasePanel.style.setProperty('--accent-color', accentColor);
+        if (gifPreview) {
+          gifPreview.style.setProperty('--accent-color', accentColor);
+        }
         requestAnimationFrame(() => {
-          const panelRect = showcasePanel.getBoundingClientRect();
-          const panelWidth = Math.max(panelRect.width, 1);
-          const words = Array.from(showcasePanel.querySelectorAll('.showcase-word'));
-          let targetWidth = 0;
-          const lineGaps = new WeakMap();
-          words.forEach(word => {
-            const line = word.parentElement;
-            const styles = window.getComputedStyle(line);
-            const gap = parseFloat(styles.columnGap || styles.gap || '0');
-            lineGaps.set(line, gap);
+          positionShowcasePanel();
+          requestAnimationFrame(() => {
+            const panelRect = showcasePanel.getBoundingClientRect();
+            const panelWidth = Math.max(panelRect.width, 1);
+            const words = Array.from(showcasePanel.querySelectorAll('.showcase-word'));
+            let targetWidth = 0;
+            const lineGaps = new WeakMap();
+            words.forEach(word => {
+              const line = word.parentElement;
+              const styles = window.getComputedStyle(line);
+              const gap = parseFloat(styles.columnGap || styles.gap || '0');
+              lineGaps.set(line, gap);
+            });
+            words.forEach(word => {
+              const line = word.parentElement;
+              const gap = lineGaps.get(line) || 0;
+              const indexEl = word.previousElementSibling;
+              const indexWidth = indexEl ? indexEl.getBoundingClientRect().width : 0;
+              const available = Math.max(panelWidth - indexWidth - gap, 1);
+              targetWidth = Math.max(targetWidth, available);
+            });
+            targetWidth = Math.max(targetWidth, 1);
+            words.forEach(word => setupInteractiveWord(word, targetWidth));
+            captureShowcaseMetrics();
+            setShowcaseActive(showcaseActiveIndex);
+            showcasePanel.classList.add('visible');
+            if (alignSettled && typingPending && showcasePanel && showcasePanel.childElementCount > 0) {
+              startShowcaseTyping();
+            }
           });
-          words.forEach(word => {
-            const line = word.parentElement;
-            const gap = lineGaps.get(line) || 0;
-            const indexEl = word.previousElementSibling;
-            const indexWidth = indexEl ? indexEl.getBoundingClientRect().width : 0;
-            const available = Math.max(panelWidth - indexWidth - gap, 1);
-            targetWidth = Math.max(targetWidth, available);
-          });
-          targetWidth = Math.max(targetWidth, 1);
-          words.forEach(word => setupInteractiveWord(word, targetWidth));
-          captureShowcaseMetrics();
-          setShowcaseActive(showcaseActiveIndex);
-          showcasePanel.classList.add('visible');
         });
       });
     }
@@ -1228,12 +1334,15 @@
       selectedIndex = -1;
       showcaseActiveIndex = -1;
       magnetized = null;
+      alignSettled = false;
+      typingPending = false;
+      clearTypingTimers();
       rebuildNetwork();
       networkCanvas.classList.remove('visible');
       updateLayoutMetrics();
       if (showcasePanel) {
         showcasePanel.classList.remove('visible');
-        clearShowcasePanel();
+        clearShowcasePanel({ immediate: true });
       }
     }
 
@@ -1259,6 +1368,8 @@
     function enterAlign() {
       mode = 'align';
       alignActivatedAt = performance.now();
+      alignSettled = false;
+      typingPending = true;
       folders.forEach(f => {
         const ud = f.userData;
         ud.orbitAnchor.copy(f.position);
@@ -1271,6 +1382,8 @@
 
     function prepareAlignTargets(stagger = false) {
       alignActivatedAt = performance.now();
+      alignSettled = false;
+      typingPending = true;
       updateLayoutMetrics();
       const len = folders.length || 1;
       folders.forEach((f, i) => {
@@ -1291,6 +1404,9 @@
     function exitAlign() {
       mode = 'orbit';
       networkCanvas.classList.remove('visible');
+      alignSettled = false;
+      typingPending = false;
+      clearTypingTimers();
       folders.forEach(f => {
         const ud = f.userData;
         ud.returning = true;
@@ -1304,7 +1420,7 @@
       selectedIndex = -1;
       if (showcasePanel) {
         showcasePanel.classList.remove('visible');
-        clearShowcasePanel();
+        clearShowcasePanel({ animate: true });
       }
       notifyTopoPulse(0.6);
       postSelectionToParent(null);
@@ -1343,11 +1459,13 @@
           f.userData.hovered = hoverHits.some(h => h.object === f.userData.front);
         });
         const len = folders.length || 1;
+        let allComplete = true;
         folders.forEach((f, i) => {
           const ud = f.userData;
           const start = ud.alignStart ?? alignActivatedAt;
           const duration = ud.alignDuration || alignDuration;
           const t = THREE.MathUtils.clamp((now - start) / duration, 0, 1);
+          if (t < 0.999) allComplete = false;
           const tt = alignEase(t);
           const fromPos = ud.alignFrom || f.position.clone();
           const targetInfo = ud.alignTo ? { position: ud.alignTo, scale: ud.alignToScale } : computeAlignTarget(i, len);
@@ -1372,6 +1490,16 @@
           const openTarget = ud.hovered ? THREE.MathUtils.degToRad(15) : 0;
           ud.front.rotation.x += (openTarget - ud.front.rotation.x) * 0.12;
         });
+        if (allComplete) {
+          if (!alignSettled) {
+            alignSettled = true;
+          }
+          if (typingPending && showcasePanel && showcasePanel.childElementCount > 0) {
+            startShowcaseTyping();
+          }
+        } else {
+          alignSettled = false;
+        }
         if (edgeDirection !== 0 && len > 1) {
           edgeAccumulator += edgeStrength * dt / EDGE_TRIGGER_MS;
           if (edgeAccumulator >= 1) {
@@ -1385,6 +1513,7 @@
         drawNetwork(dt);
         positionShowcasePanel();
       } else {
+        alignSettled = false;
         dirLight.position.lerp(new THREE.Vector3(0, 0.2, 6.5), 0.06);
         raycaster.setFromCamera(mouse, camera);
         const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
