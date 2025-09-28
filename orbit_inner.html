@@ -48,6 +48,56 @@
       color: var(--accent-color, #1449ff);
       transition: color 0.35s ease;
     }
+    #showcasePanel {
+      position: absolute;
+      top: clamp(14%, 20vh, 26%);
+      right: clamp(4vw, 11vw, 14vw);
+      width: min(30vw, 380px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(6px, 1.4vh, 14px);
+      font-family: 'Ferrite', sans-serif;
+      color: var(--accent-color, #1449ff);
+      pointer-events: auto;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      z-index: 4;
+    }
+    #showcasePanel.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .showcase-line {
+      position: relative;
+      padding-left: clamp(18px, 1.6vw, 26px);
+    }
+    .showcase-line .index {
+      position: absolute;
+      left: 0;
+      top: -0.55em;
+      font-size: clamp(0.45rem, 0.6vw, 0.7rem);
+      letter-spacing: 0.24em;
+      font-variation-settings: 'wght' 600;
+    }
+    .showcase-word {
+      display: flex;
+      width: 100%;
+      font-size: clamp(0.9rem, 1.6vw, 1.35rem);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .showcase-word .letter {
+      display: inline-block;
+      overflow: hidden;
+      transition: width 0.25s cubic-bezier(.25,.1,.25,1);
+    }
+    .showcase-word .letter .char {
+      display: inline-block;
+      transform-origin: left center;
+      transition: transform 0.25s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.25s cubic-bezier(.25,.1,.25,1);
+      font-variation-settings: 'wght' 420;
+    }
     .label {
       position: absolute;
       transform: translate(-50%, 0);
@@ -72,17 +122,19 @@
     <canvas id="fgCanvas"></canvas>
     <canvas id="networkCanvas"></canvas>
     <div id="labels"></div>
+    <div id="showcasePanel"></div>
   </div>
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
+    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
     const fgCanvas = document.getElementById('fgCanvas');
     const networkCanvas = document.getElementById('networkCanvas');
     const labelsContainer = document.getElementById('labels');
+    const showcasePanel = document.getElementById('showcasePanel');
 
     const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
     bgRenderer.setClearColor(0x000000, 0);
@@ -120,8 +172,8 @@
     let alignTopY = 4.2;
     let alignColumnX = -5.0;
     const baseAlignTilt = THREE.MathUtils.degToRad(-8);
-    const selectedOffsetX = 1.15;
-    const selectedAlignScale = 1.18;
+    const selectedOffsetX = 0.9;
+    const selectedAlignScale = 1.12;
     const alignDepth = 0.22;
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
@@ -135,6 +187,15 @@
     let accentColor = '#1449ff';
     let networkAccent = accentColor;
     const CHARACTER_SEQUENCE = ['M', 'O', 'T', 'I', 'O', 'N', '3', '3', '3'];
+    const SHOWCASE_MAP = {
+      'Ads': ['REDSTAR', 'AUXDESCALES', 'BURGERKING'],
+      'Music Videos': ['CANINE', 'SOF', 'EDMOND WELLS'],
+      'Events': ['AGORA', 'LULUVANTRAPP'],
+      'Graphics': ['COVERS'],
+      'Web': ['TRATT', 'ADELE'],
+      'Zines': ['NARVIK']
+    };
+    const edgeHover = { dir: 0, strength: 0, accumulator: 0 };
 
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
@@ -146,12 +207,13 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
-      const padding = visibleHeight * 0.1;
+      const paddingTop = visibleHeight * 0.18;
+      const paddingBottom = visibleHeight * 0.24;
       const len = Math.max(folders.length, 1);
-      const usableHeight = Math.max(visibleHeight - padding * 2, 0.1);
+      const usableHeight = Math.max(visibleHeight - paddingTop - paddingBottom, 0.1);
       alignSpacing = len > 1 ? usableHeight / (len - 1) : 0;
-      alignTopY = visibleHeight / 2 - padding;
-      alignColumnX = -visibleWidth / 2 + visibleWidth * 0.14;
+      alignTopY = visibleHeight / 2 - paddingTop;
+      alignColumnX = -visibleWidth / 2 + visibleWidth * 0.16;
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
     }
@@ -173,8 +235,26 @@
     window.addEventListener('mousemove', e => {
       const nx = (e.clientX / window.innerWidth - 0.5) * 2;
       const ny = -(e.clientY / window.innerHeight - 0.5) * 2;
-      targetMouse.x = nx;
-      targetMouse.y = ny;
+      if (mode === 'align') {
+        targetMouse.x = nx * 0.45;
+        targetMouse.y = ny * 0.45;
+        const zone = window.innerHeight * 0.1;
+        if (e.clientY < zone) {
+          edgeHover.dir = -1;
+          edgeHover.strength = Math.min(1, (zone - e.clientY) / zone);
+        } else if (e.clientY > window.innerHeight - zone) {
+          edgeHover.dir = 1;
+          edgeHover.strength = Math.min(1, (e.clientY - (window.innerHeight - zone)) / zone);
+        } else {
+          edgeHover.dir = 0;
+          edgeHover.strength = 0;
+        }
+      } else {
+        targetMouse.x = nx;
+        targetMouse.y = ny;
+        edgeHover.dir = 0;
+        edgeHover.strength = 0;
+      }
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
@@ -298,16 +378,23 @@
       };
     }
 
+    function circularDistance(a, b, len) {
+      const diff = Math.abs(a - b);
+      return Math.min(diff, len - diff);
+    }
+
     function setTargetSelection(index) {
       if (!folders.length) return;
-      if (index < 0 || index >= folders.length) return;
+      const len = folders.length;
+      const normalized = ((index % len) + len) % len;
       const now = performance.now();
       if (now - lastSelectionChange < SELECTION_COOLDOWN) return;
-      if (selectedIndex === index) return;
+      if (selectedIndex === normalized) return;
       lastSelectionChange = now;
-      selectedIndex = index;
+      selectedIndex = normalized;
       prepareAlignTargets(false);
       rebuildNetwork();
+      updateShowcasePanel();
     }
 
     function rebuildNetwork() {
@@ -330,10 +417,10 @@
       if (mode !== 'align') return;
       const width = networkCanvas.width;
       const height = networkCanvas.height;
-      const minX = width * 0.32;
-      const maxX = width * 0.94;
-      const minY = height * 0.12;
-      const maxY = height * 0.88;
+      const minX = width * 0.3;
+      const maxX = width * 0.96;
+      const minY = height * 0.14;
+      const maxY = height * 0.86;
       networkPoints.forEach(p => {
         p.x += p.vx * dt * 0.06;
         p.y += p.vy * dt * 0.06;
@@ -354,23 +441,55 @@
       });
       networkCtx.strokeStyle = networkAccent;
       networkCtx.lineWidth = 1;
-      networkCtx.globalAlpha = 0.26;
+      networkCtx.globalAlpha = 0.22;
+      const edges = new Set();
       for (let i = 0; i < networkPoints.length; i++) {
-        for (let j = i + 1; j < networkPoints.length; j++) {
-          const a = networkPoints[i];
+        const a = networkPoints[i];
+        const distList = [];
+        for (let j = 0; j < networkPoints.length; j++) {
+          if (i === j) continue;
           const b = networkPoints[j];
           const dx = b.x - a.x;
           const dy = b.y - a.y;
           const dist = Math.hypot(dx, dy);
-          if (dist > width * 0.28) continue;
-          if (dist < 12) continue;
+          distList.push({ j, dx, dy, dist });
+        }
+        distList.sort((m, n) => m.dist - n.dist);
+        const needed = Math.min(3, distList.length);
+        for (let k = 0; k < needed; k++) {
+          const { j, dx, dy, dist } = distList[k];
+          if (!Number.isFinite(dist) || dist === 0) continue;
+          const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+          if (edges.has(key)) continue;
+          edges.add(key);
           const gap = 5;
           const inv = 1 / dist;
           const offsetX = dx * inv * gap;
           const offsetY = dy * inv * gap;
           networkCtx.beginPath();
           networkCtx.moveTo(a.x + offsetX, a.y + offsetY);
-          networkCtx.lineTo(b.x - offsetX, b.y - offsetY);
+          networkCtx.lineTo(a.x + dx - offsetX, a.y + dy - offsetY);
+          networkCtx.stroke();
+        }
+      }
+      for (let i = 0; i < networkPoints.length; i++) {
+        const j = (i + 1) % networkPoints.length;
+        if (i === j) continue;
+        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+        const a = networkPoints[i];
+        const b = networkPoints[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        if (!edges.has(key)) {
+          edges.add(key);
+          const gap = 5;
+          const inv = 1 / dist;
+          const offsetX = dx * inv * gap;
+          const offsetY = dy * inv * gap;
+          networkCtx.beginPath();
+          networkCtx.moveTo(a.x + offsetX, a.y + offsetY);
+          networkCtx.lineTo(a.x + dx - offsetX, a.y + dy - offsetY);
           networkCtx.stroke();
         }
       }
@@ -383,6 +502,117 @@
         const ch = CHARACTER_SEQUENCE[p.charIndex];
         networkCtx.fillText(ch, p.x, p.y);
       });
+    }
+
+    function clearShowcasePanel() {
+      if (!showcasePanel) return;
+      showcasePanel.innerHTML = '';
+    }
+
+    function setupInteractiveWord(container) {
+      const letters = Array.from(container.children);
+      if (!letters.length) return;
+      const baseWidths = [];
+      let sumBase = 0;
+      letters.forEach(out => {
+        const inn = out.firstElementChild;
+        inn.style.transform = 'scaleX(1)';
+        const width = inn.getBoundingClientRect().width;
+        baseWidths.push(width);
+        sumBase += width;
+      });
+      const totalWidth = container.getBoundingClientRect().width || 1;
+      const S = sumBase > 0 ? totalWidth / sumBase : 1;
+      const hoverScale = 1.7;
+      const neighborScale = 1.18;
+      const normalWeight = 420;
+      const neighborWeight = 600;
+      const hoverWeight = 820;
+      letters.forEach((out, i) => {
+        const inn = out.firstElementChild;
+        out.style.width = `${baseWidths[i] * S}px`;
+        inn.style.width = `${baseWidths[i]}px`;
+        inn.style.transform = `scaleX(${S})`;
+        inn.style.fontVariationSettings = `'wght' ${normalWeight}`;
+      });
+      letters.forEach((out, i) => {
+        out.addEventListener('mouseenter', () => {
+          const wH = baseWidths[i] * S;
+          const wN = (i > 0 ? baseWidths[i - 1] * S : 0) + (i < letters.length - 1 ? baseWidths[i + 1] * S : 0);
+          const wO = Math.max(totalWidth - wH - wN, 0.0001);
+          const R_h = hoverScale;
+          const R_n = neighborScale;
+          const R_o = (totalWidth - wH * R_h - wN * R_n) / wO;
+          letters.forEach((node, j) => {
+            const inn = node.firstElementChild;
+            let ratio = R_o;
+            let weight = normalWeight;
+            if (j === i) {
+              ratio = R_h;
+              weight = hoverWeight;
+            } else if (j === i - 1 || j === i + 1) {
+              ratio = R_n;
+              weight = neighborWeight;
+            }
+            node.style.width = `${baseWidths[j] * S * ratio}px`;
+            inn.style.transform = `scaleX(${S * ratio})`;
+            inn.style.fontVariationSettings = `'wght' ${weight}`;
+          });
+        });
+        out.addEventListener('mouseleave', () => {
+          letters.forEach((node, j) => {
+            const inn = node.firstElementChild;
+            node.style.width = `${baseWidths[j] * S}px`;
+            inn.style.transform = `scaleX(${S})`;
+            inn.style.fontVariationSettings = `'wght' ${normalWeight}`;
+          });
+        });
+      });
+    }
+
+    function createInteractiveWord(text) {
+      const word = document.createElement('div');
+      word.className = 'showcase-word';
+      Array.from(text).forEach(ch => {
+        const outer = document.createElement('span');
+        outer.className = 'letter';
+        const inner = document.createElement('span');
+        inner.className = 'char';
+        inner.textContent = ch;
+        outer.appendChild(inner);
+        word.appendChild(outer);
+      });
+      requestAnimationFrame(() => setupInteractiveWord(word));
+      return word;
+    }
+
+    function updateShowcasePanel() {
+      if (!showcasePanel) return;
+      if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
+        showcasePanel.classList.remove('visible');
+        clearShowcasePanel();
+        return;
+      }
+      clearShowcasePanel();
+      const folderName = folders[selectedIndex].userData.name;
+      const entries = SHOWCASE_MAP[folderName] || [];
+      if (!entries.length) {
+        showcasePanel.classList.remove('visible');
+        return;
+      }
+      entries.forEach((label, idx) => {
+        const line = document.createElement('div');
+        line.className = 'showcase-line';
+        const indexLabel = document.createElement('span');
+        indexLabel.className = 'index';
+        indexLabel.textContent = String(idx + 1).padStart(2, '0');
+        const word = createInteractiveWord(label);
+        line.appendChild(indexLabel);
+        line.appendChild(word);
+        showcasePanel.appendChild(line);
+      });
+      showcasePanel.style.setProperty('--accent-color', accentColor);
+      showcasePanel.classList.add('visible');
     }
 
     function initFolders(list = DEFAULT_FOLDERS) {
@@ -411,6 +641,10 @@
       rebuildNetwork();
       networkCanvas.classList.remove('visible');
       updateLayoutMetrics();
+      if (showcasePanel) {
+        showcasePanel.classList.remove('visible');
+        clearShowcasePanel();
+      }
     }
 
     window.addEventListener('click', () => {
@@ -442,6 +676,9 @@
       prepareAlignTargets(true);
       rebuildNetwork();
       networkCanvas.classList.add('visible');
+      edgeHover.dir = 0;
+      edgeHover.strength = 0;
+      edgeHover.accumulator = 0;
     }
 
     function prepareAlignTargets(stagger = false) {
@@ -456,10 +693,11 @@
         ud.alignFromRot = f.rotation.clone();
         ud.alignTo = target.position;
         ud.alignToScale = target.scale;
-        const delay = stagger ? Math.abs(i - selectedIndex) * 120 : 0;
+        const delay = stagger ? circularDistance(i, selectedIndex, len) * 120 : 0;
         ud.alignStart = alignActivatedAt + delay;
         ud.alignDuration = alignDuration;
       });
+      updateShowcasePanel();
     }
 
     function exitAlign() {
@@ -476,6 +714,13 @@
         ud.scaleReturnTo.set(base, base, base);
       });
       selectedIndex = -1;
+      if (showcasePanel) {
+        showcasePanel.classList.remove('visible');
+        clearShowcasePanel();
+      }
+      edgeHover.dir = 0;
+      edgeHover.strength = 0;
+      edgeHover.accumulator = 0;
     }
 
     function updateLabels(selectedIdx) {
@@ -502,7 +747,7 @@
 
       if (mode === 'align') {
         magnetized = null;
-        dirLight.position.lerp(new THREE.Vector3(0, 4.5, 18), 0.08);
+        dirLight.position.lerp(new THREE.Vector3(0, 5.5, 22), 0.08);
         const len = folders.length || 1;
         folders.forEach((f, i) => {
           const ud = f.userData;
@@ -525,6 +770,17 @@
         });
         updateLabels(selectedIndex);
         drawNetwork(dt);
+        if (folders.length > 1) {
+          if (edgeHover.dir !== 0 && edgeHover.strength > 0) {
+            edgeHover.accumulator += edgeHover.strength * dt / 1100;
+            if (edgeHover.accumulator >= 1) {
+              setTargetSelection(selectedIndex + edgeHover.dir);
+              edgeHover.accumulator = 0.35;
+            }
+          } else {
+            edgeHover.accumulator = Math.max(0, edgeHover.accumulator - dt / 900);
+          }
+        }
       } else {
         dirLight.position.lerp(new THREE.Vector3(0, 0.2, 6.5), 0.06);
         raycaster.setFromCamera(mouse, camera);
@@ -624,7 +880,9 @@
       const a2 = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
       currentMouse.x += (targetMouse.x - currentMouse.x) * 0.02 * a2;
       currentMouse.y += (targetMouse.y - currentMouse.y) * 0.02 * a2;
-      camera.position.set(currentMouse.x * 3, currentMouse.y * 3, 16);
+      const cameraFactorX = mode === 'align' ? 1.6 : 3;
+      const cameraFactorY = mode === 'align' ? 1.4 : 3;
+      camera.position.set(currentMouse.x * cameraFactorX, currentMouse.y * cameraFactorY, 16);
       camera.lookAt(0, 0, 0);
 
       bgRenderer.render(scene, camera);
@@ -641,6 +899,9 @@
         accentColor = e.data.theme.accent;
         networkAccent = accentColor;
         labelsContainer.style.setProperty('--accent-color', accentColor);
+        if (showcasePanel) {
+          showcasePanel.style.setProperty('--accent-color', accentColor);
+        }
       }
     });
 

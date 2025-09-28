@@ -9,9 +9,10 @@ Sound Layer Plan for MOTION_SUPREME interactions
 6. webPulse — activates when the MOTION333 network regenerates or jitters beneath the lineup.
 7. orbitMagnet — rises when a folder is magnetised toward the cursor in orbit mode.
 8. alignedState — subtle layer that persists while the lineup mode is active.
-9. scrollWash — a soft shimmer that responds to any mouse or trackpad scroll gestures.
-10. themeToggle — momentary chord shift when the light/dark mode button is pressed.
-11. scrollProgress — gentle ticking synced to the custom scrollbar fill as the page advances.
-12. scrollUnlock — bloom that plays once the five-second scroll lock releases.
+9. showcaseHover — triggered by hovering the right-hand project name panel entries in aligned mode.
+10. scrollWash — a soft shimmer that responds to any mouse or trackpad scroll gestures.
+11. themeToggle — momentary chord shift when the light/dark mode button is pressed.
+12. scrollProgress — gentle ticking synced to the custom scrollbar fill as the page advances.
+13. scrollUnlock — bloom that plays once the five-second scroll lock releases.
 
 Each layer is currently generated through Web Audio oscillators as placeholders. Replace with provided audio assets later by updating the SoundManager.createLayer configuration.
