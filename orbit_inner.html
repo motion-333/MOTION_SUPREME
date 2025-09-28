@@ -51,7 +51,7 @@
     #showcasePanel {
       position: absolute;
       top: 50%;
-      left: clamp(28px, 6vw, 120px);
+      left: clamp(48px, 10vw, 168px);
       transform: translateY(-50%);
       width: min(38vw, 560px);
       display: flex;
@@ -132,88 +132,36 @@
       letter-spacing: 0.08em;
     }
 
-    #mediaColumn {
-      position: absolute;
-      top: 50%;
-      right: clamp(24px, 6vw, 160px);
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: clamp(18px, 3vh, 44px);
-      z-index: 5;
-    }
-
-    #videoFrame {
-      width: clamp(240px, 34vw, 440px);
-      aspect-ratio: 16 / 9;
-      border: 3px solid var(--accent-color, #1449ff);
-      border-radius: 28px 14px 32px 18px;
-      background: rgba(20, 73, 255, 0.08);
-      box-shadow: 0 24px 46px rgba(0, 0, 0, 0.28);
-      clip-path: polygon(0% 8%, 10% 0%, 92% 0%, 100% 16%, 100% 90%, 90% 100%, 8% 100%, 0% 88%);
-      overflow: hidden;
-      position: relative;
-      pointer-events: auto;
-      display: flex;
-    }
-
-    #videoFrame::after {
-      content: '';
+    #gifPreview {
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse at top left, rgba(255, 255, 255, 0.16), transparent 60%);
       pointer-events: none;
-      opacity: 0.6;
-    }
-
-    #videoFrame .video-frame-surface {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(12, 32, 88, 0.1);
-      overflow: hidden;
-      z-index: 1;
-    }
-
-    #videoFrame iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
-
-    #videoFrame .video-placeholder-label {
-      font-family: 'Ferrite', sans-serif;
-      font-size: clamp(1rem, 2.3vw, 2.6rem);
-      letter-spacing: 0.18em;
-      color: var(--accent-color, #1449ff);
-      text-transform: uppercase;
-      text-align: center;
-      padding: clamp(12px, 2vw, 28px);
-    }
-
-    #gifPreview {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: clamp(12px, 2.2vh, 28px);
-      pointer-events: none;
+      z-index: 4;
     }
 
     .gif-card {
-      width: clamp(120px, 16vw, 180px);
-      aspect-ratio: 1 / 1;
-      border: 3px solid var(--accent-color, #1449ff);
-      border-radius: 16px;
+      position: absolute;
+      border: 4px solid var(--accent-color, #1449ff);
+      border-radius: 0;
       overflow: hidden;
       background: rgba(20, 73, 255, 0.08);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+      transform: translate(-50%, -50%) scale(0.85);
       opacity: 0;
-      transform: translateY(40px) scale(0.92);
-      animation: gifEnter 0.45s ease forwards;
+      animation-name: gifEnter, cardBob;
+      animation-duration: 0.45s, var(--bob-duration, 7.2s);
+      animation-timing-function: ease, ease-in-out;
+      animation-delay: var(--enter-delay, 0s), var(--bob-delay, 0s);
+      animation-fill-mode: forwards, none;
+      animation-iteration-count: 1, infinite;
+      animation-direction: normal, alternate;
+    }
+
+    .gif-card .gif-card-inner {
+      width: 100%;
+      height: 100%;
+      transform-origin: center;
+      animation: cardFloat 6s ease-in-out infinite alternate;
     }
 
     .gif-card img {
@@ -230,22 +178,40 @@
     @keyframes gifEnter {
       from {
         opacity: 0;
-        transform: translateY(50px) scale(0.88);
+        transform: translate(-50%, -60%) scale(0.75);
       }
       to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translate(-50%, -50%) scale(1);
       }
     }
 
     @keyframes gifDrop {
       from {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translate(-50%, -50%) scale(1);
       }
       to {
-        opacity: 0;
-        transform: translateY(160px) scale(0.94);
+        opacity: 1;
+        transform: translate(-50%, 110vh) scale(0.94);
+      }
+    }
+
+    @keyframes cardFloat {
+      from {
+        transform: rotate(var(--float-from, -3deg));
+      }
+      to {
+        transform: rotate(var(--float-to, 3deg));
+      }
+    }
+
+    @keyframes cardBob {
+      from {
+        margin-top: calc(var(--bob-range, 18px) * -1);
+      }
+      to {
+        margin-top: var(--bob-range, 18px);
       }
     }
   </style>
@@ -257,14 +223,7 @@
     <canvas id="networkCanvas"></canvas>
     <div id="labels"></div>
     <div id="showcasePanel"></div>
-    <div id="mediaColumn">
-      <div id="videoFrame">
-        <div class="video-frame-surface">
-          <div class="video-placeholder-label">VIDEO PLACEHOLDER</div>
-        </div>
-      </div>
-      <div id="gifPreview"></div>
-    </div>
+    <div id="gifPreview"></div>
   </div>
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
@@ -305,9 +264,6 @@
     const labelsContainer = document.getElementById('labels');
     const showcasePanel = document.getElementById('showcasePanel');
     const gifPreview = document.getElementById('gifPreview');
-    const mediaColumn = document.getElementById('mediaColumn');
-    const videoFrame = document.getElementById('videoFrame');
-    const videoSurface = videoFrame ? videoFrame.querySelector('.video-frame-surface') : null;
 
     const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
     bgRenderer.setClearColor(0x000000, 0);
@@ -452,9 +408,6 @@
       positionShowcasePanel();
       if (gifPreview) {
         gifPreview.style.setProperty('--accent-color', accentColor);
-      }
-      if (videoFrame) {
-        videoFrame.style.setProperty('--accent-color', accentColor);
       }
     }
 
@@ -732,88 +685,73 @@
     }
 
     let currentPreviewKey = '';
-    let currentVideoKey = '';
     let previewClearTimer = null;
 
     function dropExistingCards({ immediate = false } = {}) {
       if (!gifPreview) return;
       const cards = Array.from(gifPreview.children);
-      cards.forEach((card, idx) => {
+      cards.forEach(card => {
         if (immediate) {
           card.remove();
           return;
         }
         card.classList.add('dropping');
-        card.style.animationDelay = `${idx * 0.06}s`;
+        card.style.animationDelay = '0s';
         card.addEventListener('animationend', () => card.remove(), { once: true });
       });
     }
 
     function renderGifCards(list) {
       if (!gifPreview) return;
-      const limited = list.slice(0, 4);
+      const limited = list.slice(0, 5);
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+      const minX = viewportWidth * 0.55;
+      const maxX = viewportWidth * 0.9;
+      const minY = viewportHeight * 0.18;
+      const maxY = viewportHeight * 0.86;
+
       limited.forEach((raw, idx) => {
         const src = encodeURI(raw);
         const card = document.createElement('div');
         card.className = 'gif-card';
-        card.style.animationDelay = `${idx * 0.08}s`;
+
+        const baseSize = Math.random() * 80 + 120;
+        const size = Math.min(baseSize, viewportWidth * 0.18);
+        const posX = Math.min(Math.max(minX + Math.random() * (maxX - minX), minX), maxX);
+        const posY = Math.min(Math.max(minY + Math.random() * (maxY - minY), minY), maxY);
+
+        card.style.width = `${size}px`;
+        card.style.height = `${size}px`;
+        card.style.left = `${posX}px`;
+        card.style.top = `${posY}px`;
+        const enterDelay = (idx * 0.05).toFixed(2);
+        const bobDelay = (Math.random() * 1.4).toFixed(2);
+        const floatRange = (Math.random() * 4 + 2).toFixed(2);
+        const floatBase = (Math.random() * 10 - 5).toFixed(2);
+        const floatDuration = (Math.random() * 3 + 5).toFixed(2);
+        const bobRange = (Math.random() * 16 + 10).toFixed(2);
+
+        card.style.setProperty('--float-from', `${parseFloat(floatBase) - parseFloat(floatRange)}deg`);
+        card.style.setProperty('--float-to', `${parseFloat(floatBase) + parseFloat(floatRange)}deg`);
+        card.style.setProperty('--enter-delay', `${enterDelay}s`);
+        card.style.setProperty('--bob-delay', `${bobDelay}s`);
+        card.style.setProperty('--bob-duration', `${floatDuration}s`);
+        card.style.setProperty('--bob-range', `${bobRange}px`);
+
+        const inner = document.createElement('div');
+        inner.className = 'gif-card-inner';
+        inner.style.animationDuration = `${floatDuration}s`;
+        inner.style.animationDelay = `${Math.random() * 1.4}s`;
+
         const img = document.createElement('img');
         img.src = src;
         img.alt = '';
-        card.appendChild(img);
+        inner.appendChild(img);
+        card.appendChild(inner);
+
         gifPreview.appendChild(card);
-        card.addEventListener('animationend', () => {
-          card.style.removeProperty('animationDelay');
-        }, { once: true });
       });
-    }
-
-    function computeAspect(aspectRatio) {
-      if (typeof aspectRatio === 'number' && Number.isFinite(aspectRatio) && aspectRatio > 0) {
-        return { width: aspectRatio, height: 1 };
-      }
-      if (typeof aspectRatio === 'string') {
-        const cleaned = aspectRatio.trim();
-        const parts = cleaned.split(/[x:/]/i).map(part => parseFloat(part)).filter(n => Number.isFinite(n) && n > 0);
-        if (parts.length >= 2) {
-          return { width: parts[0], height: parts[1] };
-        }
-        const numeric = parseFloat(cleaned);
-        if (Number.isFinite(numeric) && numeric > 0) {
-          return { width: numeric, height: 1 };
-        }
-      }
-      return { width: 16, height: 9 };
-    }
-
-    function setVideoFrame(feature, { immediate = false } = {}) {
-      if (!videoFrame || !videoSurface) return;
-      const key = feature && typeof feature === 'object'
-        ? `${feature.url || ''}|${feature.aspectRatio || ''}`
-        : '';
-      if (!immediate && key === currentVideoKey) return;
-      currentVideoKey = key;
-      const { width, height } = computeAspect(feature?.aspectRatio);
-      videoFrame.style.aspectRatio = `${width} / ${height}`;
-      videoFrame.classList.toggle('has-video', Boolean(feature && feature.url));
-      while (videoSurface.firstChild) {
-        videoSurface.removeChild(videoSurface.firstChild);
-      }
-      if (feature && feature.url) {
-        const iframe = document.createElement('iframe');
-        iframe.src = feature.url;
-        iframe.loading = 'lazy';
-        iframe.title = feature.label ? `${feature.label} video` : 'Portfolio video';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-        iframe.allowFullscreen = true;
-        videoSurface.appendChild(iframe);
-      } else {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'video-placeholder-label';
-        placeholder.textContent = 'VIDEO PLACEHOLDER';
-        videoSurface.appendChild(placeholder);
-      }
     }
 
     function setGifPreview(mediaList, { immediate = false } = {}) {
@@ -825,9 +763,6 @@
       if (!cleaned.length) {
         currentPreviewKey = '';
         dropExistingCards({ immediate });
-        if (showcaseActiveIndex < 0) {
-          setVideoFrame(null, { immediate: true });
-        }
         return;
       }
       const key = cleaned.join('|');
@@ -847,12 +782,10 @@
           const activeLine = lines[showcaseActiveIndex];
           if (activeLine) {
             setGifPreview(activeLine._entryMedia, { immediate: true });
-            setVideoFrame(activeLine._featureVideo, { immediate: true });
             return;
           }
         }
         setGifPreview(null);
-        setVideoFrame(null, { immediate: true });
       }, 140);
     }
 
@@ -868,7 +801,6 @@
       showcasePanel.style.transform = 'translateY(-50%)';
       showcasePanel.scrollTop = 0;
       setGifPreview(null);
-      setVideoFrame(null, { immediate: true });
     }
 
     function makeInteractive(container) {
@@ -955,13 +887,11 @@
       if (hasSelection) {
         const activeLine = lines[showcaseActiveIndex];
         if (activeLine) {
-          setGifPreview(activeLine._entryMedia, { immediate: true });
-          setVideoFrame(activeLine._featureVideo);
+          setGifPreview(activeLine._entryMedia);
         }
         activeLine.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } else {
         setGifPreview(null);
-        setVideoFrame(null);
       }
       requestAnimationFrame(() => positionShowcasePanel());
     }
@@ -1021,9 +951,6 @@
         line.appendChild(word);
         line.tabIndex = 0;
         line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
-        line._featureVideo = entry.featureVideo && typeof entry.featureVideo === 'object'
-          ? { ...entry.featureVideo, label: entry.label || '' }
-          : null;
         line.addEventListener('click', () => {
           setShowcaseActive(idx);
           notifyTopoPulse(0.55);
@@ -1045,7 +972,6 @@
         };
         line.addEventListener('pointerenter', evt => {
           setGifPreview(line._entryMedia);
-          setVideoFrame(line._featureVideo);
           holdOrigin = { x: evt.clientX, y: evt.clientY };
           cancelHold();
           holdTimer = window.setTimeout(() => {
@@ -1081,7 +1007,6 @@
         });
         line.addEventListener('focus', () => {
           setGifPreview(line._entryMedia);
-          setVideoFrame(line._featureVideo);
         });
         line.addEventListener('blur', () => {
           schedulePreviewClear();
@@ -1091,9 +1016,6 @@
       showcasePanel.style.setProperty('--accent-color', accentColor);
       if (gifPreview) {
         gifPreview.style.setProperty('--accent-color', accentColor);
-      }
-      if (videoFrame) {
-        videoFrame.style.setProperty('--accent-color', accentColor);
       }
       requestAnimationFrame(() => {
         positionShowcasePanel();
@@ -1419,9 +1341,6 @@
         }
         if (gifPreview) {
           gifPreview.style.setProperty('--accent-color', accentColor);
-        }
-        if (videoFrame) {
-          videoFrame.style.setProperty('--accent-color', accentColor);
         }
       }
     });
