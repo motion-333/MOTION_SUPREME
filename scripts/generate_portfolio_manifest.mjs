@@ -6,6 +6,12 @@ const PORTFOLIO_DIR = path.join(ROOT, 'Portfolio');
 const OUTPUT_FILE = path.join(ROOT, 'portfolio_manifest.json');
 const DEFAULT_ORDER = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
 
+const GIF_REGEX = /\.gif$/i;
+
+function toPosix(filePath) {
+  return filePath.split(path.sep).join('/');
+}
+
 function normalizeLabel(raw) {
   if (typeof raw !== 'string') return '';
   const parts = raw.split('_');
@@ -55,15 +61,33 @@ async function readPortfolio() {
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
     }
-    const items = subEntries
+    const items = [];
+    const foldersOnly = subEntries
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name)
-      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-      .map(name => ({
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    for (const name of foldersOnly) {
+      const itemPath = path.join(folderPath, name);
+      let mediaEntries = [];
+      try {
+        mediaEntries = await fs.readdir(itemPath, { withFileTypes: true });
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+
+      const media = mediaEntries
+        .filter(entry => entry.isFile() && GIF_REGEX.test(entry.name))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .map(entry => toPosix(path.relative(ROOT, path.join(itemPath, entry.name))));
+
+      items.push({
         id: name,
         index: extractIndex(name),
-        label: normalizeLabel(name).toUpperCase()
-      }));
+        label: normalizeLabel(name).toUpperCase(),
+        media
+      });
+    }
 
     result.folders.push({
       name: dir.name,

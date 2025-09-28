@@ -6,17 +6,20 @@
         {
           "id": "01_REDSTAR",
           "index": "01",
-          "label": "REDSTAR"
+          "label": "REDSTAR",
+          "media": []
         },
         {
           "id": "02_AUXDESCALES",
           "index": "02",
-          "label": "AUXDESCALES"
+          "label": "AUXDESCALES",
+          "media": []
         },
         {
           "id": "03_BURGERKING",
           "index": "03",
-          "label": "BURGERKING"
+          "label": "BURGERKING",
+          "media": []
         }
       ]
     },
@@ -26,17 +29,20 @@
         {
           "id": "01_CANINE",
           "index": "01",
-          "label": "CANINE"
+          "label": "CANINE",
+          "media": []
         },
         {
           "id": "02_SOF",
           "index": "02",
-          "label": "SOF"
+          "label": "SOF",
+          "media": []
         },
         {
           "id": "03_EDMOND_WELLS",
           "index": "03",
-          "label": "EDMOND WELLS"
+          "label": "EDMOND WELLS",
+          "media": []
         }
       ]
     },
@@ -46,12 +52,14 @@
         {
           "id": "01_AGORA",
           "index": "01",
-          "label": "AGORA"
+          "label": "AGORA",
+          "media": []
         },
         {
           "id": "02_LULUVANTRAPP",
           "index": "02",
-          "label": "LULUVANTRAPP"
+          "label": "LULUVANTRAPP",
+          "media": []
         }
       ]
     },
@@ -61,7 +69,8 @@
         {
           "id": "01_COVERS",
           "index": "01",
-          "label": "COVERS"
+          "label": "COVERS",
+          "media": []
         }
       ]
     },
@@ -71,12 +80,14 @@
         {
           "id": "01_TRATT",
           "index": "01",
-          "label": "TRATT"
+          "label": "TRATT",
+          "media": []
         },
         {
           "id": "02_ADELE",
           "index": "02",
-          "label": "ADELE"
+          "label": "ADELE",
+          "media": []
         }
       ]
     },
@@ -86,7 +97,8 @@
         {
           "id": "01_NARVIK",
           "index": "01",
-          "label": "NARVIK"
+          "label": "NARVIK",
+          "media": []
         }
       ]
     }

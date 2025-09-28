@@ -52,12 +52,12 @@
     #showcasePanel {
       position: absolute;
       top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: min(34vw, 480px);
+      right: clamp(28px, 6vw, 120px);
+      transform: translateY(-50%);
+      width: min(36vw, 520px);
       display: flex;
       flex-direction: column;
-      gap: clamp(18px, 3vh, 42px);
+      gap: clamp(18px, 3vh, 40px);
       font-family: 'Roboto Flex', 'Ferrite', sans-serif;
       color: var(--accent-color, #1449ff);
       pointer-events: auto;
@@ -74,15 +74,12 @@
     }
     .showcase-line {
       position: relative;
-      --word-scale: 1;
-      --line-scale: 1;
-      display: flex;
+      display: grid;
+      grid-template-columns: auto 1fr;
       align-items: flex-start;
       gap: clamp(14px, 2.4vw, 36px);
-      transition: gap 0.35s ease, margin 0.35s ease, transform 0.35s ease;
-      transform-origin: left top;
-      transform: scaleY(var(--line-scale));
-      margin: 0 0 clamp(16px, 2.8vh, 26px) 0;
+      transition: height 0.35s ease, gap 0.35s ease;
+      height: auto;
     }
     .showcase-line .index {
       font-size: clamp(0.58rem, 1.4vw, 0.92rem);
@@ -91,7 +88,6 @@
       margin-top: clamp(0.12rem, 0.45vh, 0.4rem);
       font-family: 'Ferrite', sans-serif;
       pointer-events: none;
-      transform-origin: left top;
       transition: transform 0.3s ease;
     }
     .showcase-word {
@@ -118,12 +114,6 @@
       transition: transform 0.2s ease, font-variation-settings 0.2s ease;
       font-variation-settings: 'wght' 400;
     }
-    .showcase-line .showcase-word {
-      transform: scaleY(var(--word-scale));
-    }
-    .showcase-line .index {
-      transform: translateY(calc((var(--word-scale) - 1) * -0.35em));
-    }
     .label {
       position: absolute;
       transform: translate(-50%, 0);
@@ -140,6 +130,64 @@
       opacity: 1;
       letter-spacing: 0.08em;
     }
+
+    #gifPreview {
+      position: absolute;
+      top: 50%;
+      right: clamp(24px, 3vw + 48px, 180px);
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(12px, 2.2vh, 28px);
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .gif-card {
+      width: clamp(120px, 16vw, 180px);
+      aspect-ratio: 1 / 1;
+      border: 3px solid var(--accent-color, #1449ff);
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(20, 73, 255, 0.08);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+      opacity: 0;
+      transform: translateY(40px) scale(0.92);
+      animation: gifEnter 0.45s ease forwards;
+    }
+
+    .gif-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gif-card.dropping {
+      animation: gifDrop 0.5s cubic-bezier(.33, .8, .48, 1) forwards;
+    }
+
+    @keyframes gifEnter {
+      from {
+        opacity: 0;
+        transform: translateY(50px) scale(0.88);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes gifDrop {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(160px) scale(0.94);
+      }
+    }
   </style>
 </head>
 <body>
@@ -149,34 +197,35 @@
     <canvas id="networkCanvas"></canvas>
     <div id="labels"></div>
     <div id="showcasePanel"></div>
+    <div id="gifPreview"></div>
   </div>
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
     const DEFAULT_SHOWCASE = {
       'Ads': [
-        { index: '01', label: 'REDSTAR' },
-        { index: '02', label: 'AUXDESCALES' },
-        { index: '03', label: 'BURGERKING' }
+        { index: '01', label: 'REDSTAR', media: [] },
+        { index: '02', label: 'AUXDESCALES', media: [] },
+        { index: '03', label: 'BURGERKING', media: [] }
       ],
       'Music Videos': [
-        { index: '01', label: 'CANINE' },
-        { index: '02', label: 'SOF' },
-        { index: '03', label: 'EDMOND WELLS' }
+        { index: '01', label: 'CANINE', media: [] },
+        { index: '02', label: 'SOF', media: [] },
+        { index: '03', label: 'EDMOND WELLS', media: [] }
       ],
       'Events': [
-        { index: '01', label: 'AGORA' },
-        { index: '02', label: 'LULUVANTRAPP' }
+        { index: '01', label: 'AGORA', media: [] },
+        { index: '02', label: 'LULUVANTRAPP', media: [] }
       ],
       'Graphics': [
-        { index: '01', label: 'COVERS' }
+        { index: '01', label: 'COVERS', media: [] }
       ],
       'Web': [
-        { index: '01', label: 'TRATT' },
-        { index: '02', label: 'ADELE' }
+        { index: '01', label: 'TRATT', media: [] },
+        { index: '02', label: 'ADELE', media: [] }
       ],
       'Zines': [
-        { index: '01', label: 'NARVIK' }
+        { index: '01', label: 'NARVIK', media: [] }
       ]
     };
 
@@ -188,6 +237,7 @@
     const networkCanvas = document.getElementById('networkCanvas');
     const labelsContainer = document.getElementById('labels');
     const showcasePanel = document.getElementById('showcasePanel');
+    const gifPreview = document.getElementById('gifPreview');
 
     const bgRenderer = new THREE.WebGLRenderer({ canvas: bgCanvas, antialias: true, alpha: true });
     bgRenderer.setClearColor(0x000000, 0);
@@ -264,15 +314,20 @@
           if (entry && typeof entry === 'object') {
             const label = String(entry.label ?? '').trim() || String(entry.id ?? '').replace(/^[0-9]+_/, '').replace(/_/g, ' ');
             const index = String(entry.index ?? entry.id ?? idx + 1).split('_')[0];
+            const media = Array.isArray(entry.media)
+              ? entry.media.map(src => String(src))
+              : [];
             return {
               index: index ? index.padStart(2, '0') : String(idx + 1).padStart(2, '0'),
-              label: label.toUpperCase()
+              label: label.toUpperCase(),
+              media
             };
           }
           const raw = String(entry ?? '').replace(/^[0-9]+_/, '');
           return {
             index: String(idx + 1).padStart(2, '0'),
-            label: raw.replace(/_/g, ' ').toUpperCase()
+            label: raw.replace(/_/g, ' ').toUpperCase(),
+            media: []
           };
         });
       });
@@ -289,7 +344,8 @@
       if (!entries || !entries.length) return [];
       return entries.map((entry, idx) => ({
         index: entry.index ? String(entry.index).padStart(2, '0') : String(idx + 1).padStart(2, '0'),
-        label: entry.label ? String(entry.label).toUpperCase() : ''
+        label: entry.label ? String(entry.label).toUpperCase() : '',
+        media: Array.isArray(entry.media) ? entry.media.map(src => String(src)) : []
       }));
     }
 
@@ -317,6 +373,9 @@
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
       positionShowcasePanel();
+      if (gifPreview) {
+        gifPreview.style.setProperty('--accent-color', accentColor);
+      }
     }
 
     function resize() {
@@ -598,12 +657,81 @@
       });
     }
 
+    let currentPreviewKey = '';
+    let previewClearTimer = null;
+
+    function dropExistingCards({ immediate = false } = {}) {
+      if (!gifPreview) return;
+      const cards = Array.from(gifPreview.children);
+      cards.forEach((card, idx) => {
+        if (immediate) {
+          card.remove();
+          return;
+        }
+        card.classList.add('dropping');
+        card.style.animationDelay = `${idx * 0.06}s`;
+        card.addEventListener('animationend', () => card.remove(), { once: true });
+      });
+    }
+
+    function renderGifCards(list) {
+      if (!gifPreview) return;
+      const limited = list.slice(0, 4);
+      limited.forEach((raw, idx) => {
+        const src = encodeURI(raw);
+        const card = document.createElement('div');
+        card.className = 'gif-card';
+        card.style.animationDelay = `${idx * 0.08}s`;
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        card.appendChild(img);
+        gifPreview.appendChild(card);
+        card.addEventListener('animationend', () => {
+          card.style.removeProperty('animationDelay');
+        }, { once: true });
+      });
+    }
+
+    function setGifPreview(mediaList, { immediate = false } = {}) {
+      if (!gifPreview) return;
+      clearTimeout(previewClearTimer);
+      const cleaned = Array.isArray(mediaList)
+        ? mediaList.filter(src => typeof src === 'string' && src.trim())
+        : [];
+      if (!cleaned.length) {
+        currentPreviewKey = '';
+        dropExistingCards({ immediate });
+        return;
+      }
+      const key = cleaned.join('|');
+      if (key === currentPreviewKey) return;
+      currentPreviewKey = key;
+      const hadCards = gifPreview.childElementCount > 0;
+      dropExistingCards({ immediate });
+      const delay = immediate || !hadCards ? 0 : 220;
+      window.setTimeout(() => renderGifCards(cleaned), delay);
+    }
+
+    function schedulePreviewClear() {
+      clearTimeout(previewClearTimer);
+      previewClearTimer = window.setTimeout(() => {
+        setGifPreview(null);
+      }, 140);
+    }
+
+    if (showcasePanel) {
+      showcasePanel.addEventListener('pointerleave', schedulePreviewClear);
+      showcasePanel.addEventListener('pointerenter', () => clearTimeout(previewClearTimer));
+    }
+
     function clearShowcasePanel() {
       if (!showcasePanel) return;
       showcasePanel.innerHTML = '';
       showcasePanel.style.width = '';
-      showcasePanel.style.transform = 'translate(-50%, -50%)';
+      showcasePanel.style.transform = 'translateY(-50%)';
       showcasePanel.scrollTop = 0;
+      setGifPreview(null);
     }
 
     function makeInteractive(container) {
@@ -671,22 +799,44 @@
       if (!lines.length) return;
       const hasSelection = typeof index === 'number' && index >= 0 && index < lines.length;
       showcaseActiveIndex = hasSelection ? index : -1;
-      const inactiveScale = hasSelection ? 0.74 : 1;
-      const inactiveLine = hasSelection ? 0.88 : 1;
+      const activeScale = hasSelection ? 3 : 1;
       lines.forEach((line, idx) => {
         const selected = idx === showcaseActiveIndex;
-        const scale = selected ? 3 : inactiveScale;
+        const scale = selected ? activeScale : 1;
+        const baseHeight = parseFloat(line.dataset.baseHeight || '') || line.getBoundingClientRect().height || 1;
+        const word = line.querySelector('.showcase-word');
         line.classList.toggle('selected', selected);
-        line.setAttribute('data-selected', selected ? 'true' : 'false');
-        line.style.setProperty('--word-scale', scale);
-        line.style.setProperty('--line-scale', selected ? 1 : inactiveLine);
-        line.style.gap = selected ? 'clamp(18px, 2.8vw, 44px)' : 'clamp(12px, 2vw, 32px)';
-        line.style.marginBottom = selected ? 'clamp(26px, 4vh, 42px)' : 'clamp(16px, 2.8vh, 26px)';
-        if (selected) {
-          line.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        line.style.height = `${baseHeight * scale}px`;
+        if (word) {
+          word.style.transform = `scaleY(${scale})`;
+          word.style.transformOrigin = 'left top';
+        }
+        if (!selected && !hasSelection && word) {
+          word.style.transform = 'scaleY(1)';
         }
       });
+      if (hasSelection) {
+        const activeLine = lines[showcaseActiveIndex];
+        activeLine.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else {
+        setGifPreview(null);
+      }
       requestAnimationFrame(() => positionShowcasePanel());
+    }
+
+    function captureShowcaseMetrics() {
+      if (!showcasePanel) return;
+      const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
+      lines.forEach(line => {
+        const rect = line.getBoundingClientRect();
+        line.dataset.baseHeight = rect.height.toString();
+        line.style.height = `${rect.height}px`;
+        const word = line.querySelector('.showcase-word');
+        if (word) {
+          word.style.transformOrigin = 'left top';
+          word.style.transform = 'scaleY(1)';
+        }
+      });
     }
 
     function createInteractiveWord(text) {
@@ -728,6 +878,7 @@
         line.appendChild(indexLabel);
         line.appendChild(word);
         line.tabIndex = 0;
+        line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
         line.addEventListener('click', () => {
           setShowcaseActive(idx);
           notifyTopoPulse(0.55);
@@ -748,6 +899,7 @@
           }
         };
         line.addEventListener('pointerenter', evt => {
+          setGifPreview(line._entryMedia);
           holdOrigin = { x: evt.clientX, y: evt.clientY };
           cancelHold();
           holdTimer = window.setTimeout(() => {
@@ -759,6 +911,7 @@
         line.addEventListener('pointerleave', () => {
           holdOrigin = null;
           cancelHold();
+          schedulePreviewClear();
         });
         line.addEventListener('pointermove', evt => {
           if (!holdTimer || !holdOrigin) return;
@@ -773,11 +926,25 @@
             }, 3000);
           }
         });
-        line.addEventListener('pointerdown', cancelHold);
-        line.addEventListener('pointercancel', cancelHold);
+        line.addEventListener('pointerdown', () => {
+          cancelHold();
+        });
+        line.addEventListener('pointercancel', () => {
+          cancelHold();
+          schedulePreviewClear();
+        });
+        line.addEventListener('focus', () => {
+          setGifPreview(line._entryMedia);
+        });
+        line.addEventListener('blur', () => {
+          schedulePreviewClear();
+        });
         showcasePanel.appendChild(line);
       });
       showcasePanel.style.setProperty('--accent-color', accentColor);
+      if (gifPreview) {
+        gifPreview.style.setProperty('--accent-color', accentColor);
+      }
       requestAnimationFrame(() => {
         positionShowcasePanel();
         requestAnimationFrame(() => {
@@ -802,6 +969,7 @@
           });
           targetWidth = Math.max(targetWidth, 1);
           words.forEach(word => setupInteractiveWord(word, targetWidth));
+          captureShowcaseMetrics();
           setShowcaseActive(showcaseActiveIndex);
           showcasePanel.classList.add('visible');
         });
@@ -810,35 +978,8 @@
 
     function positionShowcasePanel() {
       if (!showcasePanel) return;
-      if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
-        showcasePanel.style.transform = 'translate(-50%, -50%)';
-        return;
-      }
-      const len = folders.length || 1;
-      const target = computeAlignTarget(selectedIndex, len);
-      const projected = target.position.clone().project(camera);
-      const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
-      const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
-      const rawLeft = Math.max(screenX + 60, 60);
-      const availableWidth = Math.max(window.innerWidth - rawLeft - 40, 120);
-      const minWidth = 260;
-      let targetWidth = availableWidth;
-      if (availableWidth > minWidth) {
-        const halfWidth = availableWidth * 0.5;
-        targetWidth = Math.min(availableWidth, Math.max(halfWidth, minWidth));
-      }
-      showcasePanel.style.width = `${targetWidth}px`;
-      const panelWidth = showcasePanel.offsetWidth || targetWidth;
-      const maxLeft = Math.max(window.innerWidth - panelWidth - 32, 60);
-      const left = Math.min(Math.max(rawLeft, 60), maxLeft);
-      showcasePanel.style.left = `${left}px`;
-      const panelHeight = showcasePanel.offsetHeight || 0;
-      const bottomLimit = Math.max(window.innerHeight - panelHeight - 40, 60);
-      const top = Math.min(Math.max(screenY - panelHeight / 2, 60), bottomLimit);
-      showcasePanel.style.top = `${top}px`;
-      showcasePanel.style.right = 'auto';
-      showcasePanel.style.bottom = 'auto';
-      showcasePanel.style.transform = 'none';
+      const baseWidth = Math.min(Math.max(window.innerWidth * 0.32, 260), 520);
+      showcasePanel.style.width = `${baseWidth}px`;
     }
 
     function initFolders(list) {
@@ -1125,6 +1266,9 @@
         labelsContainer.style.setProperty('--accent-color', accentColor);
         if (showcasePanel) {
           showcasePanel.style.setProperty('--accent-color', accentColor);
+        }
+        if (gifPreview) {
+          gifPreview.style.setProperty('--accent-color', accentColor);
         }
       }
     });

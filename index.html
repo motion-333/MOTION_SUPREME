@@ -65,15 +65,15 @@
       position: fixed;
       top: 0;
       left: 0;
-      width: 34px;
-      height: 34px;
+      width: 24px;
+      height: 24px;
       pointer-events: none;
       z-index: 20;
       opacity: 0;
       transform: translate(-50%, -50%) scale(1);
-      transition: opacity 0.2s ease, filter 0.2s ease;
+      transition: opacity 0.15s ease, filter 0.2s ease;
       will-change: transform, opacity;
-      filter: drop-shadow(0 0 4px var(--cursor-shadow));
+      filter: drop-shadow(0 0 3px var(--cursor-shadow));
     }
 
     #customCursor::before,
@@ -87,13 +87,13 @@
     }
 
     #customCursor::before {
-      width: 2px;
+      width: 1.5px;
       height: 100%;
     }
 
     #customCursor::after {
       width: 100%;
-      height: 2px;
+      height: 1.5px;
     }
 
     .i18n-loading [data-i18n] {
@@ -526,8 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function animateCursor() {
     if (!customCursor) return;
-    cursorPos.x += (cursorTarget.x - cursorPos.x) * 0.22;
-    cursorPos.y += (cursorTarget.y - cursorPos.y) * 0.22;
+    cursorPos.x += (cursorTarget.x - cursorPos.x) * 0.35;
+    cursorPos.y += (cursorTarget.y - cursorPos.y) * 0.35;
     cursorScale += (cursorScaleTarget - cursorScale) * 0.2;
     customCursor.style.transform = `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%) scale(${cursorScale})`;
     requestAnimationFrame(animateCursor);
@@ -1141,45 +1141,45 @@ document.addEventListener('DOMContentLoaded', () => {
       {
         name: 'Ads',
         items: [
-          { index: '01', label: 'REDSTAR' },
-          { index: '02', label: 'AUXDESCALES' },
-          { index: '03', label: 'BURGERKING' }
-        ]
-      },
-      {
-        name: 'Music Videos',
-        items: [
-          { index: '01', label: 'CANINE' },
-          { index: '02', label: 'SOF' },
-          { index: '03', label: 'EDMOND WELLS' }
-        ]
-      },
-      {
-        name: 'Events',
-        items: [
-          { index: '01', label: 'AGORA' },
-          { index: '02', label: 'LULUVANTRAPP' }
-        ]
-      },
-      {
-        name: 'Graphics',
-        items: [
-          { index: '01', label: 'COVERS' }
-        ]
-      },
-      {
-        name: 'Web',
-        items: [
-          { index: '01', label: 'TRATT' },
-          { index: '02', label: 'ADELE' }
-        ]
-      },
-      {
-        name: 'Zines',
-        items: [
-          { index: '01', label: 'NARVIK' }
-        ]
-      }
+        { index: '01', label: 'REDSTAR', media: [] },
+        { index: '02', label: 'AUXDESCALES', media: [] },
+        { index: '03', label: 'BURGERKING', media: [] }
+      ]
+    },
+    {
+      name: 'Music Videos',
+      items: [
+        { index: '01', label: 'CANINE', media: [] },
+        { index: '02', label: 'SOF', media: [] },
+        { index: '03', label: 'EDMOND WELLS', media: [] }
+      ]
+    },
+    {
+      name: 'Events',
+      items: [
+        { index: '01', label: 'AGORA', media: [] },
+        { index: '02', label: 'LULUVANTRAPP', media: [] }
+      ]
+    },
+    {
+      name: 'Graphics',
+      items: [
+        { index: '01', label: 'COVERS', media: [] }
+      ]
+    },
+    {
+      name: 'Web',
+      items: [
+        { index: '01', label: 'TRATT', media: [] },
+        { index: '02', label: 'ADELE', media: [] }
+      ]
+    },
+    {
+      name: 'Zines',
+      items: [
+        { index: '01', label: 'NARVIK', media: [] }
+      ]
+    }
     ]
   };
 
@@ -1190,7 +1190,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return items.map((item, idx) => {
       const label = (item && item.label) ? item.label : String(item && item.id || idx + 1).replace(/^[0-9]+_/, '').replace(/_/g, ' ').toUpperCase();
       const index = (item && item.index) ? item.index.padStart(2, '0') : String(idx + 1).padStart(2, '0');
-      return { index, label };
+      const media = Array.isArray(item?.media)
+        ? item.media.map(entry => String(entry))
+        : [];
+      return { index, label, media };
     });
   }
 

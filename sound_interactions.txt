@@ -17,5 +17,7 @@ Sound Layer Plan for MOTION_SUPREME interactions
 14. showcaseSelect — pronounced swell that triggers when a showcase entry is clicked and stretches taller than its neighbors.
 15. showcaseHoldSelect — a delayed swell that fades in if an entry auto-selects after the 3s hover hold.
 16. topoPulse — soft whoosh that accompanies each background topo animation burst triggered by folder selections or showcase clicks.
+17. showcasePreviewAppear — airy harmonic swell that fades in as GIF preview squares rise into place when hovering project names.
+18. showcasePreviewDrop — percussive falloff that triggers when preview squares lose focus and drop off the page.
 
 Each layer is currently generated through Web Audio oscillators as placeholders. Replace with provided audio assets later by updating the SoundManager.createLayer configuration.
