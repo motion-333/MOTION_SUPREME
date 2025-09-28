@@ -372,6 +372,17 @@
       }
     }
 
+    function scheduleCardBounds() {
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+      cardBounds = {
+        minX: viewportWidth * 0.55,
+        maxX: viewportWidth * 0.9,
+        minY: viewportHeight * 0.18,
+        maxY: viewportHeight * 0.86
+      };
+    }
+
     function resize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -416,17 +427,6 @@
       if (state.el && state.el.parentElement) {
         state.el.remove();
       }
-    }
-
-    function scheduleCardBounds() {
-      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-      cardBounds = {
-        minX: viewportWidth * 0.55,
-        maxX: viewportWidth * 0.9,
-        minY: viewportHeight * 0.18,
-        maxY: viewportHeight * 0.86
-      };
     }
 
     function spawnCard(src, delay = 0) {
