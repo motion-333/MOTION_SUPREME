@@ -485,6 +485,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('message', e => {
     if (e.source === orbitFrame.contentWindow && e.data) {
+      if (e.data.orbitPointer && customCursor && orbitFrame) {
+        const pointer = e.data.orbitPointer;
+        if (pointer.type === 'move' || pointer.type === 'enter') {
+          const rect = orbitFrame.getBoundingClientRect();
+          cursorTarget.x = rect.left + (pointer.x ?? 0);
+          cursorTarget.y = rect.top + (pointer.y ?? 0);
+          if (!cursorVisible) {
+            cursorVisible = true;
+            customCursor.style.opacity = '1';
+          }
+        }
+        if (pointer.type === 'enter') {
+          cursorVisible = true;
+          customCursor.style.opacity = '1';
+        }
+        if (pointer.type === 'leave') {
+          cursorVisible = false;
+          customCursor.style.opacity = '0';
+        }
+        if (pointer.type === 'down') {
+          cursorScaleTarget = 0.75;
+        }
+        if (pointer.type === 'up') {
+          cursorScaleTarget = 1;
+        }
+      }
       if (e.data.topoColor && bgFrame && bgFrame.contentWindow) {
         bgFrame.contentWindow.postMessage({ color: e.data.topoColor, fade: e.data.fade }, '*');
       }
@@ -873,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="copyright" data-i18n="copyright">© Don't steal my shit pls</div>
 
 <script>
-  window.FOLDER_NAMES = ["Ads", "Music Videos", "Zines", "Events", "Graphics"];
+  window.FOLDER_NAMES = ["Ads", "Music Videos", "Zines", "Events", "Graphics", "Web"];
   const iframe = document.querySelector('iframe[src="orbit_inner.html"]');
 
   function sendFolders() {

@@ -10,6 +10,11 @@
       src: url('/static/FERRITEDISPLAYVF.ttf') format('truetype');
       font-weight: 100 900;
     }
+    @font-face {
+      font-family: 'Outfit';
+      src: url('/static/OutfitVariableFont.ttf') format('truetype');
+      font-weight: 100 900;
+    }
     html, body {
       margin: 0;
       padding: 0;
@@ -57,7 +62,7 @@
       display: flex;
       flex-direction: column;
       gap: clamp(18px, 3vh, 42px);
-      font-family: 'Ferrite', sans-serif;
+      font-family: 'Outfit', sans-serif;
       color: var(--accent-color, #1449ff);
       pointer-events: auto;
       opacity: 0;
@@ -88,6 +93,7 @@
       text-transform: uppercase;
       white-space: nowrap;
       pointer-events: auto;
+      font-family: 'Outfit', sans-serif;
     }
     .showcase-word .letter {
       display: inline-block;
@@ -129,7 +135,7 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
+    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics', 'Web'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -183,6 +189,16 @@
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
     const orbitEase = alignEase;
 
+    function sendPointerMessage(type, event) {
+      if (!parent) return;
+      const payload = { type };
+      if (event) {
+        payload.x = event.clientX;
+        payload.y = event.clientY;
+      }
+      parent.postMessage({ orbitPointer: payload }, '*');
+    }
+
     const networkCtx = networkCanvas.getContext('2d');
     const networkPoints = [];
     const NETWORK_COUNT = 17;
@@ -194,6 +210,7 @@
       'Music Videos': ['CANINE', 'SOF', 'EDMOND WELLS'],
       'Events': ['AGORA', 'LULUVANTRAPP'],
       'Graphics': ['COVERS'],
+      'Web': ['TRATT', 'ADELE'],
       'Zines': ['NARVIK']
     };
     function computeVisibleMetrics() {
@@ -234,7 +251,7 @@
     window.addEventListener('resize', resize);
     resize();
 
-    window.addEventListener('mousemove', e => {
+    window.addEventListener('pointermove', e => {
       const nx = (e.clientX / window.innerWidth - 0.5) * 2;
       const ny = -(e.clientY / window.innerHeight - 0.5) * 2;
       if (mode === 'align') {
@@ -249,8 +266,13 @@
       raycaster.setFromCamera(mouse, camera);
       const d = -raycaster.ray.origin.z / raycaster.ray.direction.z;
       cursor3D.copy(raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(d)));
-
+      sendPointerMessage('move', e);
     });
+
+    sceneWrap.addEventListener('pointerenter', e => sendPointerMessage('enter', e));
+    sceneWrap.addEventListener('pointerleave', () => sendPointerMessage('leave'));
+    window.addEventListener('pointerdown', e => sendPointerMessage('down', e));
+    window.addEventListener('pointerup', e => sendPointerMessage('up', e));
 
     const ease = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
 

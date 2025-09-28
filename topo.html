@@ -50,7 +50,7 @@
     const SCALE = 0.01;
     const CONTOUR_INT = 30;
     const DS = 32;
-    const dx = 5;
+    const BASE_STEP = 0.12;
     const dy = 2.5;
 
     // PERLIN NOISE
@@ -194,6 +194,10 @@
     }
 
     let offsetX = 0;
+    let scrollBoost = 0;
+    let currentScrollY = 0;
+    let lastDrawY = 0;
+    let lastTime = performance.now();
 
     function drawSlice(scrollY){
       const W = canvas.width, H = canvas.height;
@@ -279,25 +283,13 @@
         ctx.stroke();
       }
 
-      offsetX += dx;
     }
 
-    // THROTTLED SCROLL HANDLING
-    let ticking = false;
-    let lastDrawY = -Infinity;
-    const SCROLL_STEP = 120;
-
     function handleScrollY(sy){
-      if (Math.abs(sy - lastDrawY) >= SCROLL_STEP) {
-        lastDrawY = sy;
-        if (!ticking) {
-          requestAnimationFrame(() => {
-            drawSlice(lastDrawY);
-            ticking = false;
-          });
-          ticking = true;
-        }
-      }
+      currentScrollY = sy;
+      const delta = sy - lastDrawY;
+      scrollBoost = Math.min(scrollBoost + Math.abs(delta) * 0.003, 3);
+      lastDrawY = sy;
     }
 
     window.addEventListener('scroll', () => handleScrollY(window.scrollY));
@@ -335,7 +327,19 @@
       }
     });
 
+    function animate(){
+      const now = performance.now();
+      const dt = (now - lastTime) / 16.6667;
+      lastTime = now;
+      const step = BASE_STEP * dt + scrollBoost;
+      offsetX += step;
+      scrollBoost *= 0.92;
+      drawSlice(currentScrollY);
+      requestAnimationFrame(animate);
+    }
+
     drawSlice(0);
+    animate();
   </script>
 </body>
 </html>
