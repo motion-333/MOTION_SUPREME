@@ -345,6 +345,7 @@
 
     let portfolioShowcase = cloneShowcase(DEFAULT_SHOWCASE);
     let showcaseActiveIndex = -1;
+    let cardBounds = { minX: 0, maxX: window.innerWidth, minY: 0, maxY: window.innerHeight };
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -418,7 +419,6 @@
     const ease = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
 
     const cardStates = new Set();
-    let cardBounds = { minX: 0, maxX: window.innerWidth, minY: 0, maxY: window.innerHeight };
     let lastCardUpdate = performance.now();
 
     function removeCardState(state) {
