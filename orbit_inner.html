@@ -12,9 +12,6 @@
     }
     html, body { margin:0; padding:0; width:100%; height:100%; background:transparent; overflow:hidden; cursor:default; }
     /* Top bar removed */
-    /* Glass overlay */
-    .glass { position:fixed; top:0; left:0; width:100vw; height:100vh; backdrop-filter:brightness(1); opacity:0; transition:opacity 0.8s ease-in-out; pointer-events:none; z-index:1; }
-    .glass.visible { opacity:1; }
     /* Canvas layers */
     #bgCanvas, #fgCanvas { position:absolute; top:0; left:0; width:100%; height:100%; }
     #bgCanvas { z-index:0; }
@@ -33,87 +30,76 @@
       from { opacity:0.4; }
       to   { opacity:0.8; }
     }
-    /* Grid overlay */
-    #overlay {
+    /* Folder UI overlay */
+    #folderUi {
       position:fixed;
-      inset:0;
-      display:none;
+      left:0;
+      top:0;
+      display:flex;
+      align-items:flex-start;
+      gap:clamp(12px, 3vw, 48px);
+      pointer-events:none;
       opacity:0;
-      transition:opacity 0.5s ease;
+      transform:translate(-50%, -50%);
+      transition:opacity 0.3s ease;
+      z-index:7;
+      color:#1449ff;
+      font-family:'Ferrite', sans-serif;
+    }
+    #folderUi.visible {
+      opacity:1;
+      pointer-events:auto;
+    }
+    #folderBackButton {
+      width:clamp(52px, 6vw, 72px);
+      height:clamp(52px, 6vw, 72px);
+      border:4px solid #1449ff;
+      background:rgba(250,248,229,0.92);
+      display:flex;
       align-items:center;
       justify-content:center;
-      z-index:4;
-      pointer-events:none;
-    }
-    #overlay.show { display:flex; }
-    #overlay.visible { opacity:1; }
-    #layoutWrapper { display:flex; flex-direction:column; align-items:center; pointer-events:auto; }
-    #header { width:calc(120vmin + 6px); display:flex; height:15vmin; margin-bottom:-3px; }
-    #viewport { position:relative; overflow:hidden; width:120vmin; height:calc(120vmin*9/16 + 6vmin); border:3px solid #1449ff; pointer-events:auto; }
-    #leftSquare { width:15vmin; height:100%; background:#faf8e5; box-sizing:border-box; border:3px solid #1449ff; border-right:none; }
-    #rightBox { flex:1; height:100%; overflow:hidden; display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:3px solid #1449ff; border-left:3px solid #1449ff; background:#faf8e5; }
-    #rightBox .interactive-text {
-      display:inline-block;
-      width:100%;
-      white-space:nowrap;
-      overflow:visible;
-      font-family:'Ferrite', sans-serif;
-      font-size:12vmin;
+      cursor:pointer;
       color:#1449ff;
-      transform: translateY(4%);
+      transition:transform 0.3s ease;
     }
-    #rightBox .interactive-text .letter {
+    #folderBackButton:hover {
+      transform:translateX(-6px);
+    }
+    #folderBackButton svg { width:60%; height:60%; }
+    #folderTitle.interactive-text {
+      font-size:clamp(32px, 6vw, 96px);
+      white-space:nowrap;
+      display:flex;
+      align-items:flex-start;
+      gap:0;
+    }
+    #folderTitle .letter {
       display:inline-block;
       overflow:hidden;
-      transition:width 0.3s cubic-bezier(.25,.1,.25,1);
+      transition:width 0.25s cubic-bezier(.25,.1,.25,1);
     }
-    #rightBox .interactive-text .letter .char {
+    #folderTitle .letter .char {
       display:inline-block;
       transform-origin:left center;
-      transition:transform 0.3s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.3s cubic-bezier(.25,.1,.25,1);
+      transition:transform 0.25s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.25s cubic-bezier(.25,.1,.25,1);
       font-variation-settings:'wght' 400;
-    }
-    #gridContainer { position:absolute; top:50%; left:50%; width:100vw; height:100vh; transform:translate(-50%,-50%); background:#faf8e5; }
-    #gridContainer::after { content:""; position:absolute; left:0; right:0; bottom:-var(--extra-bg,0); height:var(--extra-bg,0); background:#faf8e5; pointer-events:none; }
-    #grid { display:grid; grid-template-columns:repeat(80,1fr); grid-template-rows:repeat(45,1fr); gap:1px; width:100%; height:100%; }
-    .cell { background:none; border:1px solid #1449ff; aspect-ratio:1/1; }
-    .placed { position:absolute; overflow:hidden; border:2px solid #1449ff; box-sizing:border-box; }
-    .placed img, .placed video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
-    .text-item {
-      width:100%;
-      height:100%;
-      display:block;
-      font-family:'Ferrite', sans-serif;
-      background:#faf8e5;
-      margin:0;
-      padding:0;
-      white-space:pre-wrap;
-      box-sizing:border-box;
-      outline:none;
-      font-variation-settings:'wght' 400;
-      color:#1449ff;
     }
   </style>
 </head>
 <body>
   <!-- top bar removed -->
   <div id="sceneWrap" class="masked">
-    <div class="glass" id="glass"></div>
-
     <canvas id="bgCanvas"></canvas>
     <canvas id="fgCanvas"></canvas>
 
-    <!-- moved overlay inside sceneWrap -->
-    <div id="overlay">
-      <div id="layoutWrapper">
-        <div id="header">
-          <div id="leftSquare"></div>
-          <div id="rightBox"><div class="interactive-text"></div></div>
-        </div>
-        <div id="viewport">
-          <div id="gridContainer"><div id="grid"></div></div>
-        </div>
-      </div>
+    <div id="folderUi">
+      <button id="folderBackButton" aria-label="Close folder">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M14 6 8 12l6 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M20 12H8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+        </svg>
+      </button>
+      <div id="folderTitle" class="interactive-text"></div>
     </div>
 
     <div id="labels"></div>
@@ -122,14 +108,14 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    let FOLDER_NAMES = [];
+    const DEFAULT_FOLDERS = ['Ads', 'Zines', 'Music Videos', 'Events', 'General Design'];
+    let FOLDER_NAMES = [...DEFAULT_FOLDERS];
   </script>
   <script>
     // Renderer & scene setup
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas'),
-          fgCanvas = document.getElementById('fgCanvas'),
-          glass = document.getElementById('glass');
+          fgCanvas = document.getElementById('fgCanvas');
     // logo removed
 
     /* top bar scripts removed */
@@ -160,7 +146,12 @@
     // Raycaster & cursor
     const raycaster = new THREE.Raycaster(),
           mouse = new THREE.Vector2(),
-          cursor3D = new THREE.Vector3();
+          cursor3D = new THREE.Vector3(),
+          tempVec = new THREE.Vector3();
+    const flattenVec = new THREE.Vector3();
+    const scaleVec = new THREE.Vector3();
+    const boundsBox = new THREE.Box3();
+    const boundsCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
     let targetMouse = {x:0,y:0}, currentMouse = {x:0,y:0}, magnetized = null;
     window.addEventListener('mousemove', e => {
       const nx = (e.clientX/window.innerWidth - 0.5)*2;
@@ -174,6 +165,9 @@
     });
 
     const ease = t => t < 0.5 ? 2*t*t : (-1+(4-2*t)*t);
+    const CLOSED_LID_ANGLE = THREE.MathUtils.degToRad(-6);
+    const HOVER_LID_ANGLE = THREE.MathUtils.degToRad(14);
+    const OPEN_LID_ANGLE = CLOSED_LID_ANGLE + Math.PI;
 
     // Folder factory
     function createFolder(name) {
@@ -187,11 +181,17 @@
            .lineTo(-w/2+r,h/2).quadraticCurveTo(-w/2,h/2,-w/2,h/2-r)
            .lineTo(-w/2,-h/2+r).quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
       const geom = new THREE.ExtrudeGeometry(shape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 });
-      const front = new THREE.Mesh(geom, frontMat);
-      front.geometry.translate(0,0.9,0);
-      front.position.z=0.015;
-      front.castShadow=true;
-      g.add(front);
+      const frontGeom = geom.clone();
+      frontGeom.translate(0, h/2, 0);
+      const frontFlap = new THREE.Mesh(frontGeom, frontMat);
+      frontFlap.castShadow = true;
+      frontFlap.position.set(0,0,0.015);
+      const frontPivot = new THREE.Group();
+      frontPivot.add(frontFlap);
+      frontPivot.rotation.x = CLOSED_LID_ANGLE;
+      frontFlap.userData.folder = g;
+      frontPivot.userData.folder = g;
+      g.add(frontPivot);
       const back = new THREE.Mesh(geom.clone(), backMat);
       back.scale.y=1.07;
       back.position.set(0,0.05,-0.015);
@@ -204,26 +204,53 @@
               .quadraticCurveTo(-0.45,0.2,-0.3,0).lineTo(-0.3,-0.3)
               .quadraticCurveTo(-0.32,-0.43,-0.6,-0.43).lineTo(-1.22,-0.42)
               .quadraticCurveTo(-1.28,-0.38,-1.24,-0.3).lineTo(-1.25,0);
-      const lip = new THREE.Mesh(new THREE.ExtrudeGeometry(lipShape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 }), backMat);
+      const lipGeom = new THREE.ExtrudeGeometry(lipShape, { depth:0.03, bevelEnabled:true, bevelThickness:0.025, bevelSize:0.025, bevelSegments:2 });
+      const lip = new THREE.Mesh(lipGeom, backMat);
       lip.position.set(0,1.9,-0.015);
       lip.receiveShadow=true;
+      lip.geometry.computeBoundingBox();
+      const lipBox = lip.geometry.boundingBox;
+      const lipWidth = lipBox.max.x - lipBox.min.x;
+      const lipDepth = lipBox.max.z - lipBox.min.z;
+      const anchor = new THREE.Object3D();
+      anchor.position.set(
+        lipBox.min.x + lipWidth * 0.35,
+        lipBox.max.y + 0.02,
+        lipBox.max.z + lipDepth * 0.5 + 0.02
+      );
+      lip.add(anchor);
       g.add(lip);
 
       const dir = new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0).normalize();
       g.userData = {
-        name, front, dir,
+        name,
+        frontFlap,
+        frontPivot,
+        dir,
         speed:0.002 + Math.random()*0.001,
         curvePhase:Math.random()*Math.PI*2,
         curveScale:0.005 + Math.random()*0.003,
         focused:false, clickStart:0, startPos:new THREE.Vector3(), targetPos:new THREE.Vector3(), duration:1000,
+        moveDuration:900,
+        openDelay:0,
         innerR:1.2, hoverPhase:0,
         returning:false, returnStart:0, returnFrom:new THREE.Vector3(), returnTo:new THREE.Vector3(), returnDuration:1000,
         spin:false, spinElapsed:0, spinDuration:1,
         magnetStart:0,
         startScale:new THREE.Vector3(),
         targetScale:new THREE.Vector3(),
+        targetScaleFlat:new THREE.Vector3(),
         scaleReturnFrom:new THREE.Vector3(),
-        scaleReturnTo:new THREE.Vector3()
+        scaleReturnTo:new THREE.Vector3(),
+        openDuration:900, uiShown:false,
+        startRotation:new THREE.Euler(),
+        targetRotation:new THREE.Euler(),
+        rotationReturnFrom:new THREE.Euler(),
+        rotationReturnTo:new THREE.Euler(),
+        frontBaseRotation: frontPivot.rotation.x,
+        frontReturnFrom:frontPivot.rotation.x,
+        frontReturnTo:frontPivot.rotation.x,
+        uiAnchor: anchor
       };
       return g;
     }
@@ -232,7 +259,13 @@
     const labelsContainer = document.getElementById('labels');
 
     function initFolders(names) {
-      FOLDER_NAMES = names || FOLDER_NAMES;
+      const incoming = Array.isArray(names) ? names.filter(n => typeof n === 'string' && n.trim().length) : [];
+      if (incoming.length) {
+        FOLDER_NAMES = [...incoming];
+      } else if (!FOLDER_NAMES.length) {
+        FOLDER_NAMES = [...DEFAULT_FOLDERS];
+      }
+      hideFolderUi();
       folders.forEach(f => scene.remove(f));
       folders.length = 0;
       labelsContainer.innerHTML = '';
@@ -254,149 +287,83 @@
     const introDur=3000, scatterDur=2000;
     let startTime = performance.now();
 
-    // grid overlay setup
-    const overlay = document.getElementById('overlay');
-    const gridContainer=document.getElementById('gridContainer');
-    const grid=document.getElementById('grid');
-    const viewport=document.getElementById('viewport');
-    const cols=80, rows=45, gap=1;
-    for(let i=0;i<cols*rows;i++){ const c=document.createElement('div'); c.className='cell'; grid.appendChild(c); }
-    function getSizes(){ const cell=grid.querySelector('.cell'); const rect=cell.getBoundingClientRect(); return {size:rect.width, step:rect.width+gap}; }
-    let currentFolder=null, key='', items=[]; let offsetX=0, offsetY=0; let lastLayout=null;
-    let selectedName = null;
-    function applyTransform(){
-      const {step} = getSizes();
-      gridContainer.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-      gridContainer.style.setProperty('--extra-bg', '0px');
-    }
-    function render(){
-      const {size,step}=getSizes();
-      gridContainer.querySelectorAll('.placed').forEach(el=>el.remove());
-      items.forEach((item,i)=>{
-        const col=Math.min(Math.max(0,item.col),cols-item.cols);
-        const row=Math.min(Math.max(0,item.row),rows-item.rows);
-        const w=item.cols*size+(item.cols-1)*gap;
-        const h=item.rows*size+(item.rows-1)*gap;
-        const wrap=document.createElement('div');
-        wrap.className='placed';
-        wrap.style.zIndex=i+1;
-        wrap.style.left=`${col*step}px`;
-        wrap.style.top=`${row*step}px`;
-        wrap.style.width=`${w}px`;
-        wrap.style.height=`${h}px`;
-        let media;
-        if(item.type==='text'){
-          wrap.style.background = '#faf8e5';
-          media=document.createElement('div');
-          media.className='text-item';
-          media.textContent=item.text||'';
-          wrap.dataset.fontScale=item.fontScale||1;
-          wrap.dataset.fontWeight=item.fontWeight||400;
-          const upd=()=>{
-            const {size:sz}=getSizes();
-            const scale=parseFloat(wrap.dataset.fontScale);
-            const wght=parseInt(wrap.dataset.fontWeight);
-            media.style.fontSize=`${sz*scale}px`;
-            media.style.lineHeight=`${sz*scale}px`;
-            media.style.fontVariationSettings=`'wght' ${wght}`;
-          };
-          upd();
-          window.addEventListener('resize', upd);
-        } else {
-          const tag=/(mp4|webm)$/i.test(item.src)?'video':'img';
-          media=document.createElement(tag);
-          if(media.tagName==='VIDEO'){
-            media.controls=false; media.autoplay=true; media.loop=true; media.muted=true; media.playsInline=true;
-          }
-          media.src=item.src;
-        }
-        wrap.appendChild(media);
-        gridContainer.appendChild(wrap);
-        if(item.type!=='text') attachBitmapHold(wrap, media);
-      });
-    }
-    function loadLayout(name){ key=`layout_${name}`; const raw=localStorage.getItem(key); items=raw?JSON.parse(raw):[]; lastLayout=raw; render(); }
-    let panDirX=0, panDirY=0, panVX=0, panVY=0;
-    const margin=120;
-    viewport.addEventListener('mousemove',e=>{
-      const rect=viewport.getBoundingClientRect();
-      panDirX = (e.clientX-rect.left<margin) ? 1 : (rect.right-e.clientX<margin? -1:0);
-      panDirY = (e.clientY-rect.top<margin) ? 1 : (rect.bottom-e.clientY<margin? -1:0);
-    });
-    function panStep(){
-      const {size,step}=getSizes();
-      const gridW=cols*size+(cols-1)*gap;
-      const gridH=rows*size+(rows-1)*gap;
-      const maxX=Math.max(0,(gridW-viewport.clientWidth)/2 - step*2);
-      const maxY=Math.max(0,(gridH-viewport.clientHeight)/2 - step*2);
-      const accel=step/10;
-      panVX += panDirX*accel;
-      panVY += panDirY*accel;
-      panVX *= 0.85; panVY *= 0.85;
-      offsetX = Math.max(-maxX, Math.min(maxX, offsetX + panVX));
-      offsetY = Math.max(-maxY, Math.min(maxY, offsetY + panVY));
-      applyTransform();
-      requestAnimationFrame(panStep);
-    }
-    panStep();
-    window.addEventListener('storage',e=>{ if(e.key===key){ items=e.newValue?JSON.parse(e.newValue):[]; render(); }});
-    setInterval(()=>{ const cur=localStorage.getItem(key); if(cur!==lastLayout){ lastLayout=cur; items=cur?JSON.parse(cur):[]; render(); } },1000);
+    // folder UI overlay
+    const folderUi = document.getElementById('folderUi');
+    const folderBackButton = document.getElementById('folderBackButton');
+    const folderTitle = document.getElementById('folderTitle');
+    let uiFolder = null;
+    let overlayActive = false;
+    let lastIframeHeight = null;
 
-    function attachBitmapHold(wrap, media){
-      if(!(media.tagName==='VIDEO' || media.tagName==='IMG')) return;
-      let timer=null, state=null;
-      const startBitmap=()=>{
-        const canvas=document.createElement('canvas');
-        const ctx=canvas.getContext('2d');
-        canvas.width=media.videoWidth||media.naturalWidth||wrap.offsetWidth;
-        canvas.height=media.videoHeight||media.naturalHeight||wrap.offsetHeight;
-        canvas.style.width='100%';
-        canvas.style.height='100%';
-        wrap.appendChild(canvas);
-        media.style.display='none';
-        const fps=12,pixelSize=10,maxRadius=pixelSize*0.45;
-        function draw(){
-          const cols=Math.floor(canvas.width/pixelSize);
-          const rows=Math.floor(canvas.height/pixelSize);
-          const off=document.createElement('canvas');
-          off.width=cols; off.height=rows;
-          off.getContext('2d').drawImage(media,0,0,cols,rows);
-          const data=off.getContext('2d').getImageData(0,0,cols,rows).data;
-          ctx.fillStyle='#fff';
-          ctx.fillRect(0,0,canvas.width,canvas.height);
-          for(let y=0;y<rows;y++){
-            for(let x=0;x<cols;x++){
-              const i=(y*cols+x)*4;
-              const br=(data[i]+data[i+1]+data[i+2])/(3*255);
-              const rad=(1-br)*maxRadius;
-              const cx=x*pixelSize+pixelSize/2;
-              const cy=y*pixelSize+pixelSize/2;
-              ctx.fillStyle='#1449ff';
-              ctx.beginPath();
-              ctx.arc(cx,cy,rad,0,Math.PI*2);
-              ctx.fill();
-            }
-          }
-        }
-        draw();
-        const interval=setInterval(draw,1000/fps);
-        state={canvas,interval};
-      };
-      const stopBitmap=()=>{
-        if(!state) return;
-        clearInterval(state.interval); state.canvas.remove();
-        media.style.display='';
-        state=null;
-      };
-      wrap.addEventListener('mousedown',e=>{
-        if(e.button!==0) return;
-        timer=setTimeout(()=>{ if(state) stopBitmap(); else startBitmap(); },2000);
-      });
-      ['mouseup','mouseleave'].forEach(ev=>wrap.addEventListener(ev,()=>clearTimeout(timer)));
+    function postIframeHeight(value){
+      const rounded = value == null ? null : Math.round(value);
+      if(rounded === lastIframeHeight) return;
+      lastIframeHeight = rounded;
+      parent.postMessage({ iframeHeight: rounded }, '*');
     }
+    function computeScreenBounds(object){
+      boundsBox.setFromObject(object);
+      if(boundsBox.isEmpty()) return null;
+      const { min, max } = boundsBox;
+      const corners = boundsCorners;
+      corners[0].set(min.x, min.y, min.z);
+      corners[1].set(min.x, min.y, max.z);
+      corners[2].set(min.x, max.y, min.z);
+      corners[3].set(min.x, max.y, max.z);
+      corners[4].set(max.x, min.y, min.z);
+      corners[5].set(max.x, min.y, max.z);
+      corners[6].set(max.x, max.y, min.z);
+      corners[7].set(max.x, max.y, max.z);
+      let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+      for(const corner of corners){
+        corner.project(camera);
+        const x = (corner.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-corner.y * 0.5 + 0.5) * window.innerHeight;
+        if(x < minX) minX = x;
+        if(x > maxX) maxX = x;
+        if(y < minY) minY = y;
+        if(y > maxY) maxY = y;
+      }
+      return {
+        minX,
+        maxX,
+        minY,
+        maxY,
+        centerX:(minX + maxX) / 2
+      };
+    }
+
+    initFolders(FOLDER_NAMES);
+    function showFolderUi(folder){
+      uiFolder = folder;
+      folderUi.classList.add('visible');
+      labelsContainer.classList.add('hidden');
+      setupInteractiveText(folder.userData.name.toUpperCase());
+      sceneWrap.classList.remove('masked');
+      overlayActive = true;
+      parent.postMessage({ topoColor: '#1449ff', fade: false, gridOpen: true }, '*');
+    }
+    function hideFolderUi(){
+      if(uiFolder){
+        folderUi.classList.remove('visible');
+        labelsContainer.classList.remove('hidden');
+        if(folderTitle) folderTitle.textContent = '';
+        uiFolder = null;
+      }
+      sceneWrap.classList.add('masked');
+      if(overlayActive){
+        overlayActive = false;
+        parent.postMessage({ topoColor: '#ffffff', fade: false, gridOpen: false }, '*');
+        postIframeHeight(null);
+      }
+    }
+    folderBackButton.addEventListener('click', e => {
+      e.stopPropagation();
+      closeActive();
+    });
 
     function setupInteractiveText(text){
-      const C = document.querySelector('#rightBox .interactive-text');
+      const C = folderTitle;
       if(!C) return;
       const hoverScale=1.8, neighborScale=1.2,
             normalWght=400, neighborWght=600, hoverWght=900;
@@ -461,26 +428,6 @@
       });
     }
 
-    function showGrid(name){
-      currentFolder = name;
-      selectedName = name.toUpperCase();
-      overlay.classList.add('show');
-      requestAnimationFrame(()=>overlay.classList.add('visible'));
-      labelsContainer.classList.add('hidden');
-      setupInteractiveText(name);
-      loadLayout(name);
-      sceneWrap.classList.remove('masked');
-      parent.postMessage({ topoColor: '#1449ff', fade: true, gridOpen: true }, '*');
-    }
-    function hideGrid(){
-      overlay.classList.remove('visible');
-      overlay.addEventListener('transitionend', () => overlay.classList.remove('show'), { once: true });
-      labelsContainer.classList.remove('hidden');
-      selectedName = null;
-      sceneWrap.classList.add('masked');
-      parent.postMessage({ topoColor: '#ffffff', fade: true, gridOpen: false }, '*');
-    }
-
     function closeActive(){
       const f = folders.find(o=>o.userData.focused);
       if(!f) return;
@@ -491,28 +438,48 @@
       ud.returnTo.copy(ud.startPos);
       ud.scaleReturnFrom.copy(f.scale);
       ud.scaleReturnTo.copy(ud.startScale);
-      glass.classList.remove('visible');
-      hideGrid();
+      ud.rotationReturnFrom.copy(f.rotation);
+      ud.rotationReturnTo.copy(ud.startRotation);
+      ud.frontReturnFrom = ud.frontPivot.rotation.x;
+      ud.frontReturnTo = ud.frontBaseRotation;
+      ud.uiShown = false;
+      hideFolderUi();
     }
 
     // click behavior
     window.addEventListener('click', ()=>{
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(folders.map(f=>f.userData.front));
+      const hits = raycaster.intersectObjects(folders.map(f=>f.userData.frontFlap));
       if(!hits.length) return;
-      const f = hits[0].object.parent, ud = f.userData;
+      const frontMesh = hits[0].object;
+      let f = frontMesh.userData.folder;
+      if(!f && frontMesh.parent && frontMesh.parent.userData) {
+        f = frontMesh.parent.userData.folder;
+      }
+      if(!f && frontMesh.parent) {
+        f = frontMesh.parent.parent;
+      }
+      if(!f || !f.userData) return;
+      const ud = f.userData;
       const active = folders.find(o=>o.userData.focused);
       if(active && active!==f) return; // disable other folders while grid shown
       if(!ud.focused) {
         folders.forEach(o=>o.userData.focused=false); // only one active
+        overlayActive = true;
+        parent.postMessage({ gridOpen: true }, '*');
         ud.focused = true;
         ud.clickStart = performance.now();
         ud.startPos.copy(f.position);
         ud.startScale.copy(f.scale);
-        ud.targetPos.set(-5.7,3.5,8);
-        ud.targetScale.set(0.6,0.6,0.6);
-        glass.classList.add('visible');
-        showGrid(ud.name);
+        ud.startRotation.copy(f.rotation);
+        ud.rotationReturnTo.copy(ud.startRotation);
+        ud.targetPos.set(0,0,4.8);
+        ud.targetScale.set(4.8,4.8,4.8);
+        ud.targetScaleFlat.set(4.8,4.8,0.12);
+        ud.targetRotation.set(0,0,0);
+        ud.uiShown = false;
+        ud.frontReturnTo = ud.frontBaseRotation;
+        ud.openDelay = 0;
       } else {
         ud.returning = true;
         ud.returnStart = performance.now();
@@ -520,8 +487,12 @@
         ud.returnTo.copy(ud.startPos);
         ud.scaleReturnFrom.copy(f.scale);
         ud.scaleReturnTo.copy(ud.startScale);
-        glass.classList.remove('visible');
-        hideGrid();
+        ud.rotationReturnFrom.copy(f.rotation);
+        ud.rotationReturnTo.copy(ud.startRotation);
+        ud.frontReturnFrom = ud.frontPivot.rotation.x;
+        ud.frontReturnTo = ud.frontBaseRotation;
+        ud.uiShown = false;
+        hideFolderUi();
       }
     });
 
@@ -555,8 +526,8 @@
       // main
       else {
         raycaster.setFromCamera(mouse, camera);
-        const hoverHits = raycaster.intersectObjects(folders.map(f=>f.userData.front));
-        folders.forEach(f=>{ f.userData.hovered = hoverHits.some(h=>h.object===f.userData.front); });
+        const hoverHits = raycaster.intersectObjects(folders.map(f=>f.userData.frontFlap));
+        folders.forEach(f=>{ f.userData.hovered = hoverHits.some(h=>h.object===f.userData.frontFlap); });
         const accel = Math.hypot(targetMouse.x-currentMouse.x, targetMouse.y-currentMouse.y);
         if(magnetized && accel>2) magnetized = null;
         folders.forEach((f,idx)=>{
@@ -580,7 +551,7 @@
             const offset=new THREE.Vector3(0,-0.9,0);
             f.position.lerp(cursor3D.clone().add(offset), 0.05);
             ud.hoverPhase += 0.1;
-            ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x)*0.1;
+            ud.frontPivot.rotation.x += (HOVER_LID_ANGLE - ud.frontPivot.rotation.x)*0.1;
             const breeze = accel * 0.3;
             f.rotation.y += (Math.sin(ud.hoverPhase)*breeze - f.rotation.y)*0.2;
             f.rotation.z += (Math.cos(ud.hoverPhase)*breeze*0.5 - f.rotation.z)*0.2;
@@ -588,26 +559,62 @@
           }
           if(ud.returning){
             const t = Math.min((now-ud.returnStart)/ud.returnDuration,1);
-            f.position.lerpVectors(ud.returnFrom, ud.returnTo, ease(t));
-            f.scale.lerpVectors(ud.scaleReturnFrom, ud.scaleReturnTo, ease(t));
-            if(t>=1){ ud.returning=false; ud.focused=false; }
+            const eased = ease(t);
+            f.position.lerpVectors(ud.returnFrom, ud.returnTo, eased);
+            f.scale.lerpVectors(ud.scaleReturnFrom, ud.scaleReturnTo, eased);
+            f.rotation.set(
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.x, ud.rotationReturnTo.x, eased),
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.y, ud.rotationReturnTo.y, eased),
+              THREE.MathUtils.lerp(ud.rotationReturnFrom.z, ud.rotationReturnTo.z, eased)
+            );
+            ud.frontPivot.rotation.x += (ud.frontReturnTo - ud.frontPivot.rotation.x)*0.2;
+            if(t>=1){
+              ud.returning=false;
+              ud.focused=false;
+              f.rotation.copy(ud.rotationReturnTo);
+              ud.frontPivot.rotation.x = ud.frontBaseRotation;
+            }
             return;
           }
           if(ud.focused){
-            const t = Math.min((now-ud.clickStart)/ud.duration,1);
-            f.position.lerpVectors(ud.startPos, ud.targetPos, ease(t));
-            f.scale.lerpVectors(ud.startScale, ud.targetScale, ease(t));
-            if(t>=1){
-              const bob = Math.sin(now/800)*0.1;
-              f.position.y = ud.targetPos.y + bob;
+            const elapsed = now - ud.clickStart;
+            const moveT = Math.min(elapsed/ud.moveDuration,1);
+            const moveEase = ease(moveT);
+            const openElapsed = Math.max(0, elapsed - ud.openDelay);
+            const openT = Math.min(openElapsed/ud.openDuration,1);
+            const openEase = ease(openT);
+            f.position.lerpVectors(ud.startPos, ud.targetPos, moveEase);
+            scaleVec.copy(ud.startScale).lerp(ud.targetScale, moveEase);
+            f.scale.x = scaleVec.x;
+            f.scale.y = scaleVec.y;
+            if(openT<=0){
+              f.scale.z = scaleVec.z;
+            }
+            f.rotation.set(
+              THREE.MathUtils.lerp(ud.startRotation.x, ud.targetRotation.x, moveEase),
+              THREE.MathUtils.lerp(ud.startRotation.y, ud.targetRotation.y, moveEase),
+              THREE.MathUtils.lerp(ud.startRotation.z, ud.targetRotation.z, moveEase)
+            );
+            if(openT>0){
+              flattenVec.copy(ud.targetScale).lerp(ud.targetScaleFlat, openEase);
+              f.scale.z += (flattenVec.z - f.scale.z)*0.18;
+              const lidRot = THREE.MathUtils.lerp(ud.frontBaseRotation, OPEN_LID_ANGLE, openEase);
+              ud.frontPivot.rotation.x += (lidRot - ud.frontPivot.rotation.x)*0.2;
+            }
+            if(openEase>0.92 && !ud.uiShown){
+              ud.uiShown = true;
+              showFolderUi(f);
             }
             return;
           }
           if(magnetized===f && d>=ud.innerR) magnetized=null;
           f.rotation.y += (0 - f.rotation.y)*0.2;
           f.rotation.z += (0 - f.rotation.z)*0.2;
-          if(hoverHits.find(h=>h.object===ud.front)) ud.front.rotation.x += (THREE.MathUtils.degToRad(15) - ud.front.rotation.x)*0.1;
-          else ud.front.rotation.x += (0 - ud.front.rotation.x)*0.1;
+          if(hoverHits.find(h=>h.object===ud.frontFlap)) {
+            ud.frontPivot.rotation.x += (HOVER_LID_ANGLE - ud.frontPivot.rotation.x)*0.1;
+          } else {
+            ud.frontPivot.rotation.x += (ud.frontBaseRotation - ud.frontPivot.rotation.x)*0.1;
+          }
           ud.curvePhase += 0.01;
           const repel2 = new THREE.Vector3();
           folders.forEach(o=>{ if(o!==f){ const dv=f.position.clone().sub(o.position); const sq=dv.lengthSq(); if(sq<100) repel2.add(dv.normalize().multiplyScalar(0.08/sq)); }});
@@ -646,15 +653,36 @@
       fgRenderer.render(scene,camera);
       folders.forEach(f=> f.visible = true );
 
-      // update labels
-      labels.forEach((lbl,i)=>{
-        const f = folders[i];
-        const v = f.position.clone().project(camera);
-        const x = (v.x * 0.5 + 0.5) * window.innerWidth;
-        const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
-        lbl.style.left = `${x}px`;
-        lbl.style.top  = `${y + 10}px`;
+      if(uiFolder){
+        if(uiFolder.userData.focused){
+          const anchorPos = uiFolder.userData.uiAnchor.getWorldPosition(tempVec);
+          anchorPos.project(camera);
+          const px = (anchorPos.x * 0.5 + 0.5) * window.innerWidth;
+          const py = (-anchorPos.y * 0.5 + 0.5) * window.innerHeight;
+          folderUi.style.left = `${px}px`;
+          folderUi.style.top = `${py}px`;
+        } else {
+          hideFolderUi();
+        }
+      }
+
+      const folderBounds = [];
+      folders.forEach((f,i)=>{
+        const bounds = computeScreenBounds(f);
+        folderBounds[i] = bounds;
+        const lbl = labels[i];
+        if(!bounds || !lbl) return;
+        lbl.style.left = `${bounds.centerX}px`;
+        lbl.style.top  = `${bounds.maxY + 14}px`;
       });
+
+      const activeIndex = active ? folders.indexOf(active) : -1;
+      const activeBounds = activeIndex >= 0 ? folderBounds[activeIndex] : null;
+      if(activeBounds && overlayActive){
+        const margin = 160;
+        const needed = Math.max(window.innerHeight, activeBounds.maxY + margin);
+        postIframeHeight(needed);
+      }
     }
     animate();
 
