@@ -78,22 +78,21 @@
     }
     .showcase-line {
       position: relative;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: flex-start;
-      column-gap: clamp(6px, 1.1vw, 18px);
-      transition: height 0.35s ease, column-gap 0.35s ease;
+      display: block;
+      padding-right: clamp(32px, 5vw, 72px);
+      transition: height 0.35s ease, padding-right 0.35s ease;
       height: auto;
     }
     .showcase-line .index {
+      position: absolute;
+      top: clamp(-0.45rem, -1.4vh, -0.15rem);
+      right: clamp(-0.35rem, -1.4vw, -0.1rem);
       font-size: clamp(0.58rem, 1.4vw, 0.92rem);
       letter-spacing: 0.18em;
       font-variation-settings: 'wght' 650;
-      margin-top: clamp(0.12rem, 0.45vh, 0.4rem);
-      margin-right: -0.25em;
       font-family: 'Ferrite', sans-serif;
       pointer-events: none;
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease, top 0.3s ease, right 0.3s ease;
     }
     .showcase-word {
       display: flex;
@@ -766,7 +765,7 @@
         }
       });
       networkCtx.strokeStyle = networkAccent;
-      networkCtx.lineWidth = 1.6;
+      networkCtx.lineWidth = 2.2;
       networkCtx.globalAlpha = 0.22;
       const edges = new Set();
       for (let i = 0; i < networkPoints.length; i++) {
