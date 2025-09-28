@@ -50,42 +50,43 @@
     }
     #showcasePanel {
       position: absolute;
-      top: clamp(14%, 20vh, 26%);
-      right: clamp(4vw, 11vw, 14vw);
-      width: min(30vw, 380px);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(68vw, 960px);
       display: flex;
       flex-direction: column;
-      gap: clamp(6px, 1.4vh, 14px);
+      gap: clamp(18px, 3vh, 42px);
       font-family: 'Ferrite', sans-serif;
       color: var(--accent-color, #1449ff);
       pointer-events: auto;
       opacity: 0;
-      transform: translateY(-10px);
-      transition: opacity 0.4s ease, transform 0.4s ease;
+      transition: opacity 0.4s ease;
       z-index: 4;
     }
     #showcasePanel.visible {
       opacity: 1;
-      transform: translateY(0);
     }
     .showcase-line {
       position: relative;
-      padding-left: clamp(18px, 1.6vw, 26px);
+      display: flex;
+      align-items: flex-start;
+      gap: clamp(22px, 3vw, 48px);
     }
     .showcase-line .index {
-      position: absolute;
-      left: 0;
-      top: -0.55em;
-      font-size: clamp(0.45rem, 0.6vw, 0.7rem);
-      letter-spacing: 0.24em;
-      font-variation-settings: 'wght' 600;
+      font-size: clamp(0.65rem, 1.6vw, 1rem);
+      letter-spacing: 0.28em;
+      font-variation-settings: 'wght' 620;
+      margin-top: clamp(0.2rem, 0.8vh, 0.6rem);
     }
     .showcase-word {
       display: flex;
       width: 100%;
-      font-size: clamp(0.9rem, 1.6vw, 1.35rem);
-      letter-spacing: 0.06em;
+      font-size: clamp(2.6rem, 7vw, 7.5rem);
+      line-height: 0.92;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
+      pointer-events: auto;
     }
     .showcase-word .letter {
       display: inline-block;
@@ -96,7 +97,7 @@
       display: inline-block;
       transform-origin: left center;
       transition: transform 0.25s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.25s cubic-bezier(.25,.1,.25,1);
-      font-variation-settings: 'wght' 420;
+      font-variation-settings: 'wght' 400;
     }
     .label {
       position: absolute;
@@ -168,12 +169,12 @@
     let selectedIndex = -1;
     let alignActivatedAt = 0;
     const alignDuration = 900;
-    let alignSpacing = 3.6;
-    let alignTopY = 4.2;
+    let alignSpacing = 3.2;
+    let alignTopY = 3.6;
     let alignColumnX = -5.0;
     const baseAlignTilt = THREE.MathUtils.degToRad(-8);
     const selectedOffsetX = 0.9;
-    const selectedAlignScale = 1.12;
+    const selectedAlignScale = 1.22;
     const alignDepth = 0.22;
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
@@ -195,8 +196,6 @@
       'Web': ['TRATT', 'ADELE'],
       'Zines': ['NARVIK']
     };
-    const edgeHover = { dir: 0, strength: 0, accumulator: 0 };
-
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -207,15 +206,18 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
-      const paddingTop = visibleHeight * 0.18;
-      const paddingBottom = visibleHeight * 0.24;
+      const paddingTop = visibleHeight * 0.42;
+      const paddingBottom = visibleHeight * 0.18;
       const len = Math.max(folders.length, 1);
       const usableHeight = Math.max(visibleHeight - paddingTop - paddingBottom, 0.1);
-      alignSpacing = len > 1 ? usableHeight / (len - 1) : 0;
+      const baseSpacing = visibleHeight * 0.12;
+      alignSpacing = len > 1 ? Math.max(baseSpacing, usableHeight / (len - 1)) : 0;
       alignTopY = visibleHeight / 2 - paddingTop;
-      alignColumnX = -visibleWidth / 2 + visibleWidth * 0.16;
+      const leftInset = Math.min(visibleWidth * 0.08, 1.6);
+      alignColumnX = -visibleWidth / 2 + leftInset;
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
+      positionShowcasePanel();
     }
 
     function resize() {
@@ -236,24 +238,11 @@
       const nx = (e.clientX / window.innerWidth - 0.5) * 2;
       const ny = -(e.clientY / window.innerHeight - 0.5) * 2;
       if (mode === 'align') {
-        targetMouse.x = nx * 0.45;
-        targetMouse.y = ny * 0.45;
-        const zone = window.innerHeight * 0.1;
-        if (e.clientY < zone) {
-          edgeHover.dir = -1;
-          edgeHover.strength = Math.min(1, (zone - e.clientY) / zone);
-        } else if (e.clientY > window.innerHeight - zone) {
-          edgeHover.dir = 1;
-          edgeHover.strength = Math.min(1, (e.clientY - (window.innerHeight - zone)) / zone);
-        } else {
-          edgeHover.dir = 0;
-          edgeHover.strength = 0;
-        }
+        targetMouse.x = nx * 0.4;
+        targetMouse.y = ny * 0.4;
       } else {
         targetMouse.x = nx;
         targetMouse.y = ny;
-        edgeHover.dir = 0;
-        edgeHover.strength = 0;
       }
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -297,7 +286,7 @@
       back.position.set(0, 0.05, -0.015);
       back.receiveShadow = true;
       g.add(back);
-      const baseScale = 1.05;
+      const baseScale = 0.88;
       g.scale.set(baseScale, baseScale, baseScale);
 
       const lipShape = new THREE.Shape();
@@ -507,6 +496,8 @@
     function clearShowcasePanel() {
       if (!showcasePanel) return;
       showcasePanel.innerHTML = '';
+      showcasePanel.style.width = '';
+      showcasePanel.style.transform = 'translate(-50%, -50%)';
     }
 
     function setupInteractiveWord(container) {
@@ -523,11 +514,11 @@
       });
       const totalWidth = container.getBoundingClientRect().width || 1;
       const S = sumBase > 0 ? totalWidth / sumBase : 1;
-      const hoverScale = 1.7;
-      const neighborScale = 1.18;
-      const normalWeight = 420;
+      const hoverScale = 1.8;
+      const neighborScale = 1.2;
+      const normalWeight = 400;
       const neighborWeight = 600;
-      const hoverWeight = 820;
+      const hoverWeight = 900;
       letters.forEach((out, i) => {
         const inn = out.firstElementChild;
         out.style.width = `${baseWidths[i] * S}px`;
@@ -613,6 +604,34 @@
       });
       showcasePanel.style.setProperty('--accent-color', accentColor);
       showcasePanel.classList.add('visible');
+      requestAnimationFrame(positionShowcasePanel);
+    }
+
+    function positionShowcasePanel() {
+      if (!showcasePanel) return;
+      if (mode !== 'align' || selectedIndex < 0 || !folders[selectedIndex]) {
+        showcasePanel.style.transform = 'translate(-50%, -50%)';
+        return;
+      }
+      const len = folders.length || 1;
+      const target = computeAlignTarget(selectedIndex, len);
+      const projected = target.position.clone().project(camera);
+      const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+      const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+      const rawLeft = Math.max(screenX + 60, 60);
+      const availableWidth = Math.max(window.innerWidth - rawLeft - 40, 260);
+      showcasePanel.style.width = `${availableWidth}px`;
+      const panelWidth = showcasePanel.offsetWidth || availableWidth;
+      const maxLeft = Math.max(window.innerWidth - panelWidth - 32, 60);
+      const left = Math.min(Math.max(rawLeft, 60), maxLeft);
+      showcasePanel.style.left = `${left}px`;
+      const panelHeight = showcasePanel.offsetHeight || 0;
+      const bottomLimit = Math.max(window.innerHeight - panelHeight - 40, 60);
+      const top = Math.min(Math.max(screenY - panelHeight / 2, 60), bottomLimit);
+      showcasePanel.style.top = `${top}px`;
+      showcasePanel.style.right = 'auto';
+      showcasePanel.style.bottom = 'auto';
+      showcasePanel.style.transform = 'none';
     }
 
     function initFolders(list = DEFAULT_FOLDERS) {
@@ -676,9 +695,6 @@
       prepareAlignTargets(true);
       rebuildNetwork();
       networkCanvas.classList.add('visible');
-      edgeHover.dir = 0;
-      edgeHover.strength = 0;
-      edgeHover.accumulator = 0;
     }
 
     function prepareAlignTargets(stagger = false) {
@@ -718,9 +734,6 @@
         showcasePanel.classList.remove('visible');
         clearShowcasePanel();
       }
-      edgeHover.dir = 0;
-      edgeHover.strength = 0;
-      edgeHover.accumulator = 0;
     }
 
     function updateLabels(selectedIdx) {
@@ -770,17 +783,7 @@
         });
         updateLabels(selectedIndex);
         drawNetwork(dt);
-        if (folders.length > 1) {
-          if (edgeHover.dir !== 0 && edgeHover.strength > 0) {
-            edgeHover.accumulator += edgeHover.strength * dt / 1100;
-            if (edgeHover.accumulator >= 1) {
-              setTargetSelection(selectedIndex + edgeHover.dir);
-              edgeHover.accumulator = 0.35;
-            }
-          } else {
-            edgeHover.accumulator = Math.max(0, edgeHover.accumulator - dt / 900);
-          }
-        }
+        positionShowcasePanel();
       } else {
         dirLight.position.lerp(new THREE.Vector3(0, 0.2, 6.5), 0.06);
         raycaster.setFromCamera(mouse, camera);

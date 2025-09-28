@@ -490,12 +490,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let contactTyped = contactState.typed;
   let contactTypingStarted = contactState.started;
   function typeContactText(text, container, cb) {
+    if (contactState.timer) {
+      clearInterval(contactState.timer);
+      contactState.timer = null;
+    }
     container.textContent = '';
     let idx = 0;
-    const interval = setInterval(() => {
-      if (idx < text.length) container.textContent += text[idx++];
-      else {
-        clearInterval(interval);
+    contactState.timer = setInterval(() => {
+      if (idx < text.length) {
+        container.textContent = text.slice(0, idx + 1);
+        idx++;
+      } else {
+        clearInterval(contactState.timer);
+        contactState.timer = null;
         if (cb) cb();
       }
     }, 50);
