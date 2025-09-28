@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>3D Folder Orbit</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap');
     @font-face {
       font-family: 'Ferrite';
       src: url('/static/FERRITEDISPLAYVF.ttf') format('truetype');
@@ -57,7 +58,7 @@
       display: flex;
       flex-direction: column;
       gap: clamp(18px, 3vh, 42px);
-      font-family: 'Ferrite', sans-serif;
+      font-family: 'Roboto Flex', 'Ferrite', sans-serif;
       color: var(--accent-color, #1449ff);
       pointer-events: auto;
       opacity: 0;
@@ -69,41 +70,51 @@
     }
     .showcase-line {
       position: relative;
+      --word-scale: 1;
       display: flex;
       align-items: flex-start;
-      gap: clamp(22px, 3vw, 48px);
+      gap: clamp(14px, 2.4vw, 36px);
+      transition: gap 0.3s ease;
     }
     .showcase-line .index {
-      font-size: clamp(0.65rem, 1.6vw, 1rem);
-      letter-spacing: 0.28em;
-      font-variation-settings: 'wght' 620;
-      margin-top: clamp(0.2rem, 0.8vh, 0.6rem);
+      font-size: clamp(0.58rem, 1.4vw, 0.92rem);
+      letter-spacing: 0.18em;
+      font-variation-settings: 'wght' 650;
+      margin-top: clamp(0.12rem, 0.45vh, 0.4rem);
       font-family: 'Ferrite', sans-serif;
       pointer-events: none;
+      transform-origin: left top;
+      transition: transform 0.3s ease;
     }
     .showcase-word {
       display: flex;
       justify-content: flex-start;
       width: 100%;
-      font-size: clamp(2.6rem, 7vw, 7.5rem);
-      line-height: 0.92;
+      font-size: clamp(2.2rem, 6.4vw, 7rem);
+      line-height: 0.9;
       text-transform: uppercase;
       white-space: nowrap;
       pointer-events: auto;
-      font-family: 'Ferrite', sans-serif;
+      font-family: 'Roboto Flex', 'Ferrite', sans-serif;
+      transform-origin: left top;
+      transition: transform 0.3s ease;
     }
     .showcase-word .letter {
       display: inline-block;
       overflow: hidden;
-      transition: width 0.2s cubic-bezier(.25,.1,.25,1);
+      transition: width 0.2s ease;
     }
     .showcase-word .letter .char {
       display: inline-block;
       transform-origin: left center;
-      transition: transform 0.2s cubic-bezier(.25,.1,.25,1), font-variation-settings 0.2s cubic-bezier(.25,.1,.25,1), -webkit-text-stroke 0.2s ease, text-shadow 0.2s ease;
+      transition: transform 0.2s ease, font-variation-settings 0.2s ease;
       font-variation-settings: 'wght' 400;
-      -webkit-text-stroke: 0 currentColor;
-      text-shadow: none;
+    }
+    .showcase-line .showcase-word {
+      transform: scaleY(var(--word-scale));
+    }
+    .showcase-line .index {
+      transform: translateY(calc((var(--word-scale) - 1) * -0.35em));
     }
     .label {
       position: absolute;
@@ -134,7 +145,7 @@
 
   <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
   <script>
-    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics', 'Web'];
+    const DEFAULT_FOLDERS = ['Ads', 'Music Videos', 'Zines', 'Events', 'Graphics'];
 
     const sceneWrap = document.getElementById('sceneWrap');
     const bgCanvas = document.getElementById('bgCanvas');
@@ -198,6 +209,11 @@
       parent.postMessage({ orbitPointer: payload }, '*');
     }
 
+    function notifyTopoPulse(strength = 0.8) {
+      if (!parent) return;
+      parent.postMessage({ topoPulse: strength }, '*');
+    }
+
     const networkCtx = networkCanvas.getContext('2d');
     const networkPoints = [];
     const NETWORK_COUNT = 17;
@@ -209,9 +225,9 @@
       'Music Videos': ['CANINE', 'SOF', 'EDMOND WELLS'],
       'Events': ['AGORA', 'LULUVANTRAPP'],
       'Graphics': ['COVERS'],
-      'Web': ['TRATT', 'ADELE'],
       'Zines': ['NARVIK']
     };
+    let showcaseActiveIndex = 0;
     function computeVisibleMetrics() {
       const distance = Math.abs(camera.position.z);
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -402,9 +418,10 @@
       if (selectedIndex === normalized) return;
       lastSelectionChange = now;
       selectedIndex = normalized;
+      showcaseActiveIndex = 0;
       prepareAlignTargets(false);
       rebuildNetwork();
-      updateShowcasePanel();
+      notifyTopoPulse(0.85);
     }
 
     function rebuildNetwork() {
@@ -505,7 +522,7 @@
       }
       networkCtx.globalAlpha = 1;
       networkCtx.fillStyle = networkAccent;
-      networkCtx.font = '600 18px Ferrite, sans-serif';
+      networkCtx.font = '600 18px "Roboto Flex", sans-serif';
       networkCtx.textAlign = 'center';
       networkCtx.textBaseline = 'middle';
       networkPoints.forEach(p => {
@@ -521,7 +538,9 @@
       showcasePanel.style.transform = 'translate(-50%, -50%)';
     }
 
-    function setupInteractiveWord(container, targetWidth = null) {
+    function makeInteractive(container) {
+      const hoverScale = 1.8, neighborScale = 1.2;
+      const normalWght = 400, neighborWght = 600, hoverWght = 900;
       const letters = Array.from(container.children);
       if (!letters.length) return;
       const baseWidths = [];
@@ -529,70 +548,67 @@
       letters.forEach(out => {
         const inn = out.firstElementChild;
         inn.style.transform = 'scaleX(1)';
-        const width = inn.getBoundingClientRect().width;
-        baseWidths.push(width);
-        sumBase += width;
+        const w = inn.getBoundingClientRect().width;
+        baseWidths.push(w);
+        sumBase += w;
       });
-      const naturalWidth = sumBase > 0 ? sumBase : Math.max(container.getBoundingClientRect().width, 1);
-      const totalWidth = targetWidth ?? naturalWidth;
-      const S = naturalWidth > 0 ? totalWidth / naturalWidth : 1;
-      const hoverScale = 1.8;
-      const neighborScale = 1.2;
-      const normalWeight = 400;
-      const neighborWeight = 600;
-      const hoverWeight = 900;
-      const hoverStroke = 1.2;
-      const neighborStroke = 0.55;
-      const strokeShadow = '0 0 1px currentColor, 0 0 2px currentColor';
-      container.style.width = `${totalWidth}px`;
+      const totalW = container.getBoundingClientRect().width || sumBase || 1;
+      const S = totalW / (sumBase || 1);
       letters.forEach((out, i) => {
         const inn = out.firstElementChild;
-        out.style.width = `${baseWidths[i] * S}px`;
-        inn.style.width = `${baseWidths[i]}px`;
+        out.style.width = baseWidths[i] * S + 'px';
+        inn.style.width = baseWidths[i] + 'px';
         inn.style.transform = `scaleX(${S})`;
-        inn.style.fontVariationSettings = `'wght' ${normalWeight}`;
-        inn.style.webkitTextStroke = '0 currentColor';
-        inn.style.textShadow = 'none';
+        inn.style.fontVariationSettings = `'wght' ${normalWght}`;
       });
       letters.forEach((out, i) => {
         out.addEventListener('mouseenter', () => {
           const wH = baseWidths[i] * S;
           const wN = (i > 0 ? baseWidths[i - 1] * S : 0) + (i < letters.length - 1 ? baseWidths[i + 1] * S : 0);
-          const wO = Math.max(totalWidth - wH - wN, 0.0001);
-          const R_h = hoverScale;
-          const R_n = neighborScale;
-          const R_o = (totalWidth - wH * R_h - wN * R_n) / wO;
+          const wO = Math.max(totalW - wH - wN, 0.0001);
+          const R_h = hoverScale, R_n = neighborScale;
+          const R_o = (totalW - wH * R_h - wN * R_n) / wO;
           letters.forEach((node, j) => {
-            const inn = node.firstElementChild;
-            let ratio = R_o;
-            let weight = normalWeight;
-            let strokeSize = 0;
-            if (j === i) {
-              ratio = R_h;
-              weight = hoverWeight;
-              strokeSize = hoverStroke;
-            } else if (j === i - 1 || j === i + 1) {
-              ratio = R_n;
-              weight = neighborWeight;
-              strokeSize = neighborStroke;
-            }
-            node.style.width = `${baseWidths[j] * S * ratio}px`;
-            inn.style.transform = `scaleX(${S * ratio})`;
-            inn.style.fontVariationSettings = `'wght' ${weight}`;
-            inn.style.webkitTextStroke = strokeSize ? `${strokeSize}px currentColor` : '0 currentColor';
-            inn.style.textShadow = strokeSize ? strokeShadow : 'none';
+            const ch = node.firstElementChild;
+            const R = j === i ? R_h : (j === i - 1 || j === i + 1 ? R_n : R_o);
+            const wght = j === i ? hoverWght : (j === i - 1 || j === i + 1 ? neighborWght : normalWght);
+            node.style.width = baseWidths[j] * S * R + 'px';
+            ch.style.transform = `scaleX(${S * R})`;
+            ch.style.fontVariationSettings = `'wght' ${wght}`;
           });
         });
         out.addEventListener('mouseleave', () => {
           letters.forEach((node, j) => {
-            const inn = node.firstElementChild;
-            node.style.width = `${baseWidths[j] * S}px`;
-            inn.style.transform = `scaleX(${S})`;
-            inn.style.fontVariationSettings = `'wght' ${normalWeight}`;
-            inn.style.webkitTextStroke = '0 currentColor';
-            inn.style.textShadow = 'none';
+            const ch = node.firstElementChild;
+            node.style.width = baseWidths[j] * S + 'px';
+            ch.style.transform = `scaleX(${S})`;
+            ch.style.fontVariationSettings = `'wght' ${normalWght}`;
           });
         });
+      });
+    }
+
+    function setupInteractiveWord(container, targetWidth = null) {
+      if (targetWidth !== null && Number.isFinite(targetWidth)) {
+        container.style.width = `${targetWidth}px`;
+      } else {
+        container.style.removeProperty('width');
+      }
+      makeInteractive(container);
+    }
+
+    function setShowcaseActive(index) {
+      if (!showcasePanel) return;
+      const lines = Array.from(showcasePanel.querySelectorAll('.showcase-line'));
+      if (!lines.length) return;
+      const clamped = Math.max(0, Math.min(index, lines.length - 1));
+      showcaseActiveIndex = clamped;
+      lines.forEach((line, idx) => {
+        const selected = idx === showcaseActiveIndex;
+        const scale = selected ? 3 : 0.72;
+        line.classList.toggle('selected', selected);
+        line.setAttribute('data-selected', selected ? 'true' : 'false');
+        line.style.setProperty('--word-scale', scale);
       });
     }
 
@@ -625,6 +641,7 @@
         showcasePanel.classList.remove('visible');
         return;
       }
+      showcaseActiveIndex = 0;
       entries.forEach((label, idx) => {
         const line = document.createElement('div');
         line.className = 'showcase-line';
@@ -634,6 +651,18 @@
         const word = createInteractiveWord(label);
         line.appendChild(indexLabel);
         line.appendChild(word);
+        line.tabIndex = 0;
+        line.addEventListener('click', () => {
+          setShowcaseActive(idx);
+          notifyTopoPulse(0.55);
+        });
+        line.addEventListener('keydown', evt => {
+          if (evt.key === 'Enter' || evt.key === ' ') {
+            evt.preventDefault();
+            setShowcaseActive(idx);
+            notifyTopoPulse(0.55);
+          }
+        });
         showcasePanel.appendChild(line);
       });
       showcasePanel.style.setProperty('--accent-color', accentColor);
@@ -661,6 +690,7 @@
           });
           targetWidth = Math.max(targetWidth, 1);
           words.forEach(word => setupInteractiveWord(word, targetWidth));
+          setShowcaseActive(showcaseActiveIndex);
           showcasePanel.classList.add('visible');
         });
       });
@@ -760,6 +790,7 @@
       prepareAlignTargets(true);
       rebuildNetwork();
       networkCanvas.classList.add('visible');
+      notifyTopoPulse(1.1);
     }
 
     function prepareAlignTargets(stagger = false) {
@@ -799,6 +830,7 @@
         showcasePanel.classList.remove('visible');
         clearShowcasePanel();
       }
+      notifyTopoPulse(0.6);
     }
 
     function updateLabels(selectedIdx) {

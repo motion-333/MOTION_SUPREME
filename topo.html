@@ -50,7 +50,6 @@
     const SCALE = 0.01;
     const CONTOUR_INT = 30;
     const DS = 32;
-    const BASE_STEP = 0.12;
     const dy = 2.5;
 
     // PERLIN NOISE
@@ -198,9 +197,8 @@
     let currentScrollY = 0;
     let lastDrawY = 0;
     let lastTime = performance.now();
-    let frameAccumulator = 0;
-    const TARGET_FPS = 45;
-    const FRAME_DURATION = 1000 / TARGET_FPS;
+    let animationFrame = null;
+    let animating = false;
 
     function drawSlice(scrollY){
       const W = canvas.width, H = canvas.height;
@@ -291,8 +289,41 @@
     function handleScrollY(sy){
       currentScrollY = sy;
       const delta = sy - lastDrawY;
-      scrollBoost = Math.min(scrollBoost + Math.abs(delta) * 0.003, 3);
+      const strength = Math.min(Math.abs(delta) * 0.003 + 0.25, 1.6);
       lastDrawY = sy;
+      if (Math.abs(delta) > 0.5) {
+        kickAnimation(strength);
+      }
+    }
+
+    function kickAnimation(strength = 0.6) {
+      scrollBoost = Math.min(scrollBoost + strength, 4);
+      if (!animating) {
+        animating = true;
+        lastTime = performance.now();
+        animationFrame = requestAnimationFrame(stepAnimation);
+      }
+    }
+
+    function stepAnimation(now) {
+      const deltaMs = now - lastTime;
+      lastTime = now;
+      const dt = deltaMs / 16.6667;
+      const velocity = scrollBoost * dt;
+      if (velocity !== 0) {
+        offsetX += velocity;
+      }
+      scrollBoost *= 0.88;
+      if (scrollBoost < 0.015) {
+        scrollBoost = 0;
+      }
+      drawSlice(currentScrollY);
+      if (scrollBoost > 0.01) {
+        animationFrame = requestAnimationFrame(stepAnimation);
+      } else {
+        animating = false;
+        animationFrame = null;
+      }
     }
 
     window.addEventListener('scroll', () => handleScrollY(window.scrollY));
@@ -300,6 +331,9 @@
     window.addEventListener('message', e => {
       if (e.data && typeof e.data.scrollY === 'number') {
         handleScrollY(e.data.scrollY);
+      }
+      if (e.data && typeof e.data.pulse === 'number') {
+        kickAnimation(Math.max(0.25, Math.min(e.data.pulse, 2)));
       }
       if (e.data && e.data.color) {
         if (e.data.fade) fadeToColor(e.data.color);
@@ -330,24 +364,7 @@
       }
     });
 
-    function animate(){
-      const now = performance.now();
-      const deltaMs = now - lastTime;
-      lastTime = now;
-      const dt = deltaMs / 16.6667;
-      const step = BASE_STEP * dt + scrollBoost;
-      offsetX += step;
-      scrollBoost *= 0.92;
-      frameAccumulator += deltaMs;
-      if (frameAccumulator >= FRAME_DURATION) {
-        drawSlice(currentScrollY);
-        frameAccumulator %= FRAME_DURATION;
-      }
-      requestAnimationFrame(animate);
-    }
-
     drawSlice(0);
-    animate();
   </script>
 </body>
 </html>

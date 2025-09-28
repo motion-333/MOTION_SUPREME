@@ -14,5 +14,7 @@ Sound Layer Plan for MOTION_SUPREME interactions
 11. themeToggle — momentary chord shift when the light/dark mode button is pressed.
 12. scrollProgress — gentle ticking synced to the custom scrollbar fill as the page advances.
 13. scrollUnlock — bloom that plays once the five-second scroll lock releases.
+14. showcaseSelect — pronounced swell that triggers when a showcase entry is clicked and stretches taller than its neighbors.
+15. topoPulse — soft whoosh that accompanies each background topo animation burst triggered by folder selections or showcase clicks.
 
 Each layer is currently generated through Web Audio oscillators as placeholders. Replace with provided audio assets later by updating the SoundManager.createLayer configuration.
