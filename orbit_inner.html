@@ -70,6 +70,8 @@
       max-height: none;
       overflow: visible;
       padding: 0;
+      transform-style: preserve-3d;
+      will-change: transform;
     }
     #showcasePanel.visible {
       opacity: 1;
@@ -147,6 +149,8 @@
       inset: 0;
       pointer-events: none;
       z-index: 4;
+      transform-style: preserve-3d;
+      will-change: transform;
     }
 
     .gif-card {
@@ -160,12 +164,16 @@
       opacity: 1;
       pointer-events: none;
       transition: border-color var(--theme-transition, 0.45s), background-color var(--theme-transition, 0.45s);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      will-change: transform;
     }
 
     .gif-card img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
     }
   </style>
@@ -254,23 +262,26 @@
     let alignSpacing = 3.2;
     let alignTopY = 3.6;
     let alignColumnX = -5.0;
-    const baseAlignTilt = THREE.MathUtils.degToRad(-8);
-    const selectedOffsetX = 0.9;
-    const selectedAlignScale = 1.22;
+    const baseAlignTilt = THREE.MathUtils.degToRad(-4);
+    const selectedOffsetX = 1.12;
+    const selectedAlignScale = 1.3;
     const alignDepth = 0.22;
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
-    const EDGE_ZONE_RATIO = 0.12;
+    const EDGE_ZONE_RATIO = 0.1;
     const EDGE_ACTIVE_Y_RATIO = 0.6;
-    const EDGE_STRENGTH_EXPONENT = 1.35;
-    const EDGE_TRIGGER_MS = 1500;
-    const EDGE_DECAY_MS = 600;
+    const EDGE_STRENGTH_EXPONENT = 1.6;
+    const EDGE_TRIGGER_MS = 1900;
+    const EDGE_DECAY_MS = 820;
     let edgeDirection = 0;
     let edgeStrength = 0;
     let edgeAccumulator = 0;
 
     const alignEase = t => t < 0.5 ? 2 * t * t : (-1 + (4 - 2 * t) * t);
     const orbitEase = alignEase;
+    const PANEL_TILT_MAX = 5.5;
+    const GIF_TILT_MAX = 4.2;
+    const tiltState = { panelX: 0, panelY: 0, gifX: 0, gifY: 0 };
 
     let alignSettled = false;
     let typingPending = false;
@@ -426,14 +437,14 @@
 
     function updateLayoutMetrics() {
       const { visibleWidth, visibleHeight } = computeVisibleMetrics();
-      const paddingTop = visibleHeight * 0.24;
-      const paddingBottom = visibleHeight * 0.18;
+      const paddingTop = visibleHeight * 0.22;
+      const paddingBottom = visibleHeight * 0.2;
       const len = Math.max(folders.length, 1);
       const usableHeight = Math.max(visibleHeight - paddingTop - paddingBottom, 0.1);
-      const baseSpacing = visibleHeight * 0.12;
+      const baseSpacing = visibleHeight * 0.145;
       alignSpacing = len > 1 ? Math.max(baseSpacing, usableHeight / (len - 1)) : 0;
       alignTopY = visibleHeight / 2 - paddingTop;
-      const leftInset = Math.min(visibleWidth * 0.18, 2.6);
+      const leftInset = Math.min(visibleWidth * 0.22, 3.6);
       alignColumnX = -visibleWidth / 2 + leftInset;
       labelsContainer.style.setProperty('--accent-color', accentColor);
       rimLight.color.set('#8ecbff');
@@ -524,13 +535,14 @@
     function spawnCard(src, delay = 0) {
       window.setTimeout(() => {
         if (!gifPreview) return;
-        const size = Math.min(Math.max(110, Math.random() * 110 + 110), (window.innerWidth || 1280) * 0.2);
-        const spawnX = cardBounds.maxX + size * (1.4 + Math.random() * 0.6);
-        const spawnY = cardBounds.minY + Math.random() * Math.max(cardBounds.maxY - cardBounds.minY, size);
+        const baseHeight = Math.min(Math.max(110, Math.random() * 110 + 110), (window.innerWidth || 1280) * 0.2);
+        const baseWidth = baseHeight;
+        const spawnX = cardBounds.maxX + baseWidth * (1.4 + Math.random() * 0.6);
+        const spawnY = cardBounds.minY + Math.random() * Math.max(cardBounds.maxY - cardBounds.minY, baseHeight);
         const card = document.createElement('div');
         card.className = 'gif-card';
-        card.style.width = `${size}px`;
-        card.style.height = `${size}px`;
+        card.style.width = `${baseWidth}px`;
+        card.style.height = `${baseHeight}px`;
         card.style.left = `${spawnX}px`;
         card.style.top = `${spawnY}px`;
         card.style.opacity = '1';
@@ -547,7 +559,9 @@
         const baseSpeed = -120 - Math.random() * 70;
         const state = {
           el: card,
-          size,
+          width: baseWidth,
+          height: baseHeight,
+          radius: Math.max(baseWidth, baseHeight) * 0.5,
           x: spawnX,
           y: spawnY,
           vx: baseSpeed,
@@ -563,6 +577,19 @@
           dropTimer: 0
         };
         cardStates.add(state);
+
+        img.addEventListener('load', () => {
+          const naturalWidth = img.naturalWidth || 0;
+          const naturalHeight = img.naturalHeight || 0;
+          if (naturalWidth <= 0 || naturalHeight <= 0) return;
+          const ratio = naturalWidth / naturalHeight;
+          const clampedRatio = Math.min(Math.max(ratio, 0.45), 2.4);
+          const width = baseHeight * clampedRatio;
+          state.width = width;
+          state.height = baseHeight;
+          state.radius = Math.max(width, baseHeight) * 0.5;
+          card.style.width = `${width}px`;
+        });
       }, delay);
     }
 
@@ -590,7 +617,7 @@
           const dx = b.x - a.x;
           const dy = b.y - a.y;
           const dist = Math.hypot(dx, dy) || 0.0001;
-          const minDist = (a.size + b.size) * 0.5 + 12;
+          const minDist = (a.radius + b.radius) + 12;
           if (dist < minDist) {
             const overlap = (minDist - dist) * 0.5;
             const nx = dx / dist;
@@ -624,7 +651,7 @@
         state.x += state.vx * dtSec;
         state.rotationVelocity += 28 * dtSec;
         state.rotation += state.rotationVelocity * dtSec;
-        if (state.y - state.size * 0.5 > (window.innerHeight || 900) + state.size) {
+        if (state.y - state.height * 0.5 > (window.innerHeight || 900) + state.height) {
           removeCardState(state);
         }
         return;
@@ -643,10 +670,12 @@
       state.y += state.vy * dtSec;
       state.rotation += state.rotationVelocity * dtSec;
 
-      const minX = cardBounds.minX + state.size * 0.5;
-      const maxX = cardBounds.maxX - state.size * 0.5;
-      const minY = cardBounds.minY + state.size * 0.5;
-      const maxY = cardBounds.maxY - state.size * 0.5;
+      const halfWidth = state.width * 0.5;
+      const halfHeight = state.height * 0.5;
+      const minX = cardBounds.minX + halfWidth;
+      const maxX = cardBounds.maxX - halfWidth;
+      const minY = cardBounds.minY + halfHeight;
+      const maxY = cardBounds.maxY - halfHeight;
 
       if (state.x < minX) {
         state.x = minX;
@@ -682,6 +711,25 @@
       });
     }
 
+    function applyPerspectiveTilt() {
+      const pointerX = mode === 'align' ? currentMouse.x : 0;
+      const pointerY = mode === 'align' ? currentMouse.y : 0;
+      const targetPanelX = -pointerY * PANEL_TILT_MAX;
+      const targetPanelY = pointerX * PANEL_TILT_MAX;
+      tiltState.panelX += (targetPanelX - tiltState.panelX) * 0.08;
+      tiltState.panelY += (targetPanelY - tiltState.panelY) * 0.08;
+      if (showcasePanel) {
+        showcasePanel.style.transform = `translateY(-50%) rotateX(${tiltState.panelX}deg) rotateY(${tiltState.panelY}deg)`;
+      }
+      const targetGifX = -pointerY * GIF_TILT_MAX;
+      const targetGifY = pointerX * GIF_TILT_MAX;
+      tiltState.gifX += (targetGifX - tiltState.gifX) * 0.08;
+      tiltState.gifY += (targetGifY - tiltState.gifY) * 0.08;
+      if (gifPreview) {
+        gifPreview.style.transform = `perspective(1400px) rotateX(${tiltState.gifX}deg) rotateY(${tiltState.gifY}deg)`;
+      }
+    }
+
     function createFolder(name) {
       const g = new THREE.Group();
       const frontMat = new THREE.MeshStandardMaterial({ color: 0x89d8fd, roughness: 0.4, metalness: 0.2 });
@@ -714,7 +762,7 @@
       back.position.set(0, 0.05, -0.015);
       back.receiveShadow = true;
       g.add(back);
-      const baseScale = 0.88;
+      const baseScale = 0.94;
       g.scale.set(baseScale, baseScale, baseScale);
 
       const lipShape = new THREE.Shape();
@@ -1452,7 +1500,7 @@
 
       if (mode === 'align') {
         magnetized = null;
-        dirLight.position.lerp(new THREE.Vector3(0, 6.2, 26), 0.08);
+        dirLight.position.lerp(new THREE.Vector3(0, 5.6, 24), 0.08);
         raycaster.setFromCamera(mouse, camera);
         const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
         folders.forEach(f => {
@@ -1472,8 +1520,8 @@
           const baseTarget = targetInfo.position.clone ? targetInfo.position.clone() : targetInfo.position;
           const lerped = fromPos.clone().lerp(baseTarget, tt);
           const wobblePhase = now * 0.0014 + (ud.alignSeed || 0);
-          const bob = Math.sin(wobblePhase) * 0.06;
-          const depthSway = Math.cos(wobblePhase * 1.05) * 0.035;
+          const bob = Math.sin(wobblePhase) * 0.045;
+          const depthSway = Math.cos(wobblePhase * 1.05) * 0.025;
           lerped.y += bob;
           lerped.z = baseTarget.z + depthSway;
           f.position.copy(lerped);
@@ -1483,9 +1531,9 @@
           f.scale.copy(fromScale.clone().lerp(targetScaleVec, tt));
           const fromRot = ud.alignFromRot || f.rotation.clone();
           const baseRotX = THREE.MathUtils.lerp(fromRot.x, baseAlignTilt, tt);
-          const swayX = Math.sin(wobblePhase * 1.35) * 0.03;
-          const swayY = Math.sin(wobblePhase * 0.9) * 0.05;
-          const swayZ = Math.cos(wobblePhase * 0.8) * 0.04;
+          const swayX = Math.sin(wobblePhase * 1.35) * 0.022;
+          const swayY = Math.sin(wobblePhase * 0.9) * 0.035;
+          const swayZ = Math.cos(wobblePhase * 0.8) * 0.028;
           f.rotation.set(baseRotX + swayX, swayY, swayZ);
           const openTarget = ud.hovered ? THREE.MathUtils.degToRad(15) : 0;
           ud.front.rotation.x += (openTarget - ud.front.rotation.x) * 0.12;
@@ -1504,7 +1552,7 @@
           edgeAccumulator += edgeStrength * dt / EDGE_TRIGGER_MS;
           if (edgeAccumulator >= 1) {
             setTargetSelection(selectedIndex + edgeDirection);
-            edgeAccumulator = 0.25;
+            edgeAccumulator = 0.4;
           }
         } else {
           edgeAccumulator = Math.max(0, edgeAccumulator - dt / EDGE_DECAY_MS);
@@ -1617,6 +1665,7 @@
       camera.position.set(currentMouse.x * cameraFactorX, currentMouse.y * cameraFactorY, 16);
       camera.lookAt(0, 0, 0);
 
+      applyPerspectiveTilt();
       bgRenderer.render(scene, camera);
       folders.forEach(f => f.visible = true);
       fgRenderer.render(scene, camera);
