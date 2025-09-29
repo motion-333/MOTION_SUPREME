@@ -24,6 +24,45 @@
       var translations = {};
       var messageEl = document.querySelector('.message');
       var toggleEl = document.getElementById('lang-toggle');
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      var audioCtx = AudioCtx ? new AudioCtx() : null;
+      var mobileBuffer = null;
+      var mobileSource = null;
+      var mobileReady = false;
+
+      function startMobileBed() {
+        if (!audioCtx || !mobileBuffer || !mobileReady || mobileSource) return;
+        var source = audioCtx.createBufferSource();
+        source.buffer = mobileBuffer;
+        source.loop = true;
+        source.connect(audioCtx.destination);
+        source.start();
+        mobileSource = source;
+      }
+
+      function unlockMobileAudio() {
+        if (!audioCtx) return;
+        mobileReady = true;
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().then(startMobileBed).catch(function(){});
+        } else {
+          startMobileBed();
+        }
+      }
+
+      if (audioCtx) {
+        fetch('SFX/mobile.wav')
+          .then(function(res) { return res.arrayBuffer(); })
+          .then(function(data) { return audioCtx.decodeAudioData(data); })
+          .then(function(buffer) {
+            mobileBuffer = buffer;
+            startMobileBed();
+          })
+          .catch(function(err) { console.warn('mobile audio failed', err); });
+        ['pointerdown', 'touchstart', 'keydown'].forEach(function(evt) {
+          window.addEventListener(evt, unlockMobileAudio, { once: true });
+        });
+      }
 
       // Helper to wrap text into spans
       function wrapText(el, text) {
