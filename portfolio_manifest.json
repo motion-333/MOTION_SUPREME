@@ -1,0 +1,118 @@
+{
+  "folders": [
+    {
+      "name": "Ads",
+      "items": [
+        {
+          "id": "01_REDSTAR",
+          "index": "01",
+          "label": "REDSTAR",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "02_AUXDESCALES",
+          "index": "02",
+          "label": "AUXDESCALES",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "03_BURGERKING",
+          "index": "03",
+          "label": "BURGERKING",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    },
+    {
+      "name": "Music Videos",
+      "items": [
+        {
+          "id": "01_CANINE",
+          "index": "01",
+          "label": "CANINE",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "02_SOF",
+          "index": "02",
+          "label": "SOF",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "03_EDMOND_WELLS",
+          "index": "03",
+          "label": "EDMOND WELLS",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "items": [
+        {
+          "id": "01_AGORA",
+          "index": "01",
+          "label": "AGORA",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "02_LULUVANTRAPP",
+          "index": "02",
+          "label": "LULUVANTRAPP",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    },
+    {
+      "name": "Graphics",
+      "items": [
+        {
+          "id": "01_COVERS",
+          "index": "01",
+          "label": "COVERS",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    },
+    {
+      "name": "Web",
+      "items": [
+        {
+          "id": "01_TRATT",
+          "index": "01",
+          "label": "TRATT",
+          "media": [],
+          "externalLink": ""
+        },
+        {
+          "id": "02_ADELE",
+          "index": "02",
+          "label": "ADELE",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    },
+    {
+      "name": "Zines",
+      "items": [
+        {
+          "id": "01_NARVIK",
+          "index": "01",
+          "label": "NARVIK",
+          "media": [],
+          "externalLink": ""
+        }
+      ]
+    }
+  ]
+}
