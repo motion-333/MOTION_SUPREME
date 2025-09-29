@@ -50,7 +50,6 @@
     const SCALE = 0.01;
     const CONTOUR_INT = 30;
     const DS = 32;
-    const dx = 5;
     const dy = 2.5;
 
     // PERLIN NOISE
@@ -194,6 +193,12 @@
     }
 
     let offsetX = 0;
+    let scrollBoost = 0;
+    let currentScrollY = 0;
+    let lastDrawY = 0;
+    let lastTime = performance.now();
+    let animationFrame = null;
+    let animating = false;
 
     function drawSlice(scrollY){
       const W = canvas.width, H = canvas.height;
@@ -279,24 +284,45 @@
         ctx.stroke();
       }
 
-      offsetX += dx;
     }
 
-    // THROTTLED SCROLL HANDLING
-    let ticking = false;
-    let lastDrawY = -Infinity;
-    const SCROLL_STEP = 120;
-
     function handleScrollY(sy){
-      if (Math.abs(sy - lastDrawY) >= SCROLL_STEP) {
-        lastDrawY = sy;
-        if (!ticking) {
-          requestAnimationFrame(() => {
-            drawSlice(lastDrawY);
-            ticking = false;
-          });
-          ticking = true;
-        }
+      currentScrollY = sy;
+      const delta = sy - lastDrawY;
+      const strength = Math.min(Math.abs(delta) * 0.003 + 0.25, 1.6);
+      lastDrawY = sy;
+      if (Math.abs(delta) > 0.5) {
+        kickAnimation(strength);
+      }
+    }
+
+    function kickAnimation(strength = 0.6) {
+      scrollBoost = Math.min(scrollBoost + strength, 4);
+      if (!animating) {
+        animating = true;
+        lastTime = performance.now();
+        animationFrame = requestAnimationFrame(stepAnimation);
+      }
+    }
+
+    function stepAnimation(now) {
+      const deltaMs = now - lastTime;
+      lastTime = now;
+      const dt = deltaMs / 16.6667;
+      const velocity = scrollBoost * dt;
+      if (velocity !== 0) {
+        offsetX += velocity;
+      }
+      scrollBoost *= 0.88;
+      if (scrollBoost < 0.015) {
+        scrollBoost = 0;
+      }
+      drawSlice(currentScrollY);
+      if (scrollBoost > 0.01) {
+        animationFrame = requestAnimationFrame(stepAnimation);
+      } else {
+        animating = false;
+        animationFrame = null;
       }
     }
 
@@ -305,6 +331,9 @@
     window.addEventListener('message', e => {
       if (e.data && typeof e.data.scrollY === 'number') {
         handleScrollY(e.data.scrollY);
+      }
+      if (e.data && typeof e.data.pulse === 'number') {
+        kickAnimation(Math.max(0.25, Math.min(e.data.pulse, 2)));
       }
       if (e.data && e.data.color) {
         if (e.data.fade) fadeToColor(e.data.color);
