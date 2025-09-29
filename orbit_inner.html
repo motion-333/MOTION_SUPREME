@@ -54,9 +54,10 @@
     #showcasePanel {
       position: absolute;
       top: 50%;
-      left: clamp(48px, 10vw, 168px);
+      right: clamp(48px, 14vw, 220px);
+      left: auto;
       transform: translateY(-50%);
-      width: min(38vw, 560px);
+      width: min(40vw, 600px);
       display: flex;
       flex-direction: column;
       gap: clamp(12px, 2.4vh, 32px);
@@ -712,8 +713,8 @@
     }
 
     function applyPerspectiveTilt() {
-      const pointerX = mode === 'align' ? currentMouse.x : 0;
-      const pointerY = mode === 'align' ? currentMouse.y : 0;
+      const pointerX = currentMouse.x;
+      const pointerY = currentMouse.y;
       const targetPanelX = -pointerY * PANEL_TILT_MAX;
       const targetPanelY = pointerX * PANEL_TILT_MAX;
       tiltState.panelX += (targetPanelX - tiltState.panelX) * 0.08;

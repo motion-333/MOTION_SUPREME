@@ -7,19 +7,22 @@
           "id": "01_REDSTAR",
           "index": "01",
           "label": "REDSTAR",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "02_AUXDESCALES",
           "index": "02",
           "label": "AUXDESCALES",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "03_BURGERKING",
           "index": "03",
           "label": "BURGERKING",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     },
@@ -30,19 +33,22 @@
           "id": "01_CANINE",
           "index": "01",
           "label": "CANINE",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "02_SOF",
           "index": "02",
           "label": "SOF",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "03_EDMOND_WELLS",
           "index": "03",
           "label": "EDMOND WELLS",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     },
@@ -53,13 +59,15 @@
           "id": "01_AGORA",
           "index": "01",
           "label": "AGORA",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "02_LULUVANTRAPP",
           "index": "02",
           "label": "LULUVANTRAPP",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     },
@@ -70,7 +78,8 @@
           "id": "01_COVERS",
           "index": "01",
           "label": "COVERS",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     },
@@ -81,13 +90,15 @@
           "id": "01_TRATT",
           "index": "01",
           "label": "TRATT",
-          "media": []
+          "media": [],
+          "externalLink": ""
         },
         {
           "id": "02_ADELE",
           "index": "02",
           "label": "ADELE",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     },
@@ -98,7 +109,8 @@
           "id": "01_NARVIK",
           "index": "01",
           "label": "NARVIK",
-          "media": []
+          "media": [],
+          "externalLink": ""
         }
       ]
     }

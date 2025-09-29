@@ -359,6 +359,7 @@
 
     #featureVideoShell {
       --feature-video-offset: clamp(72px, 12vh, 140px);
+      --feature-video-height: clamp(360px, 48vh, 640px);
       position: absolute;
       top: calc(500vh + var(--feature-video-offset));
       left: 50%;
@@ -379,19 +380,23 @@
       pointer-events: auto;
     }
 
-    .feature-video-frame {
+    .feature-media-panel {
       position: relative;
-      height: clamp(360px, 48vh, 640px);
       width: var(--feature-video-width, min(80vw, 960px));
       max-width: min(80vw, 960px);
+      height: var(--feature-video-height);
       background: var(--bg-alt);
       border: 4px solid var(--accent);
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
       overflow: hidden;
-      transition: background var(--theme-transition) ease, border-color var(--theme-transition) ease;
-      display: flex;
+      transition: background var(--theme-transition) ease, border-color var(--theme-transition) ease, opacity 0.3s ease;
+      display: none;
       align-items: center;
       justify-content: center;
+    }
+
+    .feature-media-panel.active {
+      display: flex;
     }
 
     .feature-video-frame video {
@@ -419,6 +424,119 @@
       text-align: center;
     }
 
+    .feature-gallery {
+      position: relative;
+      width: var(--feature-video-width, min(80vw, 960px));
+      max-width: min(80vw, 960px);
+      height: var(--feature-video-height);
+      background: var(--bg-alt);
+      border: 4px solid var(--accent);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+      overflow: hidden;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--theme-transition) ease, border-color var(--theme-transition) ease, opacity 0.3s ease;
+    }
+
+    .feature-gallery.active {
+      display: flex;
+    }
+
+    .feature-gallery-track {
+      display: flex;
+      gap: clamp(16px, 2vw, 28px);
+      align-items: center;
+      will-change: transform;
+    }
+
+    .feature-gallery-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: calc(var(--feature-video-height) - clamp(24px, 3vh, 42px));
+      border: 4px solid var(--accent);
+      background: var(--bg-main);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .feature-gallery-item:hover {
+      transform: translateY(-6px);
+    }
+
+    .feature-gallery-item img {
+      height: 100%;
+      width: auto;
+      display: block;
+    }
+
+    .feature-link-placeholder {
+      width: var(--feature-video-width, min(80vw, 960px));
+      max-width: min(80vw, 960px);
+      height: var(--feature-video-height);
+      border: 4px solid var(--accent);
+      background: var(--bg-alt);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(12px, 3vw, 32px);
+      text-align: center;
+      transition: background var(--theme-transition) ease, border-color var(--theme-transition) ease, color var(--theme-transition) ease;
+    }
+
+    .feature-link-placeholder.active {
+      display: flex;
+    }
+
+    .feature-link-placeholder a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: clamp(22px, 2.6vw, 38px);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: 'Ferrite Display', sans-serif;
+      transition: color 0.25s ease;
+      word-break: break-word;
+    }
+
+    .feature-link-placeholder a .alt-font {
+      font-family: 'Roboto Flex', sans-serif;
+      letter-spacing: normal;
+    }
+
+    .feature-link-placeholder a:hover,
+    .feature-link-placeholder a:focus {
+      color: var(--fg-main);
+    }
+
+    .feature-image-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+      cursor: zoom-out;
+      padding: clamp(16px, 4vw, 48px);
+    }
+
+    .feature-image-overlay.visible {
+      display: flex;
+    }
+
+    .feature-image-overlay img {
+      max-height: 100%;
+      width: auto;
+      border: 4px solid var(--accent);
+      background: var(--bg-main);
+      box-shadow: 0 22px 48px rgba(0, 0, 0, 0.45);
+    }
+
     .feature-video-frame.has-video .feature-video-placeholder {
       opacity: 0;
     }
@@ -440,6 +558,10 @@
       box-sizing: border-box;
       transition: background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease, opacity 0.3s ease;
       border-radius: 0;
+    }
+
+    #featureVideoSound.hidden {
+      display: none;
     }
 
     #featureVideoSound.disabled {
@@ -490,7 +612,7 @@
       top: 550vh;
       left: 0;
       width: 100vw;
-      height: clamp(520px, 90vh, 960px);
+      height: clamp(620px, 100vh, 1080px);
       border: none;
       background: transparent;
       z-index: 1;
@@ -623,6 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const featureVideoPlayer = document.getElementById('featureVideoPlayer');
   const featureVideoPlaceholder = document.getElementById('featureVideoPlaceholder');
   const featureVideoSound = document.getElementById('featureVideoSound');
+  const featureGallery = document.getElementById('featureGallery');
+  const featureLinkPlaceholder = document.getElementById('featureLinkPlaceholder');
+  const featureLinkAnchor = document.getElementById('featureLinkAnchor');
+  const featureImageOverlay = document.getElementById('featureImageOverlay');
+  const featureImageOverlayImg = featureImageOverlay ? featureImageOverlay.querySelector('img') : null;
 
   const THEMES = {
     light: { accent: '#1449ff', topoBg: '#faf8e5', topoLine: '#ffffff' },
@@ -633,6 +760,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFeatureVideo = null;
   let currentFeatureAspect = '16:9';
   let featureVideoMuted = true;
+  let galleryAnimationId = null;
+  let galleryTrack = null;
+  let galleryLoopWidth = 0;
+  let galleryOffset = 0;
+  let galleryLastTs = 0;
+  const GALLERY_SPEED = 40; // pixels per second
 
   function applyTheme(mode, skipStorage = false) {
     currentTheme = mode;
@@ -695,17 +828,157 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSoundButtonLabel();
   }
 
+  function stopGalleryLoop() {
+    if (galleryAnimationId) {
+      cancelAnimationFrame(galleryAnimationId);
+      galleryAnimationId = null;
+    }
+    galleryTrack = null;
+    galleryLoopWidth = 0;
+    galleryOffset = 0;
+    galleryLastTs = 0;
+  }
+
+  function galleryStep(timestamp) {
+    if (!galleryTrack || galleryLoopWidth <= 0) {
+      galleryAnimationId = null;
+      return;
+    }
+    if (!galleryLastTs) galleryLastTs = timestamp;
+    const delta = (timestamp - galleryLastTs) / 1000;
+    galleryLastTs = timestamp;
+    galleryOffset = (galleryOffset + GALLERY_SPEED * delta) % galleryLoopWidth;
+    galleryTrack.style.transform = `translateX(${-galleryOffset}px)`;
+    galleryAnimationId = requestAnimationFrame(galleryStep);
+  }
+
+  function startGalleryLoop(track) {
+    stopGalleryLoop();
+    if (!track) return;
+    galleryTrack = track;
+    galleryLoopWidth = track.scrollWidth / 2 || track.scrollWidth;
+    if (galleryLoopWidth <= 0) {
+      galleryTrack = null;
+      return;
+    }
+    galleryOffset = 0;
+    galleryLastTs = 0;
+    galleryAnimationId = requestAnimationFrame(galleryStep);
+  }
+
+  function clearFeatureGallery() {
+    if (featureGallery) {
+      featureGallery.innerHTML = '';
+      featureGallery.classList.remove('active');
+    }
+    stopGalleryLoop();
+  }
+
+  function renderFeatureGallery(media = [], label = 'MEDIA') {
+    if (!featureGallery) return;
+    clearFeatureGallery();
+    if (!media.length) return;
+
+    const track = document.createElement('div');
+    track.className = 'feature-gallery-track';
+    const sources = media.length === 1 ? media.concat(media) : media.concat(media);
+    sources.forEach((src, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'feature-gallery-item';
+      const img = document.createElement('img');
+      img.src = src;
+      const baseIndex = (index % media.length) + 1;
+      img.alt = `${label} preview ${baseIndex}`;
+      button.appendChild(img);
+      button.addEventListener('click', () => openImageOverlay(src));
+      track.appendChild(button);
+    });
+    featureGallery.appendChild(track);
+    featureGallery.classList.add('active');
+    const images = Array.from(track.querySelectorAll('img'));
+    let pending = images.length;
+    const maybeStart = () => {
+      pending -= 1;
+      if (pending <= 0) {
+        startGalleryLoop(track);
+      }
+    };
+    if (!images.length) {
+      startGalleryLoop(track);
+    } else {
+      images.forEach(img => {
+        if (img.complete && img.naturalWidth > 0) {
+          maybeStart();
+        } else {
+          img.addEventListener('load', maybeStart, { once: true });
+          img.addEventListener('error', maybeStart, { once: true });
+        }
+      });
+    }
+  }
+
+  function setLinkPlaceholderText(linkText = '') {
+    if (!featureLinkAnchor) return;
+    featureLinkAnchor.innerHTML = '';
+    const upper = linkText.toUpperCase();
+    for (const ch of upper) {
+      const span = document.createElement('span');
+      if (/[A-Z]/.test(ch)) {
+        span.textContent = ch;
+      } else {
+        span.textContent = ch === ' ' ? '\u00A0' : ch;
+        span.className = 'alt-font';
+      }
+      featureLinkAnchor.appendChild(span);
+    }
+  }
+
+  function hideLinkPlaceholder() {
+    if (!featureLinkPlaceholder || !featureLinkAnchor) return;
+    featureLinkPlaceholder.classList.remove('active');
+    featureLinkAnchor.removeAttribute('href');
+    featureLinkAnchor.innerHTML = '';
+  }
+
+  function showLinkPlaceholder(linkText) {
+    if (!featureLinkPlaceholder || !featureLinkAnchor) return;
+    featureLinkAnchor.href = linkText;
+    setLinkPlaceholderText(linkText);
+    featureLinkPlaceholder.classList.add('active');
+  }
+
+  function openImageOverlay(src) {
+    if (!featureImageOverlay || !featureImageOverlayImg) return;
+    featureImageOverlayImg.src = src;
+    featureImageOverlay.classList.add('visible');
+  }
+
+  function closeImageOverlay() {
+    if (!featureImageOverlay || !featureImageOverlayImg) return;
+    featureImageOverlay.classList.remove('visible');
+    featureImageOverlayImg.removeAttribute('src');
+  }
+
   function setFeatureVideoDimensions(aspectRatioText) {
-    if (!featureVideoShell || !featureVideoFrame) return;
+    if (!featureVideoShell) return;
     const ratio = parseAspectRatio(aspectRatioText || currentFeatureAspect);
     currentFeatureAspect = aspectRatioText || '16:9';
     requestAnimationFrame(() => {
-      const frameRect = featureVideoFrame.getBoundingClientRect();
+      const activePanel = featureVideoShell.querySelector('.feature-media-panel.active, .feature-gallery.active, .feature-link-placeholder.active');
+      const frameRect = activePanel ? activePanel.getBoundingClientRect() : { height: 0 };
       const shellRect = featureVideoShell.getBoundingClientRect();
-      const buttonRect = featureVideoSound ? featureVideoSound.getBoundingClientRect() : { width: 0 };
+      const soundVisible = featureVideoSound && !featureVideoSound.classList.contains('hidden');
+      const buttonRect = soundVisible ? featureVideoSound.getBoundingClientRect() : { width: 0 };
       const computed = window.getComputedStyle(featureVideoShell);
       const gap = parseFloat(computed.gap || computed.columnGap || '16');
-      const height = frameRect.height || shellRect.height || featureVideoShell.offsetHeight;
+      let height = frameRect.height || shellRect.height || featureVideoShell.offsetHeight;
+      if (!height) {
+        const varHeight = parseFloat(computed.getPropertyValue('--feature-video-height'));
+        if (Number.isFinite(varHeight) && varHeight > 0) {
+          height = varHeight;
+        }
+      }
       if (!height) return;
       let width = height * ratio;
       const available = Math.max(shellRect.width - buttonRect.width - gap, 180);
@@ -717,11 +990,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideFeatureVideo() {
-    if (!featureVideoShell || !featureVideoFrame) return;
+    if (!featureVideoShell) return;
     featureVideoShell.classList.remove('visible');
     featureVideoShell.style.setProperty('--feature-video-width', '');
-    featureVideoFrame.classList.remove('has-video');
-    featureVideoFrame.classList.add('no-video');
+    if (featureVideoFrame) {
+      featureVideoFrame.classList.remove('has-video', 'active');
+      featureVideoFrame.classList.add('no-video');
+    }
     if (featureVideoPlaceholder) {
       featureVideoPlaceholder.textContent = 'VIDEO PLACEHOLDER';
     }
@@ -732,13 +1007,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (featureVideoSound) {
       featureVideoSound.classList.add('disabled');
+      featureVideoSound.classList.add('hidden');
     }
+    clearFeatureGallery();
+    hideLinkPlaceholder();
+    closeImageOverlay();
     setVideoMutedState(true);
     currentFeatureVideo = null;
   }
 
   function updateFeatureVideo(selection) {
-    if (!featureVideoShell || !featureVideoFrame) return;
+    if (!featureVideoShell) return;
     if (!selection || !selection.entry) {
       hideFeatureVideo();
       return;
@@ -749,39 +1028,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const label = entry.label || entry.index || selection.folder || 'VIDEO';
     const featureVideo = entry.featureVideo;
     const hasVideo = featureVideo && typeof featureVideo.url === 'string' && featureVideo.url.trim();
+    const media = Array.isArray(entry.media) ? entry.media.filter(Boolean) : [];
+    const hasImages = media.length > 0;
+    const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink.trim() : '';
 
     featureVideoShell.classList.add('visible');
     if (featureVideoPlaceholder) {
       featureVideoPlaceholder.textContent = hasVideo ? label : `${label} — VIDEO PLACEHOLDER`;
     }
 
+    clearFeatureGallery();
+    hideLinkPlaceholder();
+
     if (hasVideo && featureVideoPlayer) {
       if (featureVideoPlayer.getAttribute('src') !== featureVideo.url) {
         featureVideoPlayer.src = featureVideo.url;
         featureVideoPlayer.load();
       }
-      featureVideoFrame.classList.add('has-video');
-      featureVideoFrame.classList.remove('no-video');
+      if (featureVideoFrame) {
+        featureVideoFrame.classList.add('has-video', 'active');
+        featureVideoFrame.classList.remove('no-video');
+      }
       if (featureVideoSound) {
-        featureVideoSound.classList.remove('disabled');
+        featureVideoSound.classList.remove('disabled', 'hidden');
       }
       setVideoMutedState(featureVideoMuted);
       featureVideoPlayer.play().catch(() => {});
     } else {
-      featureVideoFrame.classList.add('no-video');
-      featureVideoFrame.classList.remove('has-video');
+      if (featureVideoFrame) {
+        featureVideoFrame.classList.add('no-video');
+        featureVideoFrame.classList.remove('has-video', 'active');
+      }
       if (featureVideoPlayer) {
         featureVideoPlayer.pause();
         featureVideoPlayer.removeAttribute('src');
         featureVideoPlayer.load();
       }
       if (featureVideoSound) {
-        featureVideoSound.classList.add('disabled');
+        featureVideoSound.classList.add('disabled', 'hidden');
       }
       setVideoMutedState(true);
     }
 
-    setFeatureVideoDimensions(featureVideo?.aspectRatio || '16:9');
+    if (!hasVideo && hasImages) {
+      renderFeatureGallery(media, label);
+    }
+
+    if (!hasVideo && !hasImages && externalLink) {
+      showLinkPlaceholder(externalLink);
+    }
+
+    if (!hasVideo && !hasImages && !externalLink) {
+      featureVideoShell.classList.remove('visible');
+      featureVideoShell.style.setProperty('--feature-video-width', '');
+    }
+
+    const aspect = hasVideo ? (featureVideo?.aspectRatio || '16:9') : '16:9';
+    setFeatureVideoDimensions(aspect);
     updateSoundButtonLabel();
   }
 
@@ -793,6 +1096,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   applyTheme(currentTheme, true);
   hideFeatureVideo();
+
+  if (featureImageOverlay) {
+    featureImageOverlay.addEventListener('click', closeImageOverlay);
+  }
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeImageOverlay();
+    }
+  });
 
   descriptionText.style.visibility = 'hidden';
   history.scrollRestoration = 'manual';
@@ -1321,9 +1634,13 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <div id="featureVideoShell">
-    <div class="feature-video-frame no-video">
+    <div class="feature-media-panel feature-video-frame no-video">
       <video id="featureVideoPlayer" muted playsinline loop preload="metadata"></video>
       <div id="featureVideoPlaceholder" class="feature-video-placeholder">VIDEO PLACEHOLDER</div>
+    </div>
+    <div id="featureGallery" class="feature-gallery"></div>
+    <div id="featureLinkPlaceholder" class="feature-link-placeholder">
+      <a id="featureLinkAnchor" href="#" target="_blank" rel="noopener noreferrer"></a>
     </div>
     <button id="featureVideoSound" type="button" class="disabled muted" aria-label="Video muted">
       <span class="icon" aria-hidden="true">
@@ -1334,6 +1651,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </svg>
       </span>
     </button>
+  </div>
+
+  <div id="featureImageOverlay" class="feature-image-overlay" role="presentation">
+    <img alt="Expanded project media" />
   </div>
 
   <iframe src="orbit_inner.html" class="portfolio-orbit"></iframe>
@@ -1413,7 +1734,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ? item.media.map(entry => String(entry))
         : [];
       const featureVideo = normaliseFeatureVideo(item?.featureVideo);
-      return featureVideo ? { index, label, media, featureVideo } : { index, label, media };
+      const externalLink = typeof item?.externalLink === 'string' ? item.externalLink.trim() : '';
+      const base = { index, label, media, externalLink };
+      return featureVideo ? { ...base, featureVideo } : base;
     });
   }
 

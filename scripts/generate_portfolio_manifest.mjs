@@ -41,6 +41,14 @@ function sanitizeFeatureVideo(raw) {
   };
 }
 
+function sanitizeExternalLink(raw) {
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+}
+
 function buildExistingLookup(existing) {
   const map = new Map();
   if (!existing || !Array.isArray(existing.folders)) return map;
@@ -126,13 +134,15 @@ async function readPortfolio(existingManifest) {
 
       const existingItem = previousItems.get(name);
       const featureVideo = sanitizeFeatureVideo(existingItem?.featureVideo);
+      const externalLink = sanitizeExternalLink(existingItem?.externalLink);
 
       items.push({
         id: name,
         index: extractIndex(name),
         label: normalizeLabel(name).toUpperCase(),
         media,
-        ...(featureVideo ? { featureVideo } : {})
+        ...(featureVideo ? { featureVideo } : {}),
+        externalLink
       });
     }
 
