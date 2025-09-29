@@ -269,25 +269,25 @@
       left: 0;
       width: 100vw;
       display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      padding: 24px clamp(16px, 4vw, 48px);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 20px clamp(16px, 4vw, 48px);
       box-sizing: border-box;
       z-index: 1;
+      text-align: center;
     }
 
     .page-footer .real-footer,
     .page-footer .copyright {
       font-family: 'Ferrite Display', sans-serif;
-      font-size: clamp(10px, 1vw, 14px);
+      font-size: clamp(8px, 0.8vw, 12px);
       color: var(--accent);
       text-transform: uppercase;
-      line-height: 1.4;
+      line-height: 1.3;
       pointer-events: auto;
     }
-
-    .page-footer .real-footer { text-align: left; }
-    .page-footer .copyright { text-align: right; }
     /* Scroll arrow */
     #scrollArrow {
       position: fixed;
@@ -407,6 +407,19 @@
       display: block;
     }
 
+    .feature-video-embed {
+      position: absolute;
+      inset: 0;
+      display: none;
+    }
+
+    .feature-video-embed iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
     .feature-video-placeholder {
       position: absolute;
       inset: 0;
@@ -427,8 +440,8 @@
 
     .feature-gallery {
       position: relative;
-      width: 100%;
-      max-width: none;
+      width: var(--feature-video-width, min(80vw, 960px));
+      max-width: min(80vw, 960px);
       height: var(--feature-video-height);
       background: transparent;
       border: none;
@@ -460,20 +473,14 @@
       justify-content: center;
       height: 100%;
       border: 4px solid var(--accent);
-      background: var(--bg-main);
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+      background: transparent;
       cursor: pointer;
-      transition: transform 0.3s ease;
       flex: 0 0 auto;
     }
 
-    .feature-gallery-item:hover {
-      transform: translateY(-6px);
-    }
-
     .feature-gallery-item img {
-      width: 100%;
       height: 100%;
+      width: auto;
       display: block;
       object-fit: contain;
     }
@@ -522,16 +529,22 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.78);
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       z-index: 20;
       cursor: zoom-out;
       padding: clamp(16px, 4vw, 48px);
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transition: opacity 0.35s ease;
     }
 
     .feature-image-overlay.visible {
-      display: flex;
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
     }
 
     .feature-image-overlay img {
@@ -540,6 +553,12 @@
       border: 4px solid var(--accent);
       background: var(--bg-main);
       box-shadow: 0 22px 48px rgba(0, 0, 0, 0.45);
+      transform: scale(0.96);
+      transition: transform 0.35s ease;
+    }
+
+    .feature-image-overlay.visible img {
+      transform: scale(1);
     }
 
     .feature-video-frame.has-video .feature-video-placeholder {
@@ -547,6 +566,14 @@
     }
 
     .feature-video-frame.no-video video {
+      display: none;
+    }
+
+    .feature-video-frame.has-embed .feature-video-embed {
+      display: block;
+    }
+
+    .feature-video-frame.has-embed video {
       display: none;
     }
 
@@ -748,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const featureVideoShell = document.getElementById('featureVideoShell');
   const featureVideoFrame = featureVideoShell ? featureVideoShell.querySelector('.feature-video-frame') : null;
   const featureVideoPlayer = document.getElementById('featureVideoPlayer');
+  const featureVideoEmbed = document.getElementById('featureVideoEmbed');
   const featureVideoPlaceholder = document.getElementById('featureVideoPlaceholder');
   const featureVideoSound = document.getElementById('featureVideoSound');
   const featureGallery = document.getElementById('featureGallery');
@@ -771,6 +799,27 @@ document.addEventListener('DOMContentLoaded', () => {
   let galleryOffset = 0;
   let galleryLastTs = 0;
   const GALLERY_SPEED = 40; // pixels per second
+
+  const DIRECT_VIDEO_EXT = /\.(mp4|webm|ogg)(?:\?.*)?$/i;
+
+  function isDirectVideoUrl(url = '') {
+    return DIRECT_VIDEO_EXT.test(url);
+  }
+
+  function normaliseYouTubeEmbed(url) {
+    const ytRegex = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i;
+    const match = url.match(ytRegex);
+    if (!match) return null;
+    const id = match[1];
+    return `https://www.youtube.com/embed/${id}?rel=0&playsinline=1&autoplay=1&mute=1&loop=1&playlist=${id}`;
+  }
+
+  function buildEmbedUrl(url = '') {
+    if (!url) return '';
+    const yt = normaliseYouTubeEmbed(url);
+    if (yt) return yt;
+    return url;
+  }
 
   function applyTheme(mode, skipStorage = false) {
     currentTheme = mode;
@@ -999,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     featureVideoShell.classList.remove('visible');
     featureVideoShell.style.setProperty('--feature-video-width', '');
     if (featureVideoFrame) {
-      featureVideoFrame.classList.remove('has-video', 'active');
+      featureVideoFrame.classList.remove('has-video', 'active', 'has-embed');
       featureVideoFrame.classList.add('no-video');
     }
     if (featureVideoPlaceholder) {
@@ -1009,6 +1058,9 @@ document.addEventListener('DOMContentLoaded', () => {
       featureVideoPlayer.pause();
       featureVideoPlayer.removeAttribute('src');
       featureVideoPlayer.load();
+    }
+    if (featureVideoEmbed) {
+      featureVideoEmbed.removeAttribute('src');
     }
     if (featureVideoSound) {
       featureVideoSound.classList.add('disabled');
@@ -1045,29 +1097,59 @@ document.addEventListener('DOMContentLoaded', () => {
     clearFeatureGallery();
     hideLinkPlaceholder();
 
-    if (hasVideo && featureVideoPlayer) {
-      if (featureVideoPlayer.getAttribute('src') !== featureVideo.url) {
-        featureVideoPlayer.src = featureVideo.url;
-        featureVideoPlayer.load();
-      }
-      if (featureVideoFrame) {
-        featureVideoFrame.classList.add('has-video', 'active');
-        featureVideoFrame.classList.remove('no-video');
-      }
-      if (featureVideoSound) {
-        featureVideoSound.classList.remove('disabled', 'hidden');
-      }
-      setVideoMutedState(featureVideoMuted);
-      featureVideoPlayer.play().catch(() => {});
-    } else {
-      if (featureVideoFrame) {
-        featureVideoFrame.classList.add('no-video');
-        featureVideoFrame.classList.remove('has-video', 'active');
+    const videoUrl = hasVideo ? featureVideo.url.trim() : '';
+    const isDirectVideo = hasVideo && isDirectVideoUrl(videoUrl);
+    const shouldUseEmbed = hasVideo && !isDirectVideo;
+
+    if (hasVideo && featureVideoFrame) {
+      featureVideoFrame.classList.add('has-video', 'active');
+      featureVideoFrame.classList.remove('no-video');
+      featureVideoFrame.classList.toggle('has-embed', shouldUseEmbed);
+    }
+
+    if (hasVideo && shouldUseEmbed) {
+      if (featureVideoEmbed) {
+        const embedUrl = buildEmbedUrl(videoUrl);
+        if (featureVideoEmbed.getAttribute('src') !== embedUrl) {
+          featureVideoEmbed.src = embedUrl;
+        }
       }
       if (featureVideoPlayer) {
         featureVideoPlayer.pause();
         featureVideoPlayer.removeAttribute('src');
         featureVideoPlayer.load();
+      }
+      if (featureVideoSound) {
+        featureVideoSound.classList.add('disabled', 'hidden');
+      }
+      setVideoMutedState(true);
+    } else if (hasVideo && isDirectVideo) {
+      if (featureVideoPlayer && featureVideoPlayer.getAttribute('src') !== videoUrl) {
+        featureVideoPlayer.src = videoUrl;
+        featureVideoPlayer.load();
+      }
+      if (featureVideoEmbed) {
+        featureVideoEmbed.removeAttribute('src');
+      }
+      if (featureVideoSound) {
+        featureVideoSound.classList.remove('disabled', 'hidden');
+      }
+      setVideoMutedState(featureVideoMuted);
+      if (featureVideoPlayer) {
+        featureVideoPlayer.play().catch(() => {});
+      }
+    } else {
+      if (featureVideoFrame) {
+        featureVideoFrame.classList.add('no-video');
+        featureVideoFrame.classList.remove('has-video', 'active', 'has-embed');
+      }
+      if (featureVideoPlayer) {
+        featureVideoPlayer.pause();
+        featureVideoPlayer.removeAttribute('src');
+        featureVideoPlayer.load();
+      }
+      if (featureVideoEmbed) {
+        featureVideoEmbed.removeAttribute('src');
       }
       if (featureVideoSound) {
         featureVideoSound.classList.add('disabled', 'hidden');
@@ -1641,6 +1723,15 @@ document.addEventListener('DOMContentLoaded', () => {
   <div id="featureVideoShell">
     <div class="feature-media-panel feature-video-frame no-video">
       <video id="featureVideoPlayer" muted playsinline loop preload="metadata"></video>
+      <div id="featureVideoEmbedWrapper" class="feature-video-embed">
+        <iframe
+          id="featureVideoEmbed"
+          title="Project video"
+          frameborder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
       <div id="featureVideoPlaceholder" class="feature-video-placeholder">VIDEO PLACEHOLDER</div>
     </div>
     <div id="featureGallery" class="feature-gallery"></div>
@@ -1721,7 +1812,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let portfolioManifest = DEFAULT_PORTFOLIO;
 
   function normaliseFeatureVideo(raw) {
-    if (!raw || typeof raw !== 'object') return null;
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      return trimmed ? { url: trimmed, aspectRatio: '16:9' } : null;
+    }
+    if (typeof raw !== 'object') return null;
     const url = typeof raw.url === 'string' ? raw.url.trim() : '';
     if (!url) return null;
     const aspectRatio = typeof raw.aspectRatio === 'string' ? raw.aspectRatio.trim() : '';
