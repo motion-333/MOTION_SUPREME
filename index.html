@@ -26,7 +26,7 @@
       --bg-alt: #ffffff;
       --text-primary: #1449ff;
       --topo-light: #ffffff;
-      --theme-transition: 0.45s;
+      --theme-transition: 1s;
     }
 
     body.dark-mode {
@@ -54,6 +54,65 @@
 
     .i18n-loading [data-i18n] {
       visibility: hidden;
+    }
+
+    #audio-debug-panel {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      z-index: 1000;
+      pointer-events: none;
+      min-width: 180px;
+      white-space: pre-line;
+      transition: background-color var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
+    }
+
+    body.dark-mode #audio-debug-panel {
+      background: rgba(13, 15, 20, 0.78);
+      border-color: rgba(215, 43, 43, 0.45);
+      color: #f4f4f4;
+    }
+
+    #audio-debug-panel strong {
+      display: block;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    #audio-debug-panel ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #audio-debug-panel li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-family: 'Ferrite Display', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    #audio-debug-panel .audio-debug-empty {
+      opacity: 0.7;
+      font-style: italic;
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: 0.04em;
     }
 
     /* Language toggle button styling */
@@ -471,19 +530,42 @@
       justify-content: center;
       height: 100%;
       border: 4px solid var(--accent);
-      background: transparent;
+      background: var(--bg-alt);
       cursor: pointer;
       flex: 0 0 auto;
       border-radius: 0;
-      min-width: clamp(160px, 22vw, 420px);
+      min-width: 0;
       overflow: hidden;
+      transition: border-color var(--theme-transition) ease, background-color var(--theme-transition) ease;
     }
 
     .feature-gallery-item img {
       height: 100%;
       width: 100%;
       display: block;
-      object-fit: cover;
+      object-fit: contain;
+    }
+
+    .feature-gallery-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 0 clamp(20px, 6vw, 48px);
+      border: 4px solid var(--accent);
+      color: var(--accent);
+      background: var(--bg-alt);
+      text-decoration: none;
+      font-family: 'Ferrite Display', sans-serif;
+      font-size: clamp(18px, 2.2vw, 34px);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      transition: border-color var(--theme-transition) ease, color var(--theme-transition) ease, background-color var(--theme-transition) ease;
+    }
+
+    .feature-gallery.links-mode .feature-gallery-track {
+      gap: clamp(28px, 5vw, 72px);
     }
 
     .feature-link-placeholder {
@@ -522,7 +604,7 @@
       letter-spacing: 0.12em;
       text-transform: uppercase;
       font-family: 'Ferrite Display', sans-serif;
-      transition: color 0.25s ease;
+      transition: color var(--theme-transition) ease;
       white-space: nowrap;
     }
 
@@ -816,12 +898,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let galleryOffset = 0;
   let galleryLastTs = 0;
   const GALLERY_SPEED = 40; // pixels per second
-  let linkAnimationId = null;
-  let linkTrackEl = null;
-  let linkLoopWidth = 0;
-  let linkOffset = 0;
-  let linkLastTs = 0;
-
   const DIRECT_VIDEO_EXT = /\.(mp4|webm|ogg)(?:\?.*)?$/i;
 
   const SOUND_FILES = {
@@ -851,7 +927,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ensureLoop() { return Promise.resolve(null); },
         setLoopVolume() {},
         stopLoop() {},
-        isLoopActive() { return false; }
+        isLoopActive() { return false; },
+        getActiveSounds() { return []; },
+        onActiveChange() { return () => {}; }
       };
     }
 
@@ -865,6 +943,78 @@ document.addEventListener('DOMContentLoaded', () => {
     const loading = new Map();
     const loops = new Map();
     const cooldowns = new Map();
+    const activeSounds = new Map();
+    const debugListeners = new Set();
+    const scheduleTimeout = (typeof window !== 'undefined' && typeof window.setTimeout === 'function')
+      ? window.setTimeout.bind(window)
+      : setTimeout;
+
+    function snapshotActiveSounds() {
+      return Array.from(activeSounds.entries()).map(([name, info]) => ({
+        name,
+        loop: Boolean(info.loop),
+        fading: Boolean(info.fading),
+        count: Math.max(1, info.count || 1)
+      }));
+    }
+
+    function notifyActiveChange() {
+      const snapshot = snapshotActiveSounds();
+      debugListeners.forEach(listener => {
+        try {
+          listener(snapshot);
+        } catch (error) {
+          console.warn('[audio] monitor listener error', error);
+        }
+      });
+    }
+
+    function setActiveSound(name, data = {}) {
+      const isLoop = Boolean(data.loop);
+      const current = activeSounds.get(name);
+      const nextCount = isLoop ? 1 : Math.max(1, (current?.count || 0) + 1);
+      activeSounds.set(name, {
+        loop: isLoop,
+        fading: Boolean(data.fading),
+        count: nextCount
+      });
+      notifyActiveChange();
+    }
+
+    function markSoundFading(name, fadeSeconds = 0) {
+      const entry = activeSounds.get(name);
+      if (!entry) return;
+      if (fadeSeconds <= 0) {
+        activeSounds.delete(name);
+        notifyActiveChange();
+        return;
+      }
+      const next = { ...entry, fading: true };
+      activeSounds.set(name, next);
+      notifyActiveChange();
+      scheduleTimeout(() => {
+        if (activeSounds.get(name) === next) {
+          activeSounds.delete(name);
+          notifyActiveChange();
+        }
+      }, Math.max(fadeSeconds * 1000 + 120, 200));
+    }
+
+    function clearActiveSound(name) {
+      const entry = activeSounds.get(name);
+      if (!entry) return;
+      if (!entry.loop && entry.count > 1) {
+        activeSounds.set(name, {
+          loop: false,
+          fading: false,
+          count: entry.count - 1
+        });
+        notifyActiveChange();
+        return;
+      }
+      activeSounds.delete(name);
+      notifyActiveChange();
+    }
 
     const DEFAULT_FADE_IN = 1;
     const DEFAULT_FADE_OUT = 3;
@@ -935,6 +1085,8 @@ document.addEventListener('DOMContentLoaded', () => {
         source.connect(gain);
         gain.connect(master);
         source.start(now);
+        setActiveSound(name, { loop: false });
+        source.onended = () => clearActiveSound(name);
         const safeVolume = Math.max(0, volume);
         if (fadeIn > 0) {
           gain.gain.linearRampToValueAtTime(safeVolume, now + fadeIn);
@@ -957,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof options.volume === 'number') {
           setLoopVolume(name, options.volume, options.ramp);
         }
+        setActiveSound(name, { loop: true, fading: false });
         return Promise.resolve(existing);
       }
 
@@ -986,8 +1139,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           gain.gain.setValueAtTime(targetVol, now);
         }
+        source.onended = () => clearActiveSound(name);
         const entry = { source, gain, volumeTarget: targetVol };
         loops.set(name, entry);
+        setActiveSound(name, { loop: true, fading: false });
         return entry;
       }).catch(() => null);
     }
@@ -1014,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
       entry.gain.gain.cancelScheduledValues(now);
       entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
       entry.gain.gain.linearRampToValueAtTime(0.0001, now + fadeDuration);
+      markSoundFading(name, fadeDuration);
       try {
         entry.source.stop(now + fadeDuration + 0.1);
       } catch (error) {
@@ -1032,12 +1188,82 @@ document.addEventListener('DOMContentLoaded', () => {
       ensureLoop,
       setLoopVolume,
       stopLoop,
-      isLoopActive
+      isLoopActive,
+      getActiveSounds: snapshotActiveSounds,
+      onActiveChange(callback) {
+        if (typeof callback !== 'function') {
+          return () => {};
+        }
+        debugListeners.add(callback);
+        try {
+          callback(snapshotActiveSounds());
+        } catch (error) {
+          console.warn('[audio] monitor listener error', error);
+        }
+        return () => {
+          debugListeners.delete(callback);
+        };
+      }
     };
   }
 
   const soundController = createSoundController();
   const audioSupported = Boolean(soundController && soundController.supported);
+  const audioDebugPanel = document.createElement('div');
+  audioDebugPanel.id = 'audio-debug-panel';
+  const audioDebugTitle = document.createElement('strong');
+  audioDebugTitle.textContent = 'Audio Monitor';
+  const audioDebugEmpty = document.createElement('div');
+  audioDebugEmpty.className = 'audio-debug-empty';
+  const audioDebugList = document.createElement('ul');
+  audioDebugPanel.append(audioDebugTitle, audioDebugEmpty, audioDebugList);
+  document.body.appendChild(audioDebugPanel);
+
+  function updateAudioDebugPanel(sounds = []) {
+    if (!audioSupported) {
+      audioDebugEmpty.textContent = 'Audio unavailable';
+      audioDebugEmpty.style.display = 'block';
+      audioDebugList.style.display = 'none';
+      audioDebugList.innerHTML = '';
+      return;
+    }
+    const entries = Array.isArray(sounds) ? sounds.slice().sort((a, b) => a.name.localeCompare(b.name)) : [];
+    if (!entries.length) {
+      audioDebugEmpty.textContent = 'No audio active';
+      audioDebugEmpty.style.display = 'block';
+      audioDebugList.style.display = 'none';
+      audioDebugList.innerHTML = '';
+      return;
+    }
+    audioDebugEmpty.style.display = 'none';
+    audioDebugList.style.display = 'flex';
+    audioDebugList.innerHTML = '';
+    entries.forEach(sound => {
+      const item = document.createElement('li');
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = sound.name;
+      const statusSpan = document.createElement('span');
+      let statusText = sound.loop ? 'looping' : 'one-shot';
+      if (!sound.loop && sound.count && sound.count > 1) {
+        statusText += ` ×${sound.count}`;
+      }
+      if (sound.fading) {
+        statusText += ' (fading)';
+      }
+      statusSpan.textContent = statusText;
+      item.append(nameSpan, statusSpan);
+      audioDebugList.appendChild(item);
+    });
+  }
+
+  const initialActive = typeof soundController.getActiveSounds === 'function'
+    ? soundController.getActiveSounds()
+    : [];
+  updateAudioDebugPanel(initialActive);
+  if (typeof soundController.onActiveChange === 'function') {
+    soundController.onActiveChange(updateAudioDebugPanel);
+  }
+
   let audioPrimed = false;
   let introPlayed = false;
   let folderZoneActive = false;
@@ -1387,6 +1613,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const naturalWidth = img.naturalWidth || 0;
     const naturalHeight = img.naturalHeight || 0;
     if (naturalWidth <= 0 || naturalHeight <= 0) {
+      item.style.removeProperty('aspect-ratio');
+      item.style.removeProperty('width');
       if (attempt < 2) {
         requestAnimationFrame(() => adjustGalleryItemSize(item, img, attempt + 1));
       }
@@ -1394,14 +1622,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const galleryHeight = getFeatureGalleryHeight();
     if (galleryHeight <= 0) {
+      item.style.removeProperty('aspect-ratio');
+      item.style.removeProperty('width');
       if (attempt < 2) {
         requestAnimationFrame(() => adjustGalleryItemSize(item, img, attempt + 1));
       }
       return;
     }
     const ratio = naturalWidth / naturalHeight;
-    const width = Math.max(galleryHeight * ratio, galleryHeight * 0.72);
+    const width = galleryHeight * ratio;
     item.style.width = `${width}px`;
+    item.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`;
   }
 
   function resizeActiveGalleryItems() {
@@ -1418,7 +1649,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function clearFeatureGallery() {
     if (featureGallery) {
       featureGallery.innerHTML = '';
-      featureGallery.classList.remove('active');
+      featureGallery.classList.remove('active', 'links-mode');
     }
     stopGalleryLoop();
   }
@@ -1481,77 +1712,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function stopLinkLoop() {
-    if (linkAnimationId) {
-      cancelAnimationFrame(linkAnimationId);
-      linkAnimationId = null;
-    }
-    linkTrackEl = null;
-    linkLoopWidth = 0;
-    linkOffset = 0;
-    linkLastTs = 0;
-  }
-
-  function linkStep(timestamp) {
-    if (!linkTrackEl || linkLoopWidth <= 0) {
-      linkAnimationId = null;
-      return;
-    }
-    if (!linkLastTs) linkLastTs = timestamp;
-    const delta = (timestamp - linkLastTs) / 1000;
-    linkLastTs = timestamp;
-    linkOffset = (linkOffset + GALLERY_SPEED * delta) % linkLoopWidth;
-    linkTrackEl.style.transform = `translateX(${-linkOffset}px)`;
-    linkAnimationId = requestAnimationFrame(linkStep);
-  }
-
-  function startLinkLoop(track) {
-    stopLinkLoop();
-    if (!track) return;
-    linkTrackEl = track;
-    linkLoopWidth = track.scrollWidth / 2 || track.scrollWidth;
-    if (linkLoopWidth <= 0) {
-      linkTrackEl = null;
-      return;
-    }
-    linkOffset = 0;
-    linkLastTs = 0;
-    linkAnimationId = requestAnimationFrame(linkStep);
-  }
-
-  function hideLinkPlaceholder() {
-    if (!featureLinkPlaceholder || !featureLinkTrack) return;
-    featureLinkPlaceholder.classList.remove('active');
-    featureLinkPlaceholder.removeAttribute('data-link');
-    featureLinkTrack.innerHTML = '';
-    stopLinkLoop();
-  }
-
-  function showLinkPlaceholder(linkText) {
-    if (!featureLinkPlaceholder || !featureLinkTrack) return;
+  function renderFeatureLinkMarquee(linkText) {
+    if (!featureGallery) return;
+    clearFeatureGallery();
     const trimmed = (linkText || '').trim();
-    if (!trimmed) {
-      hideLinkPlaceholder();
-      return;
-    }
+    if (!trimmed) return;
 
-    featureLinkPlaceholder.classList.add('active');
-    featureLinkPlaceholder.setAttribute('data-link', trimmed);
-    featureLinkTrack.innerHTML = '';
-
-    const repetitions = 8;
-    const total = repetitions * 2;
+    const track = document.createElement('div');
+    track.className = 'feature-gallery-track feature-gallery-track--links';
+    const phrases = Array.from({ length: 6 }, () => trimmed);
+    const total = phrases.length * 2;
     for (let i = 0; i < total; i++) {
       const anchor = document.createElement('a');
       anchor.href = trimmed;
       anchor.target = '_blank';
       anchor.rel = 'noopener noreferrer';
-      anchor.className = 'feature-link-item';
-      anchor.textContent = trimmed;
-      featureLinkTrack.appendChild(anchor);
+      anchor.className = 'feature-gallery-link';
+      anchor.textContent = `${phrases[i % phrases.length]}  `;
+      track.appendChild(anchor);
     }
+    featureGallery.appendChild(track);
+    featureGallery.classList.add('active', 'links-mode');
+    requestAnimationFrame(() => startGalleryLoop(track));
+  }
 
-    requestAnimationFrame(() => startLinkLoop(featureLinkTrack));
+  function hideLinkPlaceholder() {
+    if (!featureLinkPlaceholder) return;
+    featureLinkPlaceholder.classList.remove('active');
+    featureLinkPlaceholder.removeAttribute('data-link');
+    if (featureLinkTrack) {
+      featureLinkTrack.innerHTML = '';
+    }
   }
 
   function openImageOverlay(src) {
@@ -1712,13 +1903,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!hasVideo && hasImages) {
       renderFeatureGallery(media, label);
-    }
-
-    if (!hasVideo && !hasImages && externalLink) {
-      showLinkPlaceholder(externalLink);
-    }
-
-    if (!hasVideo && !hasImages && !externalLink) {
+    } else if (!hasVideo && !hasImages && externalLink) {
+      renderFeatureLinkMarquee(externalLink);
+    } else if (!hasVideo && !hasImages && !externalLink) {
       featureVideoShell.classList.remove('visible');
       featureVideoShell.style.setProperty('--feature-video-width', '');
     }

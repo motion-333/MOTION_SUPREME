@@ -11,6 +11,52 @@
     #lang-toggle { position:fixed; top:10px; left:10px; border:3px solid blue; background:transparent; padding:5px 10px; cursor:pointer; z-index:1000; color:#1449ff; font-size:32px; font-weight:700; visibility:hidden; }
     .message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90vw; text-align:center; font-size:2vw; color:#1449ff; text-transform:uppercase; line-height:1.6; padding:0 5vw; box-sizing:border-box; user-select:none; visibility:hidden; }
     .i18n-loading [data-i18n], .i18n-loading #lang-toggle, .i18n-loading .message { visibility:hidden; }
+
+    #audio-debug-panel {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #ffffff;
+      font-family: 'Ferrite Display', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      z-index: 1000;
+      min-width: 160px;
+    }
+
+    #audio-debug-panel strong {
+      display: block;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    #audio-debug-panel ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #audio-debug-panel li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    #audio-debug-panel .audio-debug-empty {
+      font-style: italic;
+      opacity: 0.75;
+    }
   </style>
 </head>
 <body>
@@ -30,6 +76,48 @@
       var mobileSource = null;
       var mobileReady = false;
 
+      var audioDebugPanel = document.createElement('div');
+      audioDebugPanel.id = 'audio-debug-panel';
+      var audioDebugTitle = document.createElement('strong');
+      audioDebugTitle.textContent = 'Audio Monitor';
+      var audioDebugEmpty = document.createElement('div');
+      audioDebugEmpty.className = 'audio-debug-empty';
+      var audioDebugList = document.createElement('ul');
+      audioDebugPanel.appendChild(audioDebugTitle);
+      audioDebugPanel.appendChild(audioDebugEmpty);
+      audioDebugPanel.appendChild(audioDebugList);
+      document.body.appendChild(audioDebugPanel);
+
+      function renderAudioDebug() {
+        if (!audioCtx) {
+          audioDebugEmpty.textContent = 'Audio unavailable';
+          audioDebugEmpty.style.display = 'block';
+          audioDebugList.style.display = 'none';
+          audioDebugList.innerHTML = '';
+          return;
+        }
+        if (mobileSource) {
+          audioDebugEmpty.style.display = 'none';
+          audioDebugList.style.display = 'flex';
+          audioDebugList.innerHTML = '';
+          var item = document.createElement('li');
+          var nameSpan = document.createElement('span');
+          nameSpan.textContent = 'mobile.wav';
+          var statusSpan = document.createElement('span');
+          statusSpan.textContent = 'looping';
+          item.appendChild(nameSpan);
+          item.appendChild(statusSpan);
+          audioDebugList.appendChild(item);
+        } else {
+          audioDebugEmpty.textContent = 'No audio active';
+          audioDebugEmpty.style.display = 'block';
+          audioDebugList.style.display = 'none';
+          audioDebugList.innerHTML = '';
+        }
+      }
+
+      renderAudioDebug();
+
       function startMobileBed() {
         if (!audioCtx || !mobileBuffer || !mobileReady || mobileSource) return;
         var source = audioCtx.createBufferSource();
@@ -38,6 +126,11 @@
         source.connect(audioCtx.destination);
         source.start();
         mobileSource = source;
+        source.onended = function() {
+          mobileSource = null;
+          renderAudioDebug();
+        };
+        renderAudioDebug();
       }
 
       function unlockMobileAudio() {
@@ -57,8 +150,15 @@
           .then(function(buffer) {
             mobileBuffer = buffer;
             startMobileBed();
+            renderAudioDebug();
           })
-          .catch(function(err) { console.warn('mobile audio failed', err); });
+          .catch(function(err) {
+            console.warn('mobile audio failed', err);
+            audioDebugEmpty.textContent = 'Audio failed to load';
+            audioDebugEmpty.style.display = 'block';
+            audioDebugList.style.display = 'none';
+            audioDebugList.innerHTML = '';
+          });
         ['pointerdown', 'touchstart', 'keydown'].forEach(function(evt) {
           window.addEventListener(evt, unlockMobileAudio, { once: true });
         });
