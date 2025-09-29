@@ -54,10 +54,10 @@
     #showcasePanel {
       position: absolute;
       top: 50%;
-      right: clamp(48px, 14vw, 220px);
-      left: auto;
+      left: clamp(48px, 12vw, 240px);
+      right: auto;
       transform: translateY(-50%);
-      width: min(40vw, 600px);
+      width: min(38vw, 560px);
       display: flex;
       flex-direction: column;
       gap: clamp(12px, 2.4vh, 32px);
@@ -269,11 +269,11 @@
     const alignDepth = 0.22;
     let lastSelectionChange = 0;
     const SELECTION_COOLDOWN = 320;
-    const EDGE_ZONE_RATIO = 0.1;
+    const EDGE_ZONE_RATIO = 0.08;
     const EDGE_ACTIVE_Y_RATIO = 0.6;
-    const EDGE_STRENGTH_EXPONENT = 1.6;
-    const EDGE_TRIGGER_MS = 1900;
-    const EDGE_DECAY_MS = 820;
+    const EDGE_STRENGTH_EXPONENT = 2.1;
+    const EDGE_TRIGGER_MS = 2400;
+    const EDGE_DECAY_MS = 1100;
     let edgeDirection = 0;
     let edgeStrength = 0;
     let edgeAccumulator = 0;

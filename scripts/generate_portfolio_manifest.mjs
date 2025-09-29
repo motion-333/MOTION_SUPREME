@@ -1,7 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
 const PORTFOLIO_DIR = path.join(ROOT, 'Portfolio');
 const OUTPUT_FILE = path.join(ROOT, 'portfolio_manifest.json');
 const DEFAULT_ORDER = ['Ads', 'Music Videos', 'Events', 'Graphics', 'Web', 'Zines'];
@@ -160,9 +162,21 @@ async function writeManifest(data) {
   await fs.writeFile(OUTPUT_FILE, json + '\n');
 }
 
-(async () => {
+export async function generatePortfolioManifest({ silent = false } = {}) {
   const existingManifest = await readExistingManifest();
   const data = await readPortfolio(existingManifest);
   await writeManifest(data);
-  console.log(`Wrote manifest with ${data.folders.length} folders to ${OUTPUT_FILE}`);
-})();
+  if (!silent) {
+    console.log(`Wrote manifest with ${data.folders.length} folders to ${OUTPUT_FILE}`);
+  }
+  return data;
+}
+
+const directInvocationUrl = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : null;
+
+if (directInvocationUrl && import.meta.url === directInvocationUrl) {
+  generatePortfolioManifest().catch(error => {
+    console.error('Failed to generate portfolio manifest:', error);
+    process.exitCode = 1;
+  });
+}
