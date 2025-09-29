@@ -280,7 +280,7 @@
     .page-footer .real-footer,
     .page-footer .copyright {
       font-family: 'Ferrite Display', sans-serif;
-      font-size: clamp(8px, 0.8vw, 12px);
+      font-size: clamp(6px, 0.6vw, 10px);
       color: var(--accent);
       text-transform: uppercase;
       line-height: 1.3;
@@ -369,7 +369,8 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s ease;
-      width: auto;
+      width: 100vw;
+      max-width: 100vw;
       z-index: 1;
     }
 
@@ -437,8 +438,8 @@
 
     .feature-gallery {
       position: relative;
-      width: var(--feature-video-width, min(80vw, 960px));
-      max-width: min(80vw, 960px);
+      width: 100vw;
+      max-width: 100vw;
       height: var(--feature-video-height);
       background: transparent;
       border: none;
@@ -473,6 +474,7 @@
       background: transparent;
       cursor: pointer;
       flex: 0 0 auto;
+      border-radius: 0;
     }
 
     .feature-gallery-item img {
@@ -816,6 +818,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const yt = normaliseYouTubeEmbed(url);
     if (yt) return yt;
     return url;
+  }
+
+  function isEmbedVideoLink(url = '') {
+    if (!url) return false;
+    if (isDirectVideoUrl(url)) return true;
+    return Boolean(normaliseYouTubeEmbed(url));
   }
 
   function applyTheme(mode, skipStorage = false) {
@@ -1831,8 +1839,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const media = Array.isArray(item?.media)
         ? item.media.map(entry => String(entry))
         : [];
-      const featureVideo = normaliseFeatureVideo(item?.featureVideo);
+      let featureVideo = normaliseFeatureVideo(item?.featureVideo);
       const externalLink = typeof item?.externalLink === 'string' ? item.externalLink.trim() : '';
+      const requestedAspect = typeof item?.videoAspectRatio === 'string' ? item.videoAspectRatio.trim() : '';
+      if (!featureVideo && externalLink && media.length > 0 && isEmbedVideoLink(externalLink)) {
+        featureVideo = {
+          url: externalLink,
+          aspectRatio: requestedAspect || '16:9'
+        };
+      }
       const base = { index, label, media, externalLink };
       return featureVideo ? { ...base, featureVideo } : base;
     });
