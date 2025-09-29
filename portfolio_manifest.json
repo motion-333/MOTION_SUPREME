@@ -7,8 +7,14 @@
           "id": "01_REDSTAR",
           "index": "01",
           "label": "REDSTAR",
-          "media": [],
-          "externalLink": ""
+          "media": [
+            "Portfolio/Ads/01_REDSTAR/3.gif",
+            "Portfolio/Ads/01_REDSTAR/4.gif",
+            "Portfolio/Ads/01_REDSTAR/5.gif",
+            "Portfolio/Ads/01_REDSTAR/6.gif",
+            "Portfolio/Ads/01_REDSTAR/7.gif"
+          ],
+          "externalLink": "https://youtu.be/qAoEPh9wJZw"
         },
         {
           "id": "02_AUXDESCALES",
@@ -91,7 +97,7 @@
           "index": "01",
           "label": "TRATT",
           "media": [],
-          "externalLink": ""
+          "externalLink": "https://www.tratt.fr"
         },
         {
           "id": "02_ADELE",
@@ -109,7 +115,28 @@
           "id": "01_NARVIK",
           "index": "01",
           "label": "NARVIK",
-          "media": [],
+          "media": [
+            "Portfolio/Zines/01_NARVIK/1.png",
+            "Portfolio/Zines/01_NARVIK/10.png",
+            "Portfolio/Zines/01_NARVIK/11.png",
+            "Portfolio/Zines/01_NARVIK/12.png",
+            "Portfolio/Zines/01_NARVIK/13.png",
+            "Portfolio/Zines/01_NARVIK/14.png",
+            "Portfolio/Zines/01_NARVIK/15.png",
+            "Portfolio/Zines/01_NARVIK/16.png",
+            "Portfolio/Zines/01_NARVIK/17.png",
+            "Portfolio/Zines/01_NARVIK/18.png",
+            "Portfolio/Zines/01_NARVIK/19.png",
+            "Portfolio/Zines/01_NARVIK/2.png",
+            "Portfolio/Zines/01_NARVIK/20.png",
+            "Portfolio/Zines/01_NARVIK/3.png",
+            "Portfolio/Zines/01_NARVIK/4.png",
+            "Portfolio/Zines/01_NARVIK/5.png",
+            "Portfolio/Zines/01_NARVIK/6.png",
+            "Portfolio/Zines/01_NARVIK/7.png",
+            "Portfolio/Zines/01_NARVIK/8.png",
+            "Portfolio/Zines/01_NARVIK/9.png"
+          ],
           "externalLink": ""
         }
       ]
