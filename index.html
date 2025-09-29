@@ -827,6 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDirectVideoUrl(url)) return true;
     return Boolean(normaliseYouTubeEmbed(url));
   }
+  window.isEmbedVideoLink = isEmbedVideoLink;
 
   function applyTheme(mode, skipStorage = false) {
     currentTheme = mode;
