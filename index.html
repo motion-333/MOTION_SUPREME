@@ -303,6 +303,11 @@
       transition: transform 4s cubic-bezier(.33,1,.68,1), background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
     }
 
+    #scrollArrow.locked {
+      pointer-events: none;
+      opacity: 0.55;
+    }
+
     #modeToggle {
       position: fixed;
       top: 12px;
@@ -524,6 +529,7 @@
       align-items: center;
       will-change: transform;
       min-width: 100%;
+      flex: 0 0 auto;
     }
 
     .feature-gallery-item {
@@ -547,6 +553,8 @@
       width: 100%;
       display: block;
       object-fit: cover;
+      transform: scale(1.05);
+      transform-origin: center;
     }
 
     .feature-gallery-link {
@@ -750,17 +758,12 @@
       border: none;
       background: transparent;
       z-index: 1;
-    }
-
-    .portfolio-orbit-fade {
-      position: absolute;
-      top: 550vh;
-      left: 0;
-      width: 100vw;
-      height: clamp(120px, 18vh, 240px);
-      pointer-events: none;
-      z-index: 2;
-      background: linear-gradient(to top, var(--bg-main) 0%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 70%, rgba(0, 0, 0, 0) 100%);
+      mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 70%, rgba(0, 0, 0, 0) 100%);
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
     }
     @keyframes dropIn {
       0% {
@@ -1907,7 +1910,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const media = Array.isArray(entry.media) ? entry.media.filter(Boolean) : [];
     const hasImages = media.length > 0;
     const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink.trim() : '';
-    const preferLinkMarquee = !hasVideo && externalLink && folderName.toLowerCase() === 'web';
+    const preferLinkMarquee = externalLink && folderName.toLowerCase() === 'web';
 
     featureVideoShell.classList.add('visible');
     if (featureVideoPlaceholder) {
@@ -2038,7 +2041,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let gridOpen = false;
   let pendingScroll = null;
   let scrollUnlocked = false;
+  let queuedScrollTarget = null;
+  let queuedScrollDuration = 0;
   document.body.classList.add('scroll-lock');
+  if (scrollArrow) {
+    scrollArrow.classList.add('locked');
+  }
   const preventScroll = e => {
     if (!scrollUnlocked) {
       e.preventDefault();
@@ -2054,8 +2062,18 @@ document.addEventListener('DOMContentLoaded', () => {
     window.removeEventListener('wheel', preventScroll);
     window.removeEventListener('touchmove', preventScroll);
     window.removeEventListener('keydown', preventKeys);
+    if (scrollArrow) {
+      scrollArrow.classList.remove('locked');
+    }
     window.scrollTo(0, Math.max(window.scrollY, 1));
-  }, 5000);
+    const nextTarget = queuedScrollTarget;
+    const nextDuration = queuedScrollDuration;
+    queuedScrollTarget = null;
+    queuedScrollDuration = 0;
+    if (nextTarget !== null) {
+      smoothScrollTo(nextTarget, nextDuration);
+    }
+  }, 7000);
 
   function updateScrollbar() {
     if (!scrollbarProgress) return;
@@ -2064,6 +2082,7 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollbarProgress.style.height = `${ratio * 100}%`;
   }
   function updateArrow() {
+    if (!scrollArrow) return;
     const scrollY = window.scrollY;
     const bottomThreshold = document.body.scrollHeight - 2 * window.innerHeight;
     const topThreshold = window.innerHeight;
@@ -2076,6 +2095,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   function smoothScrollTo(target, duration) {
+    if (!scrollUnlocked) {
+      queuedScrollTarget = target;
+      queuedScrollDuration = duration;
+      return;
+    }
     if (!duration || duration <= 0) {
       window.scrollTo(0, target);
       return;
@@ -2092,23 +2116,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     requestAnimationFrame(step);
   }
-  scrollArrow.addEventListener('click', () => {
-    if (goTop) {
-      if (gridOpen) {
-        triggerAutoScrollSound(4000);
-        pendingScroll = 0;
-        orbitFrame.contentWindow.postMessage({ closeGrid: true }, '*');
+  if (scrollArrow) {
+    scrollArrow.addEventListener('click', () => {
+      if (!scrollUnlocked) return;
+      if (goTop) {
+        if (gridOpen) {
+          triggerAutoScrollSound(4000);
+          pendingScroll = 0;
+          orbitFrame.contentWindow.postMessage({ closeGrid: true }, '*');
+        } else {
+          triggerAutoScrollSound(4000);
+          smoothScrollTo(0, 4000);
+        }
+        goTop = false;
       } else {
         triggerAutoScrollSound(4000);
-        smoothScrollTo(0, 4000);
+        smoothScrollTo(document.body.scrollHeight, 4000);
+        goTop = true;
       }
-      goTop = false;
-    } else {
-      triggerAutoScrollSound(4000);
-      smoothScrollTo(document.body.scrollHeight, 4000);
-      goTop = true;
-    }
-  });
+    });
+  }
   function handleScrollClose(){
     if(!gridOpen) return;
     const rect = orbitFrame.getBoundingClientRect();
@@ -2279,7 +2306,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const baseOffsets = {};
   sequence.forEach((idx, z) => icons[idx].style.zIndex = 100 - z);
   sequence.forEach((idx, i) => {
-    baseOffsets[idx] = Math.round((i / (sequence.length - 1)) * 50);
+    const ratio = sequence.length > 1 ? i / (sequence.length - 1) : 0;
+    const offset = 10 + ratio * 40;
+    baseOffsets[idx] = Math.round(offset);
   });
 
   function wrapText(text, container) {
@@ -2388,7 +2417,8 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener('animationend', () => {
         // persist final state so CSS defaults (off-screen/invisible) don't snap back
         el.style.animation = '';
-        el.style.transform = 'translateY(0)';
+        const restOffset = baseOffsets[idx] || 0;
+        el.style.transform = `translateY(-${restOffset}px)`;
         el.style.opacity   = '1';
       }, { once: true });
     });
@@ -2608,7 +2638,6 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <iframe src="orbit_inner.html" class="portfolio-orbit"></iframe>
-  <div class="portfolio-orbit-fade" aria-hidden="true"></div>
 
   <footer class="page-footer">
     <div class="real-footer" data-i18n="fontCredit">Ferrite Display Font by @willaggett</div>
