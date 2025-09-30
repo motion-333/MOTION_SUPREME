@@ -56,71 +56,12 @@
       visibility: hidden;
     }
 
-    #audio-debug-panel {
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      padding: 10px 12px;
-      background: rgba(0, 0, 0, 0.65);
-      color: #ffffff;
-      font-family: 'Outfit', sans-serif;
-      font-size: 12px;
-      line-height: 1.4;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.35);
-      z-index: 1000;
-      pointer-events: none;
-      min-width: 180px;
-      white-space: pre-line;
-      transition: background-color var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
-    }
-
-    body.dark-mode #audio-debug-panel {
-      background: rgba(13, 15, 20, 0.78);
-      border-color: rgba(215, 43, 43, 0.45);
-      color: #f4f4f4;
-    }
-
-    #audio-debug-panel strong {
-      display: block;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-
-    #audio-debug-panel ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    #audio-debug-panel li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      font-family: 'Ferrite Display', sans-serif;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-    }
-
-    #audio-debug-panel .audio-debug-empty {
-      opacity: 0.7;
-      font-style: italic;
-      font-family: 'Outfit', sans-serif;
-      letter-spacing: 0.04em;
-    }
-
     /* Language toggle button styling */
     #lang-toggle {
       position: fixed;
       top: 12px;
-      left: calc(12px + 60px + 16px);
-      min-width: 0;
+      left: calc(12px + 60px + 16px + 60px + 16px);
+      width: 60px;
       height: 60px;
       display: flex;
       align-items: center;
@@ -130,11 +71,11 @@
       cursor: pointer;
       z-index: 3;
       color: var(--accent);
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 700;
       transition: background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
       box-sizing: border-box;
-      padding: 0 18px;
+      padding: 0;
     }
 
     iframe#topo-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; border: none; z-index: 0; pointer-events: none; }
@@ -385,6 +326,68 @@
       background: var(--bg-main);
     }
 
+    #soundToggle {
+      position: fixed;
+      top: 12px;
+      left: calc(12px + 60px + 16px);
+      width: 60px;
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 4px solid var(--accent);
+      color: var(--accent);
+      background: var(--bg-main);
+      cursor: pointer;
+      z-index: 3;
+      transition: background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
+      padding: 0;
+    }
+
+    #soundToggle .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+
+    #soundToggle svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #soundToggle svg path,
+    #soundToggle svg line {
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    #soundToggle svg path.speaker {
+      fill: currentColor;
+      stroke-width: 1.2;
+    }
+
+    #soundToggle .mute-bar {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    #soundToggle.muted .wave {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+
+    #soundToggle.muted .mute-bar {
+      opacity: 1;
+      transform: scale(1);
+    }
+
     #scrollbarTrack {
       position: fixed;
       top: 0;
@@ -543,7 +546,7 @@
       height: 100%;
       width: 100%;
       display: block;
-      object-fit: contain;
+      object-fit: cover;
     }
 
     .feature-gallery-link {
@@ -748,6 +751,17 @@
       background: transparent;
       z-index: 1;
     }
+
+    .portfolio-orbit-fade {
+      position: absolute;
+      top: 550vh;
+      left: 0;
+      width: 100vw;
+      height: clamp(120px, 18vh, 240px);
+      pointer-events: none;
+      z-index: 2;
+      background: linear-gradient(to top, var(--bg-main) 0%, transparent 100%);
+    }
     @keyframes dropIn {
       0% {
         transform: translateY(-150vh);
@@ -784,8 +798,18 @@
     document.documentElement.classList.add('i18n-loading');
   </script>
 <body>
+  <button id="modeToggle" type="button" aria-label="Toggle color mode">☾</button>
+  <button id="soundToggle" type="button" aria-label="Mute interactive audio" aria-pressed="true">
+    <span class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" role="presentation">
+        <path class="speaker" d="M4 9h3.6L13 5v14l-5.4-4H4z" />
+        <path class="wave" d="M16 9c1.4 1 2.2 2.6 2.2 4s-.8 3-2.2 4" />
+        <line class="mute-bar" x1="17" y1="7" x2="22" y2="17" />
+      </svg>
+    </span>
+  </button>
   <!-- Language switch button -->
-  <button id="lang-toggle">FR</button>
+  <button id="lang-toggle" type="button">FR</button>
 
   <iframe id="topo-bg" src="topo.html" scrolling="no" loading="eager" title="Topographic background"></iframe>
 
@@ -794,7 +818,6 @@
       <path d="M12 4v16m0 0-6-6m6 6 6-6" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="square" stroke-linejoin="miter"/>
     </svg>
   </div>
-  <button id="modeToggle" aria-label="Toggle color mode">☾</button>
   <div id="scrollbarTrack" aria-hidden="true"><div id="scrollbarProgress"></div></div>
 
   <!-- Contact and description -->
@@ -870,6 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const orbitFrame      = document.querySelector('iframe[src="orbit_inner.html"]');
   const scrollArrow       = document.getElementById('scrollArrow');
   const modeToggle        = document.getElementById('modeToggle');
+  const soundToggle       = document.getElementById('soundToggle');
   const scrollbarProgress = document.getElementById('scrollbarProgress');
   const featureVideoShell = document.getElementById('featureVideoShell');
   const featureVideoFrame = featureVideoShell ? featureVideoShell.querySelector('.feature-video-frame') : null;
@@ -917,6 +941,16 @@ document.addEventListener('DOMContentLoaded', () => {
     folderBed: 'folder_constant.wav'
   };
 
+  const SOUND_COOLDOWNS = {
+    [SOUND_FILES.click]: 500,
+    [SOUND_FILES.interactiveText]: 450,
+    [SOUND_FILES.contactHover]: 450,
+    [SOUND_FILES.imageClick]: 600,
+    [SOUND_FILES.folderHover]: 600,
+    [SOUND_FILES.folderClick]: 600,
+    [SOUND_FILES.scrollAuto]: 1200
+  };
+
   function createSoundController() {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) {
@@ -928,6 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoopVolume() {},
         stopLoop() {},
         isLoopActive() { return false; },
+        setMasterMuted() {},
         getActiveSounds() { return []; },
         onActiveChange() { return () => {}; }
       };
@@ -1057,6 +1092,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (cooldownMs && cooldownMs > 0) {
         cooldowns.set(name, performance.now());
       }
+    }
+
+    function setMasterMuted(muted, ramp = 0.2) {
+      const duration = Math.max(0.05, typeof ramp === 'number' ? ramp : 0.2);
+      const target = muted ? 0.0001 : 1;
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(target, now + duration);
     }
 
     function playClip(name, options = {}) {
@@ -1189,6 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setLoopVolume,
       stopLoop,
       isLoopActive,
+      setMasterMuted,
       getActiveSounds: snapshotActiveSounds,
       onActiveChange(callback) {
         if (typeof callback !== 'function') {
@@ -1209,61 +1254,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const soundController = createSoundController();
   const audioSupported = Boolean(soundController && soundController.supported);
-  const audioDebugPanel = document.createElement('div');
-  audioDebugPanel.id = 'audio-debug-panel';
-  const audioDebugTitle = document.createElement('strong');
-  audioDebugTitle.textContent = 'Audio Monitor';
-  const audioDebugEmpty = document.createElement('div');
-  audioDebugEmpty.className = 'audio-debug-empty';
-  const audioDebugList = document.createElement('ul');
-  audioDebugPanel.append(audioDebugTitle, audioDebugEmpty, audioDebugList);
-  document.body.appendChild(audioDebugPanel);
-
-  function updateAudioDebugPanel(sounds = []) {
-    if (!audioSupported) {
-      audioDebugEmpty.textContent = 'Audio unavailable';
-      audioDebugEmpty.style.display = 'block';
-      audioDebugList.style.display = 'none';
-      audioDebugList.innerHTML = '';
-      return;
-    }
-    const entries = Array.isArray(sounds) ? sounds.slice().sort((a, b) => a.name.localeCompare(b.name)) : [];
-    if (!entries.length) {
-      audioDebugEmpty.textContent = 'No audio active';
-      audioDebugEmpty.style.display = 'block';
-      audioDebugList.style.display = 'none';
-      audioDebugList.innerHTML = '';
-      return;
-    }
-    audioDebugEmpty.style.display = 'none';
-    audioDebugList.style.display = 'flex';
-    audioDebugList.innerHTML = '';
-    entries.forEach(sound => {
-      const item = document.createElement('li');
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = sound.name;
-      const statusSpan = document.createElement('span');
-      let statusText = sound.loop ? 'looping' : 'one-shot';
-      if (!sound.loop && sound.count && sound.count > 1) {
-        statusText += ` ×${sound.count}`;
-      }
-      if (sound.fading) {
-        statusText += ' (fading)';
-      }
-      statusSpan.textContent = statusText;
-      item.append(nameSpan, statusSpan);
-      audioDebugList.appendChild(item);
-    });
+  const SOUND_PREF_KEY = 'ms-sound-enabled';
+  let interactiveAudioEnabled = true;
+  try {
+    interactiveAudioEnabled = localStorage.getItem(SOUND_PREF_KEY) !== 'off';
+  } catch (_) {
+    interactiveAudioEnabled = true;
   }
-
-  const initialActive = typeof soundController.getActiveSounds === 'function'
-    ? soundController.getActiveSounds()
-    : [];
-  updateAudioDebugPanel(initialActive);
-  if (typeof soundController.onActiveChange === 'function') {
-    soundController.onActiveChange(updateAudioDebugPanel);
+  if (audioSupported && !interactiveAudioEnabled) {
+    soundController.setMasterMuted(true, 0.01);
   }
-
   let audioPrimed = false;
   let introPlayed = false;
   let folderZoneActive = false;
@@ -1275,10 +1275,72 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastScrollY = window.scrollY || 0;
   let lastScrollTime = performance.now();
 
+  function updateSoundToggleUI() {
+    if (!soundToggle) return;
+    if (!audioSupported) {
+      soundToggle.classList.add('muted');
+      soundToggle.setAttribute('aria-pressed', 'false');
+      soundToggle.setAttribute('aria-label', 'Interactive audio unavailable');
+      soundToggle.disabled = true;
+      return;
+    }
+    soundToggle.disabled = false;
+    soundToggle.classList.toggle('muted', !interactiveAudioEnabled);
+    soundToggle.setAttribute('aria-pressed', interactiveAudioEnabled ? 'true' : 'false');
+    soundToggle.setAttribute('aria-label', interactiveAudioEnabled ? 'Mute interactive audio' : 'Unmute interactive audio');
+  }
+
+  function persistSoundPreference(enabled) {
+    try {
+      localStorage.setItem(SOUND_PREF_KEY, enabled ? 'on' : 'off');
+    } catch (_) {}
+  }
+
+  function setInteractiveAudioEnabled(enabled) {
+    if (!audioSupported) {
+      updateSoundToggleUI();
+      return;
+    }
+    const next = Boolean(enabled);
+    if (interactiveAudioEnabled === next) {
+      updateSoundToggleUI();
+      return;
+    }
+    interactiveAudioEnabled = next;
+    persistSoundPreference(next);
+    if (next) {
+      soundController.setMasterMuted(false, audioPrimed ? 0.25 : 0.1);
+      if (audioPrimed) {
+        if (folderZoneActive) {
+          soundController.ensureLoop(SOUND_FILES.folderBed, { volume: 0.22, fadeIn: 1, cooldown: 0 });
+        } else {
+          updateThemeConstant(true);
+        }
+      }
+    } else {
+      soundController.stopLoop(SOUND_FILES.scroll, 0.5);
+      soundController.stopLoop(SOUND_FILES.scrollTabs, 0.5);
+      soundController.stopLoop(SOUND_FILES.idHold, 0.5);
+      soundController.stopLoop(SOUND_FILES.folderBed, 0.5);
+      soundController.stopLoop(SOUND_FILES.lightBed, 0.5);
+      soundController.stopLoop(SOUND_FILES.darkBed, 0.5);
+      soundController.setMasterMuted(true, audioPrimed ? 0.2 : 0.01);
+    }
+    updateSoundToggleUI();
+  }
+
+  updateSoundToggleUI();
+  if (soundToggle) {
+    soundToggle.addEventListener('click', () => {
+      if (!audioSupported) return;
+      setInteractiveAudioEnabled(!interactiveAudioEnabled);
+    });
+  }
+
   function ensureSoundReady() {
-    if (!audioSupported) return;
+    if (!audioSupported || !interactiveAudioEnabled) return false;
     soundController.unlock();
-    if (audioPrimed) return;
+    if (audioPrimed) return true;
     audioPrimed = true;
     if (!introPlayed) {
       soundController.playClip(SOUND_FILES.intro, {
@@ -1298,29 +1360,41 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       updateThemeConstant(true);
     }
+    return true;
+  }
+
+  function playEffect(name, options = {}) {
+    if (!audioSupported || !interactiveAudioEnabled) return false;
+    ensureSoundReady();
+    const finalOptions = { ...options };
+    if (finalOptions.cooldown === undefined && SOUND_COOLDOWNS[name] !== undefined) {
+      finalOptions.cooldown = SOUND_COOLDOWNS[name];
+    }
+    soundController.playClip(name, finalOptions);
+    return true;
   }
 
   function triggerInteractiveTextSound() {
-    if (!audioSupported) return;
-    ensureSoundReady();
-    soundController.playClip(SOUND_FILES.interactiveText, { volume: 0.52 });
+    playEffect(SOUND_FILES.interactiveText, { volume: 0.52 });
   }
 
   function triggerContactHoverSound() {
-    if (!audioSupported) return;
-    ensureSoundReady();
-    soundController.playClip(SOUND_FILES.contactHover, { volume: 0.58 });
+    playEffect(SOUND_FILES.contactHover, { volume: 0.58 });
   }
 
   function triggerAutoScrollSound(duration) {
-    if (!audioSupported) return;
+    if (!audioSupported || !interactiveAudioEnabled) {
+      setAutoScrollState(true, duration + 200);
+      return;
+    }
     ensureSoundReady();
-    soundController.playClip(SOUND_FILES.scrollAuto, { volume: 0.6 });
+    const cooldown = SOUND_COOLDOWNS[SOUND_FILES.scrollAuto];
+    soundController.playClip(SOUND_FILES.scrollAuto, { volume: 0.6, cooldown });
     setAutoScrollState(true, duration + 200);
   }
 
   function startIdHoldSound() {
-    if (!audioSupported) return;
+    if (!audioSupported || !interactiveAudioEnabled) return;
     ensureSoundReady();
     soundController.ensureLoop(SOUND_FILES.idHold, { volume: 0.55, fadeIn: 1, cooldown: 4000 });
   }
@@ -1351,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateThemeConstant(immediate = false) {
-    if (!audioSupported || !audioPrimed || folderZoneActive) return;
+    if (!audioSupported || !audioPrimed || folderZoneActive || !interactiveAudioEnabled) return;
     const fade = immediate ? 0.6 : 1.5;
     if (currentTheme === 'dark') {
       soundController.ensureLoop(SOUND_FILES.darkBed, { volume: 0.16, fadeIn: fade, cooldown: 0 });
@@ -1365,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setFolderZoneActive(active) {
     if (folderZoneActive === active) return;
     folderZoneActive = active;
-    if (!audioSupported || !audioPrimed) return;
+    if (!audioSupported || !audioPrimed || !interactiveAudioEnabled) return;
     if (active) {
       soundController.ensureLoop(SOUND_FILES.folderBed, { volume: 0.22, fadeIn: 5, cooldown: 0 });
       soundController.stopLoop(SOUND_FILES.lightBed, 5);
@@ -1377,15 +1451,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function handleSoundEvent(name) {
-    if (!audioSupported) return;
+    if (!audioSupported || !interactiveAudioEnabled) return;
     switch (name) {
       case 'folder-hover':
-        ensureSoundReady();
-        soundController.playClip(SOUND_FILES.folderHover, { volume: 0.5 });
+        playEffect(SOUND_FILES.folderHover, { volume: 0.5 });
         break;
       case 'folder-click':
-        ensureSoundReady();
-        soundController.playClip(SOUND_FILES.folderClick, { volume: 0.64 });
+        playEffect(SOUND_FILES.folderClick, { volume: 0.64 });
         break;
       case 'interactive-text':
         triggerInteractiveTextSound();
@@ -1397,6 +1469,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function handleScrollAudio() {
     if (!audioSupported) return;
+    if (!interactiveAudioEnabled) {
+      soundController.stopLoop(SOUND_FILES.scroll, 0.4);
+      soundController.stopLoop(SOUND_FILES.scrollTabs, 0.4);
+      return;
+    }
     const now = performance.now();
     const currentY = window.scrollY;
     const delta = currentY - lastScrollY;
@@ -1461,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.button !== undefined && event.button !== 0) return;
     ensureSoundReady();
     if (audioSupported) {
-      soundController.playClip(SOUND_FILES.click, { volume: 0.62 });
+      playEffect(SOUND_FILES.click, { volume: 0.62 });
     }
   }, { passive: true });
 
@@ -1672,10 +1749,7 @@ document.addEventListener('DOMContentLoaded', () => {
       img.alt = `${label} preview ${baseIndex}`;
       button.appendChild(img);
       button.addEventListener('click', () => {
-        ensureSoundReady();
-        if (audioSupported) {
-          soundController.playClip(SOUND_FILES.imageClick, { volume: 0.6 });
-        }
+        playEffect(SOUND_FILES.imageClick, { volume: 0.6 });
         openImageOverlay(src);
       });
       const sizeHandler = () => adjustGalleryItemSize(button, img);
@@ -1827,11 +1901,13 @@ document.addEventListener('DOMContentLoaded', () => {
     currentFeatureVideo = selection;
     const entry = selection.entry;
     const label = entry.label || entry.index || selection.folder || 'VIDEO';
+    const folderName = typeof selection.folder === 'string' ? selection.folder.trim() : '';
     const featureVideo = entry.featureVideo;
     const hasVideo = featureVideo && typeof featureVideo.url === 'string' && featureVideo.url.trim();
     const media = Array.isArray(entry.media) ? entry.media.filter(Boolean) : [];
     const hasImages = media.length > 0;
     const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink.trim() : '';
+    const preferLinkMarquee = !hasVideo && externalLink && folderName.toLowerCase() === 'web';
 
     featureVideoShell.classList.add('visible');
     if (featureVideoPlaceholder) {
@@ -1901,7 +1977,9 @@ document.addEventListener('DOMContentLoaded', () => {
       setVideoMutedState(true);
     }
 
-    if (!hasVideo && hasImages) {
+    if (preferLinkMarquee) {
+      renderFeatureLinkMarquee(externalLink);
+    } else if (!hasVideo && hasImages) {
       renderFeatureGallery(media, label);
     } else if (!hasVideo && !hasImages && externalLink) {
       renderFeatureLinkMarquee(externalLink);
@@ -2530,6 +2608,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 
   <iframe src="orbit_inner.html" class="portfolio-orbit"></iframe>
+  <div class="portfolio-orbit-fade" aria-hidden="true"></div>
 
   <footer class="page-footer">
     <div class="real-footer" data-i18n="fontCredit">Ferrite Display Font by @willaggett</div>
