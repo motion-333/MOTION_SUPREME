@@ -21,7 +21,6 @@
       height: 100%;
       background: transparent;
       overflow: hidden;
-      cursor: none;
     }
     #sceneWrap {
       position: fixed;
@@ -184,24 +183,9 @@
       display: block;
     }
 
-    #cursorDot {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--accent-color, #1449ff);
-      pointer-events: none;
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 0;
-      transition: opacity 0.18s ease, transform 0.18s ease, background var(--theme-transition, 0.45s);
-      z-index: 10;
-    }
   </style>
 </head>
 <body>
-  <div id="cursorDot" aria-hidden="true"></div>
   <div id="sceneWrap">
     <canvas id="bgCanvas"></canvas>
     <canvas id="fgCanvas"></canvas>
@@ -474,7 +458,6 @@
       positionShowcasePanel();
       if (gifPreview) {
         gifPreview.style.setProperty('--accent-color', accentColor);
-        if (cursorDot) cursorDot.style.backgroundColor = accentColor;
       }
     }
 
@@ -549,61 +532,9 @@
     let lastCardUpdate = performance.now();
     let activeDragState = null;
 
-    const cursorDot = document.getElementById('cursorDot');
-    let cursorVisible = false;
-    let cursorScale = 1;
-    let cursorX = window.innerWidth * 0.5;
-    let cursorY = window.innerHeight * 0.5;
-
-    function updateCursor(scale = cursorScale) {
-      if (!cursorDot) return;
-      cursorScale = scale;
-      cursorDot.style.transform = `translate(${cursorX}px, ${cursorY}px) translate(-50%, -50%) scale(${cursorScale})`;
-    }
-
-    function showCursor() {
-      if (!cursorDot) return;
-      cursorVisible = true;
-      cursorDot.style.opacity = '1';
-    }
-
-    function hideCursor() {
-      if (!cursorDot) return;
-      cursorVisible = false;
-      cursorDot.style.opacity = '0';
-    }
-
-    if (cursorDot) {
-      cursorDot.style.backgroundColor = accentColor;
-      window.addEventListener('pointermove', event => {
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-        updateCursor(cursorScale);
-        showCursor();
-        moveCardDrag(event);
-      });
-      window.addEventListener('pointerdown', event => {
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-        updateCursor(0.75);
-        showCursor();
-      });
-      window.addEventListener('pointerup', event => {
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-        updateCursor(1);
-        showCursor();
-        endCardDrag(event);
-      });
-      window.addEventListener('pointerleave', event => {
-        hideCursor();
-        endCardDrag(event);
-      });
-      window.addEventListener('pointercancel', event => {
-        endCardDrag(event);
-        hideCursor();
-      });
-    }
+    window.addEventListener('pointermove', moveCardDrag);
+    window.addEventListener('pointerup', endCardDrag);
+    window.addEventListener('pointercancel', endCardDrag);
 
     function positionCardState(state) {
       if (!state || !state.el) return;
@@ -716,10 +647,6 @@
         state.el.classList.add('dragging');
         try { state.el.setPointerCapture(event.pointerId); } catch (err) {}
       }
-      cursorX = event.clientX;
-      cursorY = event.clientY;
-      updateCursor(0.75);
-      showCursor();
     }
 
     function moveCardDrag(event) {
@@ -762,12 +689,7 @@
         state.el.classList.remove('dragging');
       }
       activeDragState = null;
-      if (event) {
-        cursorX = event.clientX;
-        cursorY = event.clientY;
-        updateCursor(1);
-        showCursor();
-      }
+      void event;
     }
 
     function refreshCardAccent() {
@@ -775,9 +697,6 @@
         state.el.style.borderColor = accentColor;
         state.el.style.backgroundColor = colorWithAlpha(accentColor, 0.12);
       });
-      if (cursorDot) {
-        cursorDot.style.backgroundColor = accentColor;
-      }
     }
 
     function updateCardTargets(state) {
@@ -1272,6 +1191,7 @@
       });
       letters.forEach((out, i) => {
         out.addEventListener('mouseenter', () => {
+          notifySound('interactive-text');
           const wH = baseWidths[i] * S;
           const wN = (i > 0 ? baseWidths[i - 1] * S : 0) + (i < letters.length - 1 ? baseWidths[i + 1] * S : 0);
           const wO = Math.max(totalW - wH - wN, 0.0001);
@@ -1309,6 +1229,15 @@
     function postSelectionToParent(payload) {
       try {
         parent.postMessage({ showcaseSelection: payload }, '*');
+      } catch (error) {
+        /* ignore cross-origin issues */
+      }
+    }
+
+    function notifySound(eventName) {
+      if (!eventName) return;
+      try {
+        parent.postMessage({ soundEvent: eventName }, '*');
       } catch (error) {
         /* ignore cross-origin issues */
       }
@@ -1586,6 +1515,7 @@
       const f = hits[0].object.parent;
       const idx = folders.indexOf(f);
       if (idx === -1) return;
+      notifySound('folder-click');
       if (mode === 'orbit') {
         selectedIndex = idx;
         enterAlign();
@@ -1689,7 +1619,12 @@
         raycaster.setFromCamera(mouse, camera);
         const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
         folders.forEach(f => {
-          f.userData.hovered = hoverHits.some(h => h.object === f.userData.front);
+          const wasHovered = !!f.userData.hovered;
+          const isHovered = hoverHits.some(h => h.object === f.userData.front);
+          f.userData.hovered = isHovered;
+          if (!wasHovered && isHovered) {
+            notifySound('folder-hover');
+          }
         });
         const len = folders.length || 1;
         let allComplete = true;
@@ -1751,7 +1686,12 @@
         raycaster.setFromCamera(mouse, camera);
         const hoverHits = raycaster.intersectObjects(folders.map(f => f.userData.front));
         folders.forEach(f => {
-          f.userData.hovered = hoverHits.some(h => h.object === f.userData.front);
+          const wasHovered = !!f.userData.hovered;
+          const isHovered = hoverHits.some(h => h.object === f.userData.front);
+          f.userData.hovered = isHovered;
+          if (!wasHovered && isHovered) {
+            notifySound('folder-hover');
+          }
         });
         const accel = Math.hypot(targetMouse.x - currentMouse.x, targetMouse.y - currentMouse.y);
         if (magnetized && accel > 2) magnetized = null;
@@ -1874,7 +1814,6 @@
         labelsContainer.style.setProperty('--accent-color', accentColor);
         if (showcasePanel) showcasePanel.style.setProperty('--accent-color', accentColor);
         if (gifPreview) gifPreview.style.setProperty('--accent-color', accentColor);
-        if (cursorDot) cursorDot.style.backgroundColor = accentColor;
         refreshCardAccent();
       }
       if (typeof e.data.closeGrid === 'boolean' && e.data.closeGrid) {
