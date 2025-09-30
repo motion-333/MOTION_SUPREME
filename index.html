@@ -27,7 +27,6 @@
       --text-primary: #1449ff;
       --topo-light: #ffffff;
       --theme-transition: 1.2s;
-      --theme-background-transition: 1.2s;
     }
 
     body.dark-mode {
@@ -46,7 +45,7 @@
       overflow-x: hidden;
       scrollbar-width: none;
       background-color: var(--bg-main);
-      transition: background-color var(--theme-background-transition) ease;
+      transition: background-color var(--theme-transition) ease;
     }
 
     body::-webkit-scrollbar {
@@ -83,6 +82,71 @@
       font-weight: 700;
       transition: background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease, opacity 0.25s ease;
       box-sizing: border-box;
+    }
+
+    .top-control-button .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .top-control-button svg {
+      width: 28px;
+      height: 28px;
+      display: block;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    #modeToggle .mode-icon {
+      opacity: 0;
+      transform: scale(0.8);
+      transform-origin: center;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    #modeToggle[data-mode="light"] .mode-icon--sun,
+    #modeToggle[data-mode="dark"] .mode-icon--moon {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #modeToggle path,
+    #modeToggle circle {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    #soundToggle path {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    #soundToggle .waves {
+      opacity: 1;
+    }
+
+    #soundToggle.muted .waves {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+
+    #soundToggle .slash {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+
+    #soundToggle.muted .slash {
+      opacity: 1;
+      transform: scale(1);
     }
 
     .top-control-button:focus-visible {
@@ -124,27 +188,6 @@
       padding: 0;
     }
 
-    .interactive-text.reveal-motion {
-      transition: opacity 0.9s ease;
-    }
-
-    .interactive-text .motion-web-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.9s ease;
-    }
-
-    .interactive-text.web-mode .motion-web-canvas {
-      pointer-events: auto;
-    }
-
-    .interactive-text.web-mode .letter {
-      pointer-events: none;
-    }
     .interactive-text .letter {
       display: inline-block;
       overflow: hidden;
@@ -168,7 +211,7 @@
       height: 100vh;
       box-sizing: border-box;
       pointer-events: none;
-      z-index: 1;
+      z-index: 3;
     }
     .folder-icon {
       position: relative;
@@ -305,36 +348,6 @@
       z-index: 1;
     }
 
-    #motionWebDock {
-      position: absolute;
-      top: 470vh;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(88vw, 1280px);
-      height: clamp(220px, 28vw, 420px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 1s ease;
-      z-index: 1;
-    }
-
-    #motionWebDock.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    #motionWebDock .motion-web-canvas {
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      pointer-events: auto;
-    }
-
     .page-footer {
       position: absolute;
       top: 642vh;
@@ -377,48 +390,6 @@
       background: var(--bg-main);
       z-index: 3;
       transition: transform 4s cubic-bezier(.33,1,.68,1), background var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
-    }
-
-    #modeToggle {
-      font-size: 28px;
-      line-height: 1;
-    }
-
-    #soundToggle .icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-
-    #soundToggle .icon svg {
-      width: 28px;
-      height: 28px;
-      display: block;
-    }
-
-    #soundToggle .icon path {
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: opacity 0.25s ease, transform 0.25s ease;
-    }
-
-    #soundToggle .icon .slash {
-      opacity: 0;
-      transform: scale(0.85);
-    }
-
-    #soundToggle.muted .icon .waves {
-      opacity: 0;
-      transform: scale(0.8);
-    }
-
-    #soundToggle.muted .icon .slash {
-      opacity: 1;
-      transform: scale(1);
     }
 
     #scrollbarTrack {
@@ -464,7 +435,7 @@
       transition: opacity 0.4s ease;
       width: 100vw;
       max-width: 100vw;
-      z-index: 1;
+      z-index: 3;
     }
 
     #featureVideoShell.visible {
@@ -582,28 +553,6 @@
       object-fit: cover;
     }
 
-    .feature-gallery-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      padding: 0 clamp(20px, 6vw, 48px);
-      border: 4px solid var(--accent);
-      color: var(--accent);
-      background: var(--bg-alt);
-      text-decoration: none;
-      font-family: 'Ferrite Display', sans-serif;
-      font-size: clamp(18px, 2.2vw, 34px);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      white-space: nowrap;
-      transition: border-color var(--theme-transition) ease, color var(--theme-transition) ease, background-color var(--theme-transition) ease;
-    }
-
-    .feature-gallery.links-mode .feature-gallery-track {
-      gap: clamp(28px, 5vw, 72px);
-    }
-
     .feature-link-placeholder {
       width: var(--feature-video-width, min(80vw, 960px));
       max-width: min(80vw, 960px);
@@ -651,7 +600,7 @@
 
     .feature-link-placeholder a:hover,
     .feature-link-placeholder a:focus {
-      color: var(--fg-main);
+      color: var(--bg-main);
     }
 
     .feature-image-overlay {
@@ -784,20 +733,6 @@
       overflow: hidden;
     }
 
-    .portfolio-orbit-shell::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      height: clamp(160px, 22%, 260px);
-      background: linear-gradient(to bottom, var(--bg-main) 0%, rgba(20, 73, 255, 0) 75%);
-      pointer-events: none;
-      z-index: 2;
-    }
-
-    body.dark-mode .portfolio-orbit-shell::before {
-      background: linear-gradient(to bottom, var(--bg-main) 0%, rgba(13, 15, 20, 0) 75%);
-    }
-
     .portfolio-orbit {
       position: relative;
       width: 100%;
@@ -806,6 +741,12 @@
       background: transparent;
       display: block;
       z-index: 1;
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 28%);
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 28%);
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
     }
     @keyframes dropIn {
       0% {
@@ -845,13 +786,33 @@
 <body>
   <!-- Primary controls -->
   <div id="topControls">
-    <button id="modeToggle" class="top-control-button" type="button" aria-label="Toggle color mode">☾</button>
+    <button id="modeToggle" class="top-control-button" type="button" aria-label="Toggle color mode" data-mode="light">
+      <span class="icon" aria-hidden="true">
+        <svg viewBox="0 0 32 32" role="presentation">
+          <g class="mode-icon mode-icon--sun">
+            <circle cx="16" cy="16" r="5" />
+            <path d="M16 5v3" />
+            <path d="M16 24v3" />
+            <path d="M5 16h3" />
+            <path d="M24 16h3" />
+            <path d="M8.5 8.5l2.1 2.1" />
+            <path d="M21.4 21.4l2.1 2.1" />
+            <path d="M23.5 8.5l-2.1 2.1" />
+            <path d="M10.6 21.4l-2.1 2.1" />
+          </g>
+          <g class="mode-icon mode-icon--moon">
+            <path d="M22.5 20.2A8.5 8.5 0 0 1 12 9.5 7 7 0 0 0 22.5 20.2Z" />
+          </g>
+        </svg>
+      </span>
+    </button>
     <button id="soundToggle" class="top-control-button" type="button" aria-label="Mute sound">
       <span class="icon" aria-hidden="true">
         <svg viewBox="0 0 32 32" role="presentation">
-          <path class="speaker" d="M6 12h6l8-6v20l-8-6H6z" />
-          <path class="waves" d="M22 12c2.2 1.7 3.4 4 3.4 6s-1.2 4.3-3.4 6" />
-          <path class="slash" d="M24 8l6 12" />
+          <path class="speaker" d="M6 12h5.4L18 7v18l-6.6-5H6z" />
+          <path class="waves" d="M21 11c2 1.6 3.1 3.7 3.1 5s-1.1 3.4-3.1 5" />
+          <path class="waves" d="M23.8 8.5c2.9 2.3 4.4 5.2 4.4 7.5s-1.5 5.2-4.4 7.5" />
+          <path class="slash" d="M24 9l6 12" />
         </svg>
       </span>
     </button>
@@ -953,9 +914,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const featureLinkTrack = document.getElementById('featureLinkTrack');
   const featureImageOverlay = document.getElementById('featureImageOverlay');
   const featureImageOverlayImg = featureImageOverlay ? featureImageOverlay.querySelector('img') : null;
-  const motionWebDock = document.getElementById('motionWebDock');
-  const footerParagraph = document.querySelector('.footer-paragraph');
-
   const THEMES = {
     light: { accent: '#1449ff', topoBg: '#faf8e5', topoLine: '#ffffff' },
     dark:  { accent: '#d72b2b', topoBg: '#0d0f14', topoLine: '#1d1f24' }
@@ -965,7 +923,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFeatureVideo = null;
   let currentFeatureAspect = '16:9';
   let featureVideoMuted = true;
-  let motionWebAccent = THEMES[currentTheme].accent;
   let galleryAnimationId = null;
   let galleryTrack = null;
   let galleryLoopWidth = 0;
@@ -990,16 +947,6 @@ document.addEventListener('DOMContentLoaded', () => {
     darkBed: 'dark_constant.wav',
     folderBed: 'folder_constant.wav'
   };
-
-  let motionWebCanvas = null;
-  let motionWebCtx = null;
-  let motionWebPoints = [];
-  let motionWebConnections = [];
-  let motionWebActivePoint = null;
-  let motionWebAnimationFrame = null;
-  let motionWebJitterStrength = 0;
-  let motionWebPinned = false;
-  let motionWebPointerTarget = null;
 
   function createSoundController() {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1582,10 +1529,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.toggle('dark-mode', mode === 'dark');
     if (!skipStorage) localStorage.setItem('ms-theme', mode);
     const theme = THEMES[mode];
-    motionWebAccent = theme.accent;
     if (modeToggle) {
       const isDark = mode === 'dark';
-      modeToggle.textContent = isDark ? '☀' : '☾';
+      modeToggle.setAttribute('data-mode', isDark ? 'dark' : 'light');
       modeToggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
     }
     if (bgFrame && bgFrame.contentWindow) {
@@ -1798,27 +1744,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderFeatureLinkMarquee(linkText) {
-    if (!featureGallery) return;
+    if (!featureLinkPlaceholder || !featureLinkTrack) return;
     clearFeatureGallery();
+    hideLinkPlaceholder();
     const trimmed = (linkText || '').trim();
     if (!trimmed) return;
 
-    const track = document.createElement('div');
-    track.className = 'feature-gallery-track feature-gallery-track--links';
-    const phrases = Array.from({ length: 6 }, () => trimmed);
-    const total = phrases.length * 2;
+    featureLinkTrack.innerHTML = '';
+    featureLinkPlaceholder.classList.add('active');
+    featureLinkPlaceholder.setAttribute('data-link', trimmed);
+
+    const repetitions = 6;
+    const total = repetitions * 2;
     for (let i = 0; i < total; i++) {
       const anchor = document.createElement('a');
       anchor.href = trimmed;
       anchor.target = '_blank';
       anchor.rel = 'noopener noreferrer';
-      anchor.className = 'feature-gallery-link';
-      anchor.textContent = `${phrases[i % phrases.length]}  `;
-      track.appendChild(anchor);
+      anchor.className = 'feature-link-item';
+      anchor.textContent = trimmed;
+      featureLinkTrack.appendChild(anchor);
     }
-    featureGallery.appendChild(track);
-    featureGallery.classList.add('active', 'links-mode');
-    requestAnimationFrame(() => startGalleryLoop(track));
+
+    requestAnimationFrame(() => startGalleryLoop(featureLinkTrack));
   }
 
   function hideLinkPlaceholder() {
@@ -1828,6 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (featureLinkTrack) {
       featureLinkTrack.innerHTML = '';
     }
+    stopGalleryLoop();
   }
 
   function openImageOverlay(src) {
@@ -2297,7 +2246,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // set stacking & base‐offset for each icon
   const baseOffsets = {};
   sequence.forEach((idx, z) => icons[idx].style.zIndex = 100 - z);
-    sequence.forEach((idx, i) => {
+  sequence.forEach((idx, i) => {
     baseOffsets[idx] = Math.round((i / (sequence.length - 1)) * 50);
   });
 
@@ -2373,231 +2322,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function attachMotionWebPointerHandlers(target) {
-    if (!target) return;
-    if (motionWebPointerTarget === target) return;
-    if (motionWebPointerTarget) {
-      motionWebPointerTarget.removeEventListener('pointermove', handleMotionWebPointerMove);
-      motionWebPointerTarget.removeEventListener('pointerleave', handleMotionWebPointerLeave);
-    }
-    motionWebPointerTarget = target;
-    motionWebPointerTarget.addEventListener('pointermove', handleMotionWebPointerMove);
-    motionWebPointerTarget.addEventListener('pointerleave', handleMotionWebPointerLeave);
-  }
-
-  function handleMotionWebPointerMove(event) {
-    if (!motionWebCanvas) return;
-    const rect = motionWebCanvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * motionWebCanvas.width;
-    const y = ((event.clientY - rect.top) / rect.height) * motionWebCanvas.height;
-    let closest = -1;
-    let bestDist = Infinity;
-    const limit = Math.max(motionWebCanvas.width, motionWebCanvas.height) * 0.12;
-    for (let i = 0; i < motionWebPoints.length; i++) {
-      const pt = motionWebPoints[i];
-      const dx = pt.baseX - x;
-      const dy = pt.baseY - y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < bestDist && dist < limit) {
-        bestDist = dist;
-        closest = i;
-      }
-    }
-    motionWebActivePoint = closest;
-  }
-
-  function handleMotionWebPointerLeave() {
-    motionWebActivePoint = null;
-  }
-
-  function scheduleMotionWebDraw() {
-    if (motionWebAnimationFrame) return;
-    const loop = time => {
-      drawMotionWeb(time || performance.now());
-      motionWebAnimationFrame = requestAnimationFrame(loop);
-    };
-    motionWebAnimationFrame = requestAnimationFrame(loop);
-  }
-
-  function drawMotionWeb(time) {
-    if (!motionWebCtx || !motionWebCanvas) return;
-    const width = motionWebCanvas.width;
-    const height = motionWebCanvas.height;
-    motionWebCtx.clearRect(0, 0, width, height);
-    if (!motionWebPoints.length) return;
-    const accent = (motionWebAccent || '#1449ff').trim();
-    const jitter = motionWebJitterStrength;
-    const timeFactor = time ? time / 1000 : performance.now() / 1000;
-    const wave = motionWebPinned ? 0.6 : 0.2;
-
-    const tempPositions = [];
-    for (let i = 0; i < motionWebPoints.length; i++) {
-      const pt = motionWebPoints[i];
-      const phase = pt.phase || (pt.phase = Math.random() * Math.PI * 2);
-      const jAmp = jitter * 18;
-      const osc = motionWebPinned ? wave * Math.sin(timeFactor * 1.8 + phase) : wave * 0.2 * Math.sin(timeFactor * 1.2 + phase * 0.7);
-      const x = pt.baseX + Math.sin(timeFactor * 1.4 + phase) * jAmp + osc * 4;
-      const y = pt.baseY + Math.cos(timeFactor * 1.1 + phase * 1.3) * jAmp + osc * 6;
-      tempPositions.push({ x, y });
-    }
-
-    motionWebCtx.save();
-    motionWebCtx.lineWidth = 1.3;
-    motionWebCtx.strokeStyle = accent;
-    motionWebCtx.globalAlpha = 0.35;
-    motionWebCtx.beginPath();
-    motionWebConnections.forEach(([a, b]) => {
-      const p1 = tempPositions[a];
-      const p2 = tempPositions[b];
-      if (!p1 || !p2) return;
-      motionWebCtx.moveTo(p1.x, p1.y);
-      motionWebCtx.lineTo(p2.x, p2.y);
-    });
-    motionWebCtx.stroke();
-    if (motionWebActivePoint !== null) {
-      motionWebCtx.globalAlpha = 0.85;
-      motionWebCtx.lineWidth = 2;
-      motionWebCtx.beginPath();
-      motionWebConnections.forEach(([a, b]) => {
-        if (a !== motionWebActivePoint && b !== motionWebActivePoint) return;
-        const p1 = tempPositions[a];
-        const p2 = tempPositions[b];
-        if (!p1 || !p2) return;
-        motionWebCtx.moveTo(p1.x, p1.y);
-        motionWebCtx.lineTo(p2.x, p2.y);
-      });
-      motionWebCtx.stroke();
-    }
-    motionWebCtx.globalAlpha = 1;
-    motionWebCtx.fillStyle = accent;
-    for (let i = 0; i < tempPositions.length; i++) {
-      const pos = tempPositions[i];
-      const active = motionWebActivePoint === i;
-      const radius = active ? 5 : 3;
-      motionWebCtx.beginPath();
-      motionWebCtx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-      motionWebCtx.fill();
-    }
-    motionWebCtx.restore();
-  }
-
-  function computeMotionWebData(width, height) {
-    const offscreen = document.createElement('canvas');
-    offscreen.width = width;
-    offscreen.height = height;
-    const ctx = offscreen.getContext('2d');
-    const style = window.getComputedStyle(interactiveText);
-    const fontSize = parseFloat(style.fontSize) || 120;
-    const fontFamily = style.fontFamily || 'Roboto Flex, sans-serif';
-    const fontWeight = parseInt(style.fontWeight, 10) || 400;
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#000';
-    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(finalText, width / 2, height / 2);
-    const data = ctx.getImageData(0, 0, width, height).data;
-    const step = Math.max(6, Math.round(width / 120));
-    const pts = [];
-    for (let y = step / 2; y < height; y += step) {
-      for (let x = step / 2; x < width; x += step) {
-        const idx = ((y | 0) * width + (x | 0)) * 4 + 3;
-        if (data[idx] > 68) {
-          pts.push({ baseX: x, baseY: y, phase: Math.random() * Math.PI * 2 });
-        }
-      }
-    }
-    if (pts.length > 260) {
-      const keep = 260 / pts.length;
-      motionWebPoints = pts.filter(() => Math.random() < keep);
-    } else {
-      motionWebPoints = pts;
-    }
-    motionWebActivePoint = null;
-    const connectionSet = new Set();
-    motionWebConnections = [];
-    motionWebPoints.forEach((pt, index) => {
-      const candidates = motionWebPoints
-        .map((other, i) => ({ index: i, dist: Math.hypot(other.baseX - pt.baseX, other.baseY - pt.baseY) }))
-        .filter(entry => entry.index !== index)
-        .sort((a, b) => a.dist - b.dist)
-        .slice(0, 4);
-      candidates.forEach(candidate => {
-        const i1 = Math.min(index, candidate.index);
-        const i2 = Math.max(index, candidate.index);
-        const key = `${i1}-${i2}`;
-        if (!connectionSet.has(key)) {
-          connectionSet.add(key);
-          motionWebConnections.push([i1, i2]);
-        }
-      });
-    });
-  }
-
-  function rebuildMotionWeb() {
-    if (!interactiveText) return;
-    const container = motionWebPinned && motionWebDock ? motionWebDock : interactiveText;
-    const width = Math.max(1, Math.round(container.clientWidth || interactiveText.clientWidth));
-    const height = Math.max(1, Math.round(container.clientHeight || interactiveText.clientHeight));
-    if (width <= 0 || height <= 0) return;
-    if (!motionWebCanvas) {
-      motionWebCanvas = document.createElement('canvas');
-      motionWebCanvas.className = 'motion-web-canvas';
-      interactiveText.appendChild(motionWebCanvas);
-      attachMotionWebPointerHandlers(interactiveText);
-    }
-    motionWebCanvas.width = width;
-    motionWebCanvas.height = height;
-    motionWebCanvas.style.width = `${width}px`;
-    motionWebCanvas.style.height = `${height}px`;
-    motionWebCtx = motionWebCanvas.getContext('2d');
-    computeMotionWebData(width, height);
-    scheduleMotionWebDraw();
-    if (!motionWebPinned) {
-      motionWebCanvas.style.opacity = '0';
-    }
-  }
-
-  function setMotionWebPinned(pinned) {
-    if (motionWebPinned === pinned) return;
-    motionWebPinned = pinned;
-    if (!motionWebCanvas) return;
-    if (pinned && motionWebDock) {
-      motionWebDock.appendChild(motionWebCanvas);
-      motionWebDock.classList.add('visible');
-      motionWebCanvas.style.opacity = '1';
-      motionWebDock.setAttribute('aria-hidden', 'false');
-      attachMotionWebPointerHandlers(motionWebDock);
-      requestAnimationFrame(() => rebuildMotionWeb());
-    } else {
-      interactiveText.appendChild(motionWebCanvas);
-      if (motionWebDock) motionWebDock.classList.remove('visible');
-      if (motionWebDock) motionWebDock.setAttribute('aria-hidden', 'true');
-      attachMotionWebPointerHandlers(interactiveText);
-      requestAnimationFrame(() => rebuildMotionWeb());
-    }
-  }
-
-  function revealMotionText() {
-    wrapText(finalText, interactiveText);
-    interactiveText.classList.add('reveal-motion');
-    const previousOpacity = interactiveText.style.opacity;
-    interactiveText.style.opacity = '0';
-    requestAnimationFrame(() => {
-      interactiveText.style.opacity = '1';
-    });
-    setTimeout(() => {
-      interactiveText.classList.remove('reveal-motion');
-      interactiveText.style.opacity = previousOpacity;
-      interactiveText.classList.add('pixelate');
-      setTimeout(() => {
-        interactiveText.classList.remove('pixelate');
-        makeInteractive(interactiveText);
-        requestAnimationFrame(() => rebuildMotionWeb());
-      }, 500);
-    }, 900);
-  }
-
   wrapText(initial, interactiveText);
   typeText(interactiveText, initial, () => {
     setTimeout(() => {
@@ -2607,7 +2331,16 @@ document.addEventListener('DOMContentLoaded', () => {
           interactiveText.children[eraseIdx--].remove();
         } else {
           clearInterval(eraseTimer);
-          setTimeout(revealMotionText, 300);
+          setTimeout(() => {
+            wrapText(finalText, interactiveText);
+            typeText(interactiveText, finalText, () => {
+              interactiveText.classList.add('pixelate');
+              setTimeout(() => {
+                interactiveText.classList.remove('pixelate');
+                makeInteractive(interactiveText);
+              }, 500);
+            });
+          }, 300);
         }
       }, 50);
     }, 500);
@@ -2639,36 +2372,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const lin = Math.min((scrollY - startFade) / (endFade - startFade), 1);
       fadeRatio = 1 - Math.pow(2, -20 * lin);
     }
-    if (contactText) {
-      contactText.style.opacity = 1 - fadeRatio;
-      contactText.style.filter = `blur(${fadeRatio * 10}px)`;
-    }
-    if (descriptionText) {
-      descriptionText.style.opacity = 1 - fadeRatio;
-      descriptionText.style.filter = `blur(${fadeRatio * 10}px)`;
-    }
-
-    const webRatio = Math.max(0, Math.min((scrollY - startFade) / (endFade - startFade), 1));
-    if (interactiveText) {
-      const textOpacity = 1 - webRatio;
-      interactiveText.style.opacity = textOpacity;
-      const blurValue = Math.max(0, (fadeRatio * 10) - webRatio * 6);
-      interactiveText.style.filter = `blur(${blurValue}px)`;
-      if (motionWebCanvas && !motionWebPinned) {
-        motionWebCanvas.style.opacity = `${webRatio}`;
-      }
-      interactiveText.classList.toggle('web-mode', webRatio > 0.05 && !motionWebPinned);
-    }
-
-    motionWebJitterStrength = motionWebPinned ? 0.25 : webRatio;
-
-    if (footerParagraph) {
-      const rect = footerParagraph.getBoundingClientRect();
-      const shouldPin = rect.top < window.innerHeight * 0.75;
-      setMotionWebPinned(shouldPin);
-    }
-
-  sequence.forEach((idx, i) => {
+    [interactiveText, contactText, descriptionText].forEach(el => {
+      if (!el) return;
+      el.style.opacity = 1 - fadeRatio;
+      el.style.filter = `blur(${fadeRatio * 10}px)`;
+    });
+    sequence.forEach((idx, i) => {
       const el    = icons[idx];
       const base  = baseOffsets[idx] || 0;
       const start = i * spacing;
@@ -2679,9 +2388,9 @@ document.addEventListener('DOMContentLoaded', () => {
       el.style.transform = `translateY(-${offsetY}px)`;
     });
   });
-  // sync initial scroll position
+
+  // sync initial scroll position with background
   sendScroll();
-});
 </script>
 
 <div id="idCard"></div>
@@ -2833,8 +2542,6 @@ document.addEventListener('DOMContentLoaded', () => {
   <div class="footer-paragraph" data-i18n="footerDescription">
     Proficient working solo or within a creative team. I’m adept at developing clean and productive workflows and efficient production systems. Detail-focused, sharp eyed for the micro as well as the full picture. Experience working in difficult spaces, musical environnements and challenging deadlines. Passion for developping unique image treatment media and effects. Strong ability with both sober briefs and maximalist detail-heavy scenes. Capable of further developping client ideas by finding creative solutions to design challenges.
   </div>
-
-  <div id="motionWebDock" aria-hidden="true"></div>
 
   <div id="featureVideoShell">
     <div class="feature-media-panel feature-video-frame no-video">
