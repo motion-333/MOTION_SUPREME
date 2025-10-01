@@ -394,10 +394,12 @@
               ? entry.media.map(src => String(src))
               : [];
             const featureVideo = sanitizeFeatureVideo(entry.featureVideo);
+            const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink.trim() : '';
             return {
               index: index ? index.padStart(2, '0') : String(idx + 1).padStart(2, '0'),
               label: label.toUpperCase(),
               media,
+              externalLink,
               ...(featureVideo ? { featureVideo } : {})
             };
           }
@@ -405,7 +407,8 @@
           return {
             index: String(idx + 1).padStart(2, '0'),
             label: raw.replace(/_/g, ' ').toUpperCase(),
-            media: []
+            media: [],
+            externalLink: ''
           };
         });
       });
@@ -422,10 +425,12 @@
       if (!entries || !entries.length) return [];
       return entries.map((entry, idx) => {
         const featureVideo = sanitizeFeatureVideo(entry.featureVideo);
+        const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink : '';
         const payload = {
           index: entry.index ? String(entry.index).padStart(2, '0') : String(idx + 1).padStart(2, '0'),
           label: entry.label ? String(entry.label).toUpperCase() : '',
-          media: Array.isArray(entry.media) ? entry.media.map(src => String(src)) : []
+          media: Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [],
+          externalLink
         };
         return featureVideo ? { ...payload, featureVideo } : payload;
       });
@@ -1348,7 +1353,8 @@
           index: entry.index,
           label: entry.label,
           media: Array.isArray(entry.media) ? entry.media.slice() : [],
-          featureVideo: entry.featureVideo ? { ...entry.featureVideo } : null
+          featureVideo: entry.featureVideo ? { ...entry.featureVideo } : null,
+          externalLink: typeof entry.externalLink === 'string' ? entry.externalLink : ''
         }));
         showcasePanel._folderName = folderName;
         entries.forEach((entry, idx) => {

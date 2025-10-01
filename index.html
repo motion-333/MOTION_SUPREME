@@ -532,6 +532,10 @@
       flex: 0 0 auto;
     }
 
+    .feature-gallery-track--links {
+      font-family: 'Ferrite Display', sans-serif;
+    }
+
     .feature-gallery-item {
       position: relative;
       display: flex;
@@ -770,8 +774,12 @@
         transform: translateY(-150vh);
         opacity: 0;
       }
+      72% {
+        transform: translateY(calc(var(--drop-rest, 0px) - 26px));
+        opacity: 1;
+      }
       100% {
-        transform: translateY(0);
+        transform: translateY(var(--drop-rest, 0px));
         opacity: 1;
       }
     }
@@ -791,8 +799,13 @@
       scrollbar-width: thin;
     }
 
+    html.scroll-lock,
     body.scroll-lock {
       overflow: hidden;
+    }
+
+    html.scroll-lock {
+      height: 100%;
     }
 
   </style>
@@ -909,6 +922,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const featureLinkTrack = document.getElementById('featureLinkTrack');
   const featureImageOverlay = document.getElementById('featureImageOverlay');
   const featureImageOverlayImg = featureImageOverlay ? featureImageOverlay.querySelector('img') : null;
+  const rootElement = document.documentElement;
+  const initialBodyStyles = {
+    position: document.body.style.position,
+    top: document.body.style.top,
+    width: document.body.style.width,
+    touchAction: document.body.style.touchAction
+  };
 
   const THEMES = {
     light: { accent: '#1449ff', topoBg: '#faf8e5', topoLine: '#ffffff' },
@@ -2029,7 +2049,7 @@ document.addEventListener('DOMContentLoaded', () => {
   descriptionText.style.visibility = 'hidden';
   history.scrollRestoration = 'manual';
   window.scrollTo(0, 0);
-  requestAnimationFrame(() => window.scrollTo(0, 1));
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 
   const preventKeys = e => {
     if (!scrollUnlocked && ['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(e.key)) {
@@ -2043,7 +2063,26 @@ document.addEventListener('DOMContentLoaded', () => {
   let scrollUnlocked = false;
   let queuedScrollTarget = null;
   let queuedScrollDuration = 0;
-  document.body.classList.add('scroll-lock');
+  function applyInitialScrollLockStyles() {
+    rootElement.classList.add('scroll-lock');
+    document.body.classList.add('scroll-lock');
+    document.body.style.position = 'fixed';
+    document.body.style.top = '0';
+    document.body.style.width = '100%';
+    document.body.style.touchAction = 'none';
+    window.scrollTo(0, 0);
+  }
+
+  function clearInitialScrollLockStyles() {
+    rootElement.classList.remove('scroll-lock');
+    document.body.classList.remove('scroll-lock');
+    document.body.style.position = initialBodyStyles.position;
+    document.body.style.top = initialBodyStyles.top;
+    document.body.style.width = initialBodyStyles.width;
+    document.body.style.touchAction = initialBodyStyles.touchAction;
+  }
+
+  applyInitialScrollLockStyles();
   if (scrollArrow) {
     scrollArrow.classList.add('locked');
   }
@@ -2058,7 +2097,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', preventKeys, { passive: false });
   setTimeout(() => {
     scrollUnlocked = true;
-    document.body.classList.remove('scroll-lock');
+    clearInitialScrollLockStyles();
     window.removeEventListener('wheel', preventScroll);
     window.removeEventListener('touchmove', preventScroll);
     window.removeEventListener('keydown', preventKeys);
@@ -2306,8 +2345,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const baseOffsets = {};
   sequence.forEach((idx, z) => icons[idx].style.zIndex = 100 - z);
   sequence.forEach((idx, i) => {
-    const ratio = sequence.length > 1 ? i / (sequence.length - 1) : 0;
-    const offset = 10 + ratio * 40;
+    const sway = Math.sin(i * 0.9 + 0.6);
+    const offset = 44 + sway * 28;
     baseOffsets[idx] = Math.round(offset);
   });
 
@@ -2413,12 +2452,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     dropSequence.forEach((idx, i) => {
       const el = icons[idx];
-      el.style.animation = `dropIn 0.6s cubic-bezier(0.22,1,0.36,1) ${i * dropInterval}ms forwards`;
+      const restOffset = baseOffsets[idx] || 0;
+      const restValue = `-${restOffset}px`;
+      el.style.setProperty('--drop-rest', restValue);
+      el.style.transform = 'translateY(-150vh)';
+      el.style.opacity = '0';
+      el.style.animation = `dropIn 0.8s cubic-bezier(0.22,1,0.36,1) ${i * dropInterval}ms forwards`;
       el.addEventListener('animationend', () => {
         // persist final state so CSS defaults (off-screen/invisible) don't snap back
         el.style.animation = '';
-        const restOffset = baseOffsets[idx] || 0;
-        el.style.transform = `translateY(-${restOffset}px)`;
+        el.style.transform = `translateY(${restValue})`;
         el.style.opacity   = '1';
       }, { once: true });
     });
@@ -2426,6 +2469,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- SCROLL LIFT LOGIC ---
   window.addEventListener('scroll', () => {
+    if (!scrollUnlocked) {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+      sendScroll();
+      return;
+    }
     const scrollY    = window.scrollY;
     const startFade  = sequence.indexOf(1) * spacing;
     const endFade    = startFade + spacing * 1.2;
@@ -2438,7 +2488,7 @@ document.addEventListener('DOMContentLoaded', () => {
       el.style.opacity = 1 - fadeRatio;
       el.style.filter  = `blur(${fadeRatio * 10}px)`;
     });
-  sequence.forEach((idx, i) => {
+    sequence.forEach((idx, i) => {
       const el    = icons[idx];
       const base  = baseOffsets[idx] || 0;
       const start = i * spacing;
