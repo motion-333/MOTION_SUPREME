@@ -1033,6 +1033,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }, Math.max(fadeSeconds * 1000 + 120, 200));
     }
 
+    function isSoundActive(name) {
+      const entry = activeSounds.get(name);
+      if (!entry) return false;
+      if (entry.loop) return true;
+      return (entry.count ?? 0) > 0 && !entry.fading;
+    }
+
     function clearActiveSound(name) {
       const entry = activeSounds.get(name);
       if (!entry) return;
@@ -1112,6 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cooldown = DEFAULT_COOLDOWN,
         allowOverlap = false
       } = options;
+      if (!allowOverlap && isSoundActive(name)) return;
       if (!allowOverlap && isCoolingDown(name, cooldown)) return;
       markCooldown(name, cooldown);
       unlock();
