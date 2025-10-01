@@ -27,6 +27,7 @@
       --text-primary: #1449ff;
       --topo-light: #ffffff;
       --theme-transition: 1s;
+      --link-glow-color: rgba(20, 73, 255, 0.28);
     }
 
     body.dark-mode {
@@ -35,6 +36,7 @@
       --bg-alt: #1d1f24;
       --text-primary: #d72b2b;
       --topo-light: #1d1f24;
+      --link-glow-color: rgba(215, 43, 43, 0.32);
     }
 
     html, body {
@@ -596,13 +598,14 @@
       color: var(--accent);
       text-decoration: none;
       text-transform: uppercase;
+      text-shadow: 0 0 10px var(--link-glow-color);
       transition: text-shadow 0.25s ease;
     }
 
     .feature-link-item:hover,
     .feature-link-item:focus {
       color: var(--accent);
-      text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
+      text-shadow: 0 0 22px var(--link-glow-color);
     }
 
     .feature-image-overlay {
@@ -818,10 +821,10 @@
     <div class="folder-icon" data-index="0">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="photoTitle">PHOTO</text>
+        <text x="8" y="14" data-i18n="designTitle">DESIGN</text>
       </svg>
-      <div class="folder-box" data-i18n="photoContent">
-        CAPTURING AUTHENTIC AND SHARP SCENES IN A VIVID AND RAW STATE, IN SPONTANEOUS OR PREPARED ENVIRONMENTS. MY FOCUS IS ON STAND-OUT DETAIL, WITH AN EYE FOR ELEMENTS WHICH FUNDAMENTALLY COMMUNICATE THE REQUIRED MESSAGE.
+      <div class="folder-box" data-i18n="designContent">
+        WHETHER IT BE LOGOS OR FULL-ON REBRANDING, OVERLAY ELEMENTS FOR VISUALS OR COMPLETE MOTION DESIGNS, FLYERS OR OUTRIGHT MAGAZINES, I AM ABLE TO PROVIDE THE GRAPHICS THAT REPRESENT YOUR CREATIVE IDEAS.
       </div>
     </div>
     <div class="folder-icon" data-index="1">
@@ -836,22 +839,13 @@
     <div class="folder-icon" data-index="2">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="socialsTitle">SOCIALS</text>
+        <text x="8" y="14" data-i18n="photoTitle">PHOTO</text>
       </svg>
-      <div class="folder-box" data-i18n="socialsContent">
-        AFTER HAVING WORKED WITH RESTAURANTS, BANDS, EVENTS AND STORES, I HAVE A DEEP UNDERSTANDING OF CONTENT PRODUCTION, GRASPING THE VIEWER’S ATTENTION AND ALGORITHM MANIPULATION.
+      <div class="folder-box" data-i18n="photoContent">
+        CAPTURING AUTHENTIC AND SHARP SCENES IN A VIVID AND RAW STATE, IN SPONTANEOUS OR PREPARED ENVIRONMENTS. MY FOCUS IS ON STAND-OUT DETAIL, WITH AN EYE FOR ELEMENTS WHICH FUNDAMENTALLY COMMUNICATE THE REQUIRED MESSAGE.
       </div>
     </div>
     <div class="folder-icon" data-index="3">
-      <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="artDirTitle">ART DIR.</text>
-      </svg>
-      <div class="folder-box" data-i18n="artDirContent">
-        AS A POLYVALENT CREATOR, I CAN ADAPT ALL FORMATS, MEDIUMS AND SKILLS INTO A SINGLE PROJECT. CONSTANTLY DEVELOPING NEW CREATIVE PROCESSES, WITH INSPIRATIONS AND REFERENCES OF A BROAD SPECTRUM, I HAVE A PASSION FOR IMAGE TREATMENT AND EFFECTS, PRESENTING MY WORK IN A SIGNATURE STYLE.
-      </div>
-    </div>
-    <div class="folder-icon" data-index="4">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
         <text x="8" y="14" data-i18n="webTitle">WEB</text>
@@ -860,13 +854,22 @@
         I AM PROFICIENT AT DEVELOPING INTERACTIVE USER-FRIENDLY INTERFACES, BOTH FRONT-END AND BACK-END, EXPRESSING UNIQUE AND AMBITIOUS CONCEPTS CONCENTRATING ON THE DATA THAT MATTERS MOST.
       </div>
     </div>
+    <div class="folder-icon" data-index="4">
+      <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
+        <text x="8" y="14" data-i18n="socialsTitle">SOCIALS</text>
+      </svg>
+      <div class="folder-box" data-i18n="socialsContent">
+        AFTER HAVING WORKED WITH RESTAURANTS, BANDS, EVENTS AND STORES, I HAVE A DEEP UNDERSTANDING OF CONTENT PRODUCTION, GRASPING THE VIEWER’S ATTENTION AND ALGORITHM MANIPULATION.
+      </div>
+    </div>
     <div class="folder-icon" data-index="5">
       <svg viewBox="0 0 100 70" xmlns="http://www.w3.org/2000/svg">
         <path d="M4,14 L4,6 A2,2 0 0 1 6,4 H42 Q44,4 46,6 L52,12 Q54,14 56,14 H92 Q96,14 96,18 V60 Q96,64 92,64 H8 Q4,64 4,60 Z" fill="var(--bg-main)" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/>
-        <text x="8" y="14" data-i18n="designTitle">DESIGN</text>
+        <text x="8" y="14" data-i18n="artDirTitle">ART DIR.</text>
       </svg>
-      <div class="folder-box" data-i18n="designContent">
-        WHETHER IT BE LOGOS OR FULL-ON REBRANDING, OVERLAY ELEMENTS FOR VISUALS OR COMPLETE MOTION DESIGNS, FLYERS OR OUTRIGHT MAGAZINES, I AM ABLE TO PROVIDE THE GRAPHICS THAT REPRESENT YOUR CREATIVE IDEAS.
+      <div class="folder-box" data-i18n="artDirContent">
+        AS A POLYVALENT CREATOR, I CAN ADAPT ALL FORMATS, MEDIUMS AND SKILLS INTO A SINGLE PROJECT. CONSTANTLY DEVELOPING NEW CREATIVE PROCESSES, WITH INSPIRATIONS AND REFERENCES OF A BROAD SPECTRUM, I HAVE A PASSION FOR IMAGE TREATMENT AND EFFECTS, PRESENTING MY WORK IN A SIGNATURE STYLE.
       </div>
     </div>
   </div>
