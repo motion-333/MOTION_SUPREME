@@ -532,10 +532,6 @@
       flex: 0 0 auto;
     }
 
-    .feature-gallery-track--links {
-      font-family: 'Ferrite Display', sans-serif;
-    }
-
     .feature-gallery-item {
       position: relative;
       display: flex;
@@ -561,41 +557,19 @@
       transform-origin: center;
     }
 
-    .feature-gallery-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      padding: 0 clamp(20px, 6vw, 48px);
-      border: 4px solid var(--accent);
-      color: var(--accent);
-      background: var(--bg-alt);
-      text-decoration: none;
-      font-family: 'Ferrite Display', sans-serif;
-      font-size: clamp(18px, 2.2vw, 34px);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      white-space: nowrap;
-      transition: border-color var(--theme-transition) ease, color var(--theme-transition) ease, background-color var(--theme-transition) ease;
-    }
-
-    .feature-gallery.links-mode .feature-gallery-track {
-      gap: clamp(28px, 5vw, 72px);
-    }
-
     .feature-link-placeholder {
       width: var(--feature-video-width, min(80vw, 960px));
       max-width: min(80vw, 960px);
-      height: var(--feature-video-height);
-      border: 4px solid var(--accent);
-      background: var(--bg-alt);
-      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+      min-height: clamp(140px, 20vh, var(--feature-video-height));
       display: none;
       align-items: center;
-      justify-content: center;
-      padding: 0;
-      text-align: center;
-      transition: background var(--theme-transition) ease, border-color var(--theme-transition) ease, color var(--theme-transition) ease;
+      justify-content: flex-start;
+      padding: clamp(12px, 2.6vh, 28px) 0;
+      text-align: left;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      transition: color var(--theme-transition) ease;
       overflow: hidden;
       position: relative;
     }
@@ -607,30 +581,25 @@
     .feature-link-track {
       display: flex;
       align-items: center;
-      gap: clamp(28px, 5vw, 72px);
+      gap: clamp(48px, 10vw, 180px);
       will-change: transform;
       min-width: 100%;
+      font-family: 'Ferrite Display', sans-serif;
+      font-size: clamp(36px, 7vw, 110px);
+      letter-spacing: 0.16em;
+      white-space: nowrap;
     }
 
     .feature-link-item {
+      flex: 0 0 auto;
       color: var(--accent);
       text-decoration: none;
-      font-size: clamp(22px, 2.6vw, 38px);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-family: 'Ferrite Display', sans-serif;
       transition: color var(--theme-transition) ease;
-      white-space: nowrap;
     }
 
     .feature-link-item:hover,
     .feature-link-item:focus {
-      color: var(--bg-main);
-    }
-
-    .feature-link-placeholder a:hover,
-    .feature-link-placeholder a:focus {
-      color: var(--fg-main);
+      color: var(--bg-alt);
     }
 
     .feature-image-overlay {
@@ -1586,6 +1555,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return url;
   }
 
+  function normaliseExternalLink(raw = '') {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('//')) {
+      return `https:${trimmed}`;
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
+  }
+
   function isEmbedVideoLink(url = '') {
     if (!url) return false;
     if (isDirectVideoUrl(url)) return true;
@@ -1749,7 +1730,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function clearFeatureGallery() {
     if (featureGallery) {
       featureGallery.innerHTML = '';
-      featureGallery.classList.remove('active', 'links-mode');
+      featureGallery.classList.remove('active');
     }
     stopGalleryLoop();
   }
@@ -1810,27 +1791,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderFeatureLinkMarquee(linkText) {
-    if (!featureGallery) return;
-    clearFeatureGallery();
+    if (!featureLinkPlaceholder || !featureLinkTrack) return;
     const trimmed = (linkText || '').trim();
     if (!trimmed) return;
 
-    const track = document.createElement('div');
-    track.className = 'feature-gallery-track feature-gallery-track--links';
-    const phrases = Array.from({ length: 6 }, () => trimmed);
+    stopGalleryLoop();
+    featureLinkTrack.innerHTML = '';
+    featureLinkTrack.style.transform = 'translateX(0)';
+
+    const url = normaliseExternalLink(trimmed);
+    const displayText = trimmed;
+    const phrases = Array.from({ length: 6 }, () => displayText);
     const total = phrases.length * 2;
+
     for (let i = 0; i < total; i++) {
       const anchor = document.createElement('a');
-      anchor.href = trimmed;
+      anchor.href = url;
       anchor.target = '_blank';
       anchor.rel = 'noopener noreferrer';
-      anchor.className = 'feature-gallery-link';
-      anchor.textContent = `${phrases[i % phrases.length]}  `;
-      track.appendChild(anchor);
+      anchor.className = 'feature-link-item';
+      anchor.textContent = phrases[i % phrases.length];
+      anchor.setAttribute('aria-label', `Open ${trimmed} in a new tab`);
+      featureLinkTrack.appendChild(anchor);
     }
-    featureGallery.appendChild(track);
-    featureGallery.classList.add('active', 'links-mode');
-    requestAnimationFrame(() => startGalleryLoop(track));
+
+    featureLinkPlaceholder.classList.add('active');
+    featureLinkPlaceholder.setAttribute('data-link', url);
+    requestAnimationFrame(() => startGalleryLoop(featureLinkTrack));
   }
 
   function hideLinkPlaceholder() {
@@ -1839,7 +1826,9 @@ document.addEventListener('DOMContentLoaded', () => {
     featureLinkPlaceholder.removeAttribute('data-link');
     if (featureLinkTrack) {
       featureLinkTrack.innerHTML = '';
+      featureLinkTrack.style.removeProperty('transform');
     }
+    stopGalleryLoop();
   }
 
   function openImageOverlay(src) {
@@ -2345,9 +2334,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const baseOffsets = {};
   sequence.forEach((idx, z) => icons[idx].style.zIndex = 100 - z);
   sequence.forEach((idx, i) => {
-    const sway = Math.sin(i * 0.9 + 0.6);
-    const offset = 44 + sway * 28;
-    baseOffsets[idx] = Math.round(offset);
+    const denom = sequence.length > 1 ? (sequence.length - 1) : 1;
+    baseOffsets[idx] = Math.round((i / denom) * 50);
   });
 
   function wrapText(text, container) {
@@ -2452,16 +2440,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     dropSequence.forEach((idx, i) => {
       const el = icons[idx];
-      const restOffset = baseOffsets[idx] || 0;
-      const restValue = `-${restOffset}px`;
-      el.style.setProperty('--drop-rest', restValue);
-      el.style.transform = 'translateY(-150vh)';
-      el.style.opacity = '0';
-      el.style.animation = `dropIn 0.8s cubic-bezier(0.22,1,0.36,1) ${i * dropInterval}ms forwards`;
+      el.style.animation = `dropIn 0.6s cubic-bezier(0.22,1,0.36,1) ${i * dropInterval}ms forwards`;
       el.addEventListener('animationend', () => {
         // persist final state so CSS defaults (off-screen/invisible) don't snap back
         el.style.animation = '';
-        el.style.transform = `translateY(${restValue})`;
+        el.style.transform = 'translateY(0)';
         el.style.opacity   = '1';
       }, { once: true });
     });
