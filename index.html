@@ -58,65 +58,6 @@
       visibility: hidden;
     }
 
-    #audio-debug-panel {
-      position: fixed;
-      top: calc(12px + 60px + 20px);
-      left: 12px;
-      padding: 10px 12px;
-      background: rgba(0, 0, 0, 0.65);
-      color: #ffffff;
-      font-family: 'Outfit', sans-serif;
-      font-size: 12px;
-      line-height: 1.4;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.35);
-      z-index: 1000;
-      pointer-events: none;
-      min-width: 180px;
-      white-space: pre-line;
-      transition: background-color var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
-    }
-
-    body.dark-mode #audio-debug-panel {
-      background: rgba(13, 15, 20, 0.78);
-      border-color: rgba(215, 43, 43, 0.45);
-      color: #f4f4f4;
-    }
-
-    #audio-debug-panel strong {
-      display: block;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-
-    #audio-debug-panel ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    #audio-debug-panel li {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      font-family: 'Ferrite Display', sans-serif;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-    }
-
-    #audio-debug-panel .audio-debug-empty {
-      opacity: 0.7;
-      font-style: italic;
-      font-family: 'Outfit', sans-serif;
-      letter-spacing: 0.04em;
-    }
-
     /* Language toggle button styling */
     #lang-toggle {
       position: fixed;
@@ -984,7 +925,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const SOUND_FILES = {
     click: 'click.wav',
     scroll: 'scroll.wav',
-    scrollTabs: 'scroll_tabs.wav',
     scrollAuto: 'scroll_auto.wav',
     interactiveText: 'interactive_text.wav',
     contactHover: 'contact_hover.wav',
@@ -997,6 +937,12 @@ document.addEventListener('DOMContentLoaded', () => {
     darkBed: 'dark_constant.wav',
     folderBed: 'folder_constant.wav'
   };
+
+  const CONSTANT_SOUNDS = new Set([
+    SOUND_FILES.lightBed,
+    SOUND_FILES.darkBed,
+    SOUND_FILES.folderBed
+  ]);
 
   const SOUND_COOLDOWNS = {
     [SOUND_FILES.click]: 500,
@@ -1034,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const buffers = new Map();
     const loading = new Map();
     const loops = new Map();
+    const clips = new Map();
     const cooldowns = new Map();
     const activeSounds = new Map();
     const debugListeners = new Set();
@@ -1158,6 +1105,38 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    function fadeClipEntry(name, entry, fadeSeconds = 0.8) {
+      if (!entry) return;
+      const now = ctx.currentTime;
+      const duration = Math.max(0.05, fadeSeconds || 0.05);
+      entry.gain.gain.cancelScheduledValues(now);
+      entry.gain.gain.setValueAtTime(entry.gain.gain.value, now);
+      entry.gain.gain.linearRampToValueAtTime(0.0001, now + duration);
+      markSoundFading(name, duration);
+      clips.delete(name);
+      try {
+        entry.source.stop(now + duration + 0.1);
+      } catch (error) {
+        try { entry.source.stop(); } catch (_) {}
+      }
+    }
+
+    function fadeOtherSounds(currentName, fadeSeconds = 0.8) {
+      const duration = Math.max(0.05, fadeSeconds || 0.05);
+      const loopsToStop = [];
+      loops.forEach((_, loopName) => {
+        if (loopName === currentName) return;
+        if (CONSTANT_SOUNDS.has(loopName)) return;
+        loopsToStop.push(loopName);
+      });
+      loopsToStop.forEach(loopName => stopLoop(loopName, duration));
+      clips.forEach((entry, clipName) => {
+        if (clipName === currentName) return;
+        if (CONSTANT_SOUNDS.has(clipName)) return;
+        fadeClipEntry(clipName, entry, duration);
+      });
+    }
+
     function setMasterMuted(muted, ramp = 0.2) {
       const duration = Math.max(0.05, typeof ramp === 'number' ? ramp : 0.2);
       const target = muted ? 0.0001 : 1;
@@ -1176,12 +1155,16 @@ document.addEventListener('DOMContentLoaded', () => {
         playbackRate = 1,
         duration = null,
         cooldown = DEFAULT_COOLDOWN,
-        allowOverlap = false
+        allowOverlap = false,
+        duckOthersFade = 0.8
       } = options;
       if (!allowOverlap && isSoundActive(name)) return;
       if (!allowOverlap && isCoolingDown(name, cooldown)) return;
       markCooldown(name, cooldown);
       unlock();
+      if (!CONSTANT_SOUNDS.has(name)) {
+        fadeOtherSounds(name, duckOthersFade);
+      }
       loadBuffer(name).then(buffer => {
         if (!buffer) return;
         const now = ctx.currentTime;
@@ -1194,8 +1177,12 @@ document.addEventListener('DOMContentLoaded', () => {
         source.connect(gain);
         gain.connect(master);
         source.start(now);
+        clips.set(name, { source, gain });
         setActiveSound(name, { loop: false });
-        source.onended = () => clearActiveSound(name);
+        source.onended = () => {
+          clips.delete(name);
+          clearActiveSound(name);
+        };
         const safeVolume = Math.max(0, volume);
         if (fadeIn > 0) {
           gain.gain.linearRampToValueAtTime(safeVolume, now + fadeIn);
@@ -1228,6 +1215,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       markCooldown(name, cooldownMs);
       unlock();
+      if (!CONSTANT_SOUNDS.has(name)) {
+        fadeOtherSounds(name, options.duckOthersFade ?? 0.8);
+      }
 
       return loadBuffer(name).then(buffer => {
         if (!buffer) return null;
@@ -1319,75 +1309,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const soundController = createSoundController();
   const audioSupported = Boolean(soundController && soundController.supported);
-  const audioDebugPanel = document.createElement('div');
-  audioDebugPanel.id = 'audio-debug-panel';
-  const audioDebugTitle = document.createElement('strong');
-  audioDebugTitle.textContent = 'Audio Monitor';
-  const audioDebugEmpty = document.createElement('div');
-  audioDebugEmpty.className = 'audio-debug-empty';
-  const audioDebugList = document.createElement('ul');
-  audioDebugPanel.append(audioDebugTitle, audioDebugEmpty, audioDebugList);
-
-  function updateAudioDebugPanel(sounds = []) {
-    if (!audioSupported) {
-      audioDebugEmpty.textContent = 'Audio unavailable';
-      audioDebugEmpty.style.display = 'block';
-      audioDebugList.style.display = 'none';
-      audioDebugList.innerHTML = '';
-      return;
-    }
-    const entries = Array.isArray(sounds)
-      ? sounds.slice().sort((a, b) => a.name.localeCompare(b.name))
-      : [];
-    if (!entries.length) {
-      audioDebugEmpty.textContent = 'No audio active';
-      audioDebugEmpty.style.display = 'block';
-      audioDebugList.style.display = 'none';
-      audioDebugList.innerHTML = '';
-      return;
-    }
-    audioDebugEmpty.style.display = 'none';
-    audioDebugList.style.display = 'flex';
-    audioDebugList.innerHTML = '';
-    entries.forEach(sound => {
-      const item = document.createElement('li');
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = sound.name;
-      const statusSpan = document.createElement('span');
-      let statusText = sound.loop ? 'looping' : 'one-shot';
-      if (!sound.loop && sound.count && sound.count > 1) {
-        statusText += ` ×${sound.count}`;
-      }
-      if (sound.fading) {
-        statusText += ' (fading)';
-      }
-      statusSpan.textContent = statusText;
-      item.append(nameSpan, statusSpan);
-      audioDebugList.appendChild(item);
-    });
-  }
-
-  const initialActive = typeof soundController.getActiveSounds === 'function'
-    ? soundController.getActiveSounds()
-    : [];
-  updateAudioDebugPanel(initialActive);
-  if (typeof soundController.onActiveChange === 'function') {
-    soundController.onActiveChange(updateAudioDebugPanel);
-  }
-
-  function attachAudioDebugPanel() {
-    if (!document.body || audioDebugPanel.isConnected) return;
-    document.body.appendChild(audioDebugPanel);
-    updateAudioDebugPanel(typeof soundController.getActiveSounds === 'function'
-      ? soundController.getActiveSounds()
-      : initialActive);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', attachAudioDebugPanel, { once: true });
-  } else {
-    attachAudioDebugPanel();
-  }
   const SOUND_PREF_KEY = 'ms-sound-enabled';
   let interactiveAudioEnabled = true;
   try {
@@ -1405,7 +1326,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let autoScrollActive = false;
   let autoScrollTimer = null;
   let scrollStopTimer = null;
-  let scrollTabsStopTimer = null;
   let lastScrollY = window.scrollY || 0;
   let lastScrollTime = performance.now();
 
@@ -1453,7 +1373,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       soundController.stopLoop(SOUND_FILES.scroll, 0.5);
-      soundController.stopLoop(SOUND_FILES.scrollTabs, 0.5);
       soundController.stopLoop(SOUND_FILES.idHold, 0.5);
       soundController.stopLoop(SOUND_FILES.folderBed, 0.5);
       soundController.stopLoop(SOUND_FILES.lightBed, 0.5);
@@ -1477,13 +1396,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (audioPrimed) return true;
     audioPrimed = true;
     if (!introPlayed) {
+      const INTRO_DURATION = 10;
       soundController.playClip(SOUND_FILES.intro, {
-        volume: 0.55,
-        duration: 7,
-        fadeIn: 1,
-        fadeOut: 3,
+        volume: 0.5,
+        duration: INTRO_DURATION,
+        fadeIn: 1.4,
+        fadeOut: 4.5,
         cooldown: 0,
-        allowOverlap: true
+        allowOverlap: true,
+        duckOthersFade: 1
       });
       introPlayed = true;
     }
@@ -1492,7 +1413,7 @@ document.addEventListener('DOMContentLoaded', () => {
       soundController.stopLoop(SOUND_FILES.lightBed, 5);
       soundController.stopLoop(SOUND_FILES.darkBed, 5);
     } else {
-      updateThemeConstant(true);
+      updateThemeConstant(true, 10);
     }
     return true;
   }
@@ -1509,11 +1430,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function triggerInteractiveTextSound() {
-    playEffect(SOUND_FILES.interactiveText, { volume: 0.52 });
+    playEffect(SOUND_FILES.interactiveText, { volume: 0.36, fadeOut: 2.2, duckOthersFade: 1 });
   }
 
   function triggerContactHoverSound() {
-    playEffect(SOUND_FILES.contactHover, { volume: 0.58 });
+    playEffect(SOUND_FILES.contactHover, { volume: 0.42, fadeOut: 2.4, duckOthersFade: 1 });
   }
 
   function triggerAutoScrollSound(duration) {
@@ -1538,6 +1459,11 @@ document.addEventListener('DOMContentLoaded', () => {
     soundController.stopLoop(SOUND_FILES.idHold, 3);
   }
 
+  if (typeof window !== 'undefined') {
+    window.startIdHoldSound = startIdHoldSound;
+    window.stopIdHoldSound = stopIdHoldSound;
+  }
+
   function setAutoScrollState(active, duration = 0) {
     autoScrollActive = active;
     if (autoScrollTimer) {
@@ -1546,8 +1472,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (active) {
       if (audioSupported) {
-        soundController.stopLoop(SOUND_FILES.scroll, 0.6);
-        soundController.stopLoop(SOUND_FILES.scrollTabs, 0.6);
+        soundController.stopLoop(SOUND_FILES.scroll, 1);
       }
       if (duration > 0) {
         autoScrollTimer = window.setTimeout(() => {
@@ -1558,9 +1483,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function updateThemeConstant(immediate = false) {
+  function updateThemeConstant(immediate = false, fadeOverride = null) {
     if (!audioSupported || !audioPrimed || folderZoneActive || !interactiveAudioEnabled) return;
-    const fade = immediate ? 0.6 : 1.5;
+    const fade = (typeof fadeOverride === 'number' && Number.isFinite(fadeOverride))
+      ? Math.max(0.05, fadeOverride)
+      : (immediate ? 0.6 : 1.5);
     if (currentTheme === 'dark') {
       soundController.ensureLoop(SOUND_FILES.darkBed, { volume: 0.16, fadeIn: fade, cooldown: 0 });
       soundController.stopLoop(SOUND_FILES.lightBed, fade);
@@ -1588,9 +1515,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!audioSupported || !interactiveAudioEnabled) return;
     switch (name) {
       case 'folder-hover':
+        if (!folderZoneActive) return;
         playEffect(SOUND_FILES.folderHover, { volume: 0.5 });
         break;
       case 'folder-click':
+        if (!folderZoneActive) return;
         playEffect(SOUND_FILES.folderClick, { volume: 0.64 });
         break;
       case 'interactive-text':
@@ -1605,7 +1534,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!audioSupported) return;
     if (!interactiveAudioEnabled) {
       soundController.stopLoop(SOUND_FILES.scroll, 0.4);
-      soundController.stopLoop(SOUND_FILES.scrollTabs, 0.4);
       return;
     }
     const now = performance.now();
@@ -1617,46 +1545,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (autoScrollActive) {
       if (scrollStopTimer) { clearTimeout(scrollStopTimer); scrollStopTimer = null; }
-      if (scrollTabsStopTimer) { clearTimeout(scrollTabsStopTimer); scrollTabsStopTimer = null; }
       return;
     }
+    const distance = Math.abs(delta);
+    const pxPerSec = distance / dt * 1000;
+    let intensity = Math.min(pxPerSec / 1400, 1);
+    if (distance < 0.5 || intensity < 0.0001) {
+      intensity = 0;
+    }
+    const active = intensity > 0.045;
 
-    const pxPerSec = Math.abs(delta) / dt * 1000;
-    const intensity = Math.min(pxPerSec / 1400, 1);
-
-    if (intensity > 0.015) {
+    if (active) {
       ensureSoundReady();
-      const volume = 0.16 + intensity * 0.36;
-      soundController.ensureLoop(SOUND_FILES.scroll, { volume, fadeIn: 0.6, cooldown: 0 });
-      soundController.setLoopVolume(SOUND_FILES.scroll, volume, 0.25);
-      if (scrollStopTimer) clearTimeout(scrollStopTimer);
-      scrollStopTimer = window.setTimeout(() => {
-        soundController.stopLoop(SOUND_FILES.scroll, 1.6);
+      const volume = 0.02 + intensity * 0.14;
+      soundController.ensureLoop(SOUND_FILES.scroll, { volume, fadeIn: 0.4, cooldown: 0 });
+      soundController.setLoopVolume(SOUND_FILES.scroll, volume, 0.2);
+      if (scrollStopTimer) {
+        clearTimeout(scrollStopTimer);
         scrollStopTimer = null;
-      }, 220);
+      }
     } else if (!scrollStopTimer && soundController.isLoopActive(SOUND_FILES.scroll)) {
       scrollStopTimer = window.setTimeout(() => {
-        soundController.stopLoop(SOUND_FILES.scroll, 1.6);
+        soundController.stopLoop(SOUND_FILES.scroll, 1);
         scrollStopTimer = null;
-      }, 220);
-    }
-
-    const inTabsRange = currentY >= window.innerHeight && currentY <= window.innerHeight * 4;
-    if (intensity > 0.02 && inTabsRange) {
-      ensureSoundReady();
-      const tabVolume = 0.12 + intensity * 0.18;
-      soundController.ensureLoop(SOUND_FILES.scrollTabs, { volume: tabVolume, fadeIn: 0.8, cooldown: 0 });
-      soundController.setLoopVolume(SOUND_FILES.scrollTabs, tabVolume, 0.3);
-      if (scrollTabsStopTimer) clearTimeout(scrollTabsStopTimer);
-      scrollTabsStopTimer = window.setTimeout(() => {
-        soundController.stopLoop(SOUND_FILES.scrollTabs, 2);
-        scrollTabsStopTimer = null;
-      }, 260);
-    } else if (!scrollTabsStopTimer && soundController.isLoopActive(SOUND_FILES.scrollTabs)) {
-      scrollTabsStopTimer = window.setTimeout(() => {
-        soundController.stopLoop(SOUND_FILES.scrollTabs, 2);
-        scrollTabsStopTimer = null;
-      }, 200);
+      }, 80);
     }
   }
 
@@ -1672,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.button !== undefined && event.button !== 0) return;
     ensureSoundReady();
     if (audioSupported) {
-      playEffect(SOUND_FILES.click, { volume: 0.62 });
+      playEffect(SOUND_FILES.click, { volume: 0.62, fadeIn: 0.05, fadeOut: 2, duckOthersFade: 1 });
     }
   }, { passive: true });
 
@@ -2708,9 +2620,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const hit=raycaster.intersectObjects(cardMeshes,false);
         if(!hit.length) return;
         isDown=true; isUp=false; tDownStart=performance.now(); prevDown=0; maskCtx.fillStyle='black'; maskCtx.fillRect(0,0,maskSize,maskSize); maskTexture.needsUpdate=true;
-        startIdHoldSound();
+        if (typeof window.startIdHoldSound === 'function') {
+          window.startIdHoldSound();
+        }
       });
-      window.addEventListener('mouseup',()=>{ if(isDown){ isDown=false; isUp=true; tUpStart=performance.now(); prevUp=0; } stopIdHoldSound(); });
+      window.addEventListener('mouseup',()=>{ if(isDown){ isDown=false; isUp=true; tUpStart=performance.now(); prevUp=0; } if(typeof window.stopIdHoldSound==='function'){ window.stopIdHoldSound(); } });
       const mouse=new THREE.Vector2();
       window.addEventListener('mousemove',e=>{
         const rect=container.getBoundingClientRect();
