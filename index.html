@@ -58,6 +58,65 @@
       visibility: hidden;
     }
 
+    #audio-debug-panel {
+      position: fixed;
+      top: calc(12px + 60px + 20px);
+      left: 12px;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      z-index: 1000;
+      pointer-events: none;
+      min-width: 180px;
+      white-space: pre-line;
+      transition: background-color var(--theme-transition) ease, color var(--theme-transition) ease, border-color var(--theme-transition) ease;
+    }
+
+    body.dark-mode #audio-debug-panel {
+      background: rgba(13, 15, 20, 0.78);
+      border-color: rgba(215, 43, 43, 0.45);
+      color: #f4f4f4;
+    }
+
+    #audio-debug-panel strong {
+      display: block;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    #audio-debug-panel ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #audio-debug-panel li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-family: 'Ferrite Display', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    #audio-debug-panel .audio-debug-empty {
+      opacity: 0.7;
+      font-style: italic;
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: 0.04em;
+    }
+
     /* Language toggle button styling */
     #lang-toggle {
       position: fixed;
@@ -1260,6 +1319,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const soundController = createSoundController();
   const audioSupported = Boolean(soundController && soundController.supported);
+  const audioDebugPanel = document.createElement('div');
+  audioDebugPanel.id = 'audio-debug-panel';
+  const audioDebugTitle = document.createElement('strong');
+  audioDebugTitle.textContent = 'Audio Monitor';
+  const audioDebugEmpty = document.createElement('div');
+  audioDebugEmpty.className = 'audio-debug-empty';
+  const audioDebugList = document.createElement('ul');
+  audioDebugPanel.append(audioDebugTitle, audioDebugEmpty, audioDebugList);
+
+  function updateAudioDebugPanel(sounds = []) {
+    if (!audioSupported) {
+      audioDebugEmpty.textContent = 'Audio unavailable';
+      audioDebugEmpty.style.display = 'block';
+      audioDebugList.style.display = 'none';
+      audioDebugList.innerHTML = '';
+      return;
+    }
+    const entries = Array.isArray(sounds)
+      ? sounds.slice().sort((a, b) => a.name.localeCompare(b.name))
+      : [];
+    if (!entries.length) {
+      audioDebugEmpty.textContent = 'No audio active';
+      audioDebugEmpty.style.display = 'block';
+      audioDebugList.style.display = 'none';
+      audioDebugList.innerHTML = '';
+      return;
+    }
+    audioDebugEmpty.style.display = 'none';
+    audioDebugList.style.display = 'flex';
+    audioDebugList.innerHTML = '';
+    entries.forEach(sound => {
+      const item = document.createElement('li');
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = sound.name;
+      const statusSpan = document.createElement('span');
+      let statusText = sound.loop ? 'looping' : 'one-shot';
+      if (!sound.loop && sound.count && sound.count > 1) {
+        statusText += ` ×${sound.count}`;
+      }
+      if (sound.fading) {
+        statusText += ' (fading)';
+      }
+      statusSpan.textContent = statusText;
+      item.append(nameSpan, statusSpan);
+      audioDebugList.appendChild(item);
+    });
+  }
+
+  const initialActive = typeof soundController.getActiveSounds === 'function'
+    ? soundController.getActiveSounds()
+    : [];
+  updateAudioDebugPanel(initialActive);
+  if (typeof soundController.onActiveChange === 'function') {
+    soundController.onActiveChange(updateAudioDebugPanel);
+  }
+
+  function attachAudioDebugPanel() {
+    if (!document.body || audioDebugPanel.isConnected) return;
+    document.body.appendChild(audioDebugPanel);
+    updateAudioDebugPanel(typeof soundController.getActiveSounds === 'function'
+      ? soundController.getActiveSounds()
+      : initialActive);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAudioDebugPanel, { once: true });
+  } else {
+    attachAudioDebugPanel();
+  }
   const SOUND_PREF_KEY = 'ms-sound-enabled';
   let interactiveAudioEnabled = true;
   try {
