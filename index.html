@@ -558,8 +558,8 @@
     }
 
     .feature-link-placeholder {
-      width: var(--feature-video-width, min(80vw, 960px));
-      max-width: min(80vw, 960px);
+      width: 100vw;
+      max-width: 100vw;
       min-height: clamp(140px, 20vh, var(--feature-video-height));
       display: none;
       align-items: center;
@@ -581,9 +581,10 @@
     .feature-link-track {
       display: flex;
       align-items: center;
-      gap: clamp(48px, 10vw, 180px);
+      gap: clamp(8px, 3vw, 32px);
       will-change: transform;
       min-width: 100%;
+      width: 100%;
       font-family: 'Ferrite Display', sans-serif;
       font-size: clamp(36px, 7vw, 110px);
       letter-spacing: 0.16em;
@@ -594,12 +595,14 @@
       flex: 0 0 auto;
       color: var(--accent);
       text-decoration: none;
-      transition: color var(--theme-transition) ease;
+      text-transform: uppercase;
+      transition: text-shadow 0.25s ease;
     }
 
     .feature-link-item:hover,
     .feature-link-item:focus {
-      color: var(--bg-alt);
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
     }
 
     .feature-image-overlay {
@@ -2440,11 +2443,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     dropSequence.forEach((idx, i) => {
       const el = icons[idx];
+      if (!el) return;
+      const restOffset = -(baseOffsets[idx] || 0);
+      el.style.setProperty('--drop-rest', `${restOffset}px`);
       el.style.animation = `dropIn 0.6s cubic-bezier(0.22,1,0.36,1) ${i * dropInterval}ms forwards`;
       el.addEventListener('animationend', () => {
         // persist final state so CSS defaults (off-screen/invisible) don't snap back
         el.style.animation = '';
-        el.style.transform = 'translateY(0)';
+        el.style.transform = `translateY(${restOffset}px)`;
         el.style.opacity   = '1';
       }, { once: true });
     });
