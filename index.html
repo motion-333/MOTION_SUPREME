@@ -928,9 +928,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let featureVideoMuted = true;
   let galleryAnimationId = null;
   let galleryTrack = null;
-  let galleryLoopWidth = 0;
-  let galleryOffset = 0;
   let galleryLastTs = 0;
+  let galleryShift = 0;
+  let galleryItemGap = 0;
   const GALLERY_SPEED = 40; // pixels per second
   const DIRECT_VIDEO_EXT = /\.(mp4|webm|ogg)(?:\?.*)?$/i;
   const IMAGE_EXT = /\.(?:apng|avif|gif|jpe?g|jfif|pjpe?g|pjp|png|svg|webp)$/i;
@@ -955,6 +955,78 @@ document.addEventListener('DOMContentLoaded', () => {
       return trimmed;
     }
   });
+
+  function collectMediaSources(entry) {
+    const sources = [];
+    const seen = new Set();
+    const addSource = value => {
+      if (typeof value !== 'string') return;
+      const normalised = safeNormaliseMediaSource(value);
+      if (!normalised || seen.has(normalised)) return;
+      seen.add(normalised);
+      sources.push(normalised);
+    };
+
+    if (!entry) return sources;
+
+    if (typeof entry === 'string') {
+      addSource(entry);
+      return sources;
+    }
+
+    if (typeof entry !== 'object') {
+      return sources;
+    }
+
+    ['src', 'href', 'url', 'poster', 'path', 'file'].forEach(key => {
+      if (typeof entry[key] === 'string') {
+        addSource(entry[key]);
+      }
+    });
+
+    if (Array.isArray(entry.sources)) {
+      entry.sources.forEach(source => {
+        if (!source) return;
+        if (typeof source === 'string') {
+          addSource(source);
+        } else if (typeof source === 'object') {
+          if (typeof source.src === 'string') addSource(source.src);
+          if (typeof source.url === 'string') addSource(source.url);
+        }
+      });
+    }
+
+    if (Array.isArray(entry.files)) {
+      entry.files.forEach(source => {
+        if (!source) return;
+        if (typeof source === 'string') {
+          addSource(source);
+        } else if (typeof source === 'object') {
+          if (typeof source.src === 'string') addSource(source.src);
+          if (typeof source.url === 'string') addSource(source.url);
+        }
+      });
+    }
+
+    if (Array.isArray(entry.images)) {
+      entry.images.forEach(source => {
+        if (!source) return;
+        if (typeof source === 'string') {
+          addSource(source);
+        } else if (typeof source === 'object') {
+          if (typeof source.src === 'string') addSource(source.src);
+          if (typeof source.url === 'string') addSource(source.url);
+        }
+      });
+    }
+
+    return sources;
+  }
+
+  function extractPrimaryMediaSource(entry) {
+    const sources = collectMediaSources(entry);
+    return sources.length ? sources[0] : '';
+  }
 
   function shouldPreloadMedia(src) {
     if (!src) return false;
@@ -1016,7 +1088,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function queueMediaPreloads(list) {
     if (!Array.isArray(list)) return;
-    list.forEach(src => scheduleMediaPreload(src));
+    list.forEach(entry => {
+      if (!entry) return;
+      if (typeof entry === 'string') {
+        scheduleMediaPreload(entry);
+        return;
+      }
+      collectMediaSources(entry).forEach(src => scheduleMediaPreload(src));
+    });
   }
 
   function queuePortfolioMediaPreload(manifest) {
@@ -1026,12 +1105,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const items = Array.isArray(folder?.items) ? folder.items : [];
       items.forEach(item => {
         const mediaList = Array.isArray(item?.media) ? item.media : [];
-        mediaList.forEach(src => {
-          const normalised = safeNormaliseMediaSource(src);
-          if (!normalised || unique.has(normalised)) return;
-          unique.add(normalised);
-          scheduleMediaPreload(normalised);
+        mediaList.forEach(entry => {
+          collectMediaSources(entry).forEach(src => {
+            if (unique.has(src)) return;
+            unique.add(src);
+            scheduleMediaPreload(src);
+          });
         });
+        const featureVideo = item?.featureVideo;
+        if (featureVideo && typeof featureVideo === 'object') {
+          if (typeof featureVideo.poster === 'string') {
+            collectMediaSources({ src: featureVideo.poster }).forEach(src => {
+              if (unique.has(src)) return;
+              unique.add(src);
+              scheduleMediaPreload(src);
+            });
+          }
+          if (Array.isArray(featureVideo.posters)) {
+            featureVideo.posters.forEach(entry => {
+              collectMediaSources(entry).forEach(src => {
+                if (unique.has(src)) return;
+                unique.add(src);
+                scheduleMediaPreload(src);
+              });
+            });
+          }
+        }
       });
     });
   }
@@ -1824,36 +1923,58 @@ document.addEventListener('DOMContentLoaded', () => {
       cancelAnimationFrame(galleryAnimationId);
       galleryAnimationId = null;
     }
+    if (galleryTrack) {
+      galleryTrack.style.transform = '';
+    }
     galleryTrack = null;
-    galleryLoopWidth = 0;
-    galleryOffset = 0;
     galleryLastTs = 0;
+    galleryShift = 0;
+    galleryItemGap = 0;
   }
 
   function galleryStep(timestamp) {
-    if (!galleryTrack || galleryLoopWidth <= 0) {
+    if (!galleryTrack) {
       galleryAnimationId = null;
       return;
     }
     if (!galleryLastTs) galleryLastTs = timestamp;
-    const delta = (timestamp - galleryLastTs) / 1000;
+    const delta = Math.max(0, (timestamp - galleryLastTs) / 1000);
     galleryLastTs = timestamp;
-    galleryOffset = (galleryOffset + GALLERY_SPEED * delta) % galleryLoopWidth;
-    galleryTrack.style.transform = `translateX(${-galleryOffset}px)`;
+    galleryShift -= GALLERY_SPEED * delta;
+    normalizeGalleryShift();
+    galleryTrack.style.transform = `translate3d(${galleryShift}px, 0, 0)`;
     galleryAnimationId = requestAnimationFrame(galleryStep);
+  }
+
+  function normalizeGalleryShift() {
+    if (!galleryTrack) return;
+    if (!Number.isFinite(galleryItemGap) || galleryItemGap < 0) {
+      galleryItemGap = 0;
+    }
+    let guard = 0;
+    while (guard < 32) {
+      const first = galleryTrack.firstElementChild;
+      if (!first) break;
+      const width = first.getBoundingClientRect().width || first.offsetWidth || 0;
+      if (!(width > 0)) break;
+      const threshold = -(width + galleryItemGap);
+      if (galleryShift > threshold) break;
+      galleryShift += width + galleryItemGap;
+      galleryTrack.appendChild(first);
+      guard += 1;
+    }
   }
 
   function startGalleryLoop(track) {
     stopGalleryLoop();
     if (!track) return;
     galleryTrack = track;
-    galleryLoopWidth = track.scrollWidth / 2 || track.scrollWidth;
-    if (galleryLoopWidth <= 0) {
-      galleryTrack = null;
-      return;
-    }
-    galleryOffset = 0;
     galleryLastTs = 0;
+    galleryShift = 0;
+    const computed = window.getComputedStyle(track);
+    const gapValue = parseFloat(computed.columnGap || computed.gap || '0');
+    galleryItemGap = Number.isFinite(gapValue) && gapValue > 0 ? gapValue : 0;
+    track.style.transform = 'translate3d(0, 0, 0)';
     galleryAnimationId = requestAnimationFrame(galleryStep);
   }
 
@@ -1918,68 +2039,101 @@ document.addEventListener('DOMContentLoaded', () => {
     stopGalleryLoop();
   }
 
-  function renderFeatureGallery(media = [], label = 'MEDIA') {
+  function renderFeatureGallery(media = [], label = 'MEDIA', preloadTargets = media) {
     if (!featureGallery) return;
     clearFeatureGallery();
-    if (!media.length) return;
 
-    queueMediaPreloads(media);
+    const list = Array.isArray(media)
+      ? media.map(entry => (typeof entry === 'string' ? entry : extractPrimaryMediaSource(entry))).filter(Boolean)
+      : [];
+
+    if (!list.length) return;
+
+    const preloadList = Array.isArray(preloadTargets) && preloadTargets.length ? preloadTargets : list;
+    queueMediaPreloads(preloadList);
+
     const track = document.createElement('div');
     track.className = 'feature-gallery-track';
-    const sources = media.length === 1 ? media.concat(media) : media.concat(media);
-    sources.forEach((src, index) => {
+    featureGallery.appendChild(track);
+    featureGallery.classList.add('active');
+
+    const baseSources = list.slice();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const minTrackWidth = viewportWidth ? viewportWidth * 2.1 : 0;
+
+    let pending = 0;
+    let loopStarted = false;
+
+    const maybeActivate = () => {
+      if (loopStarted || pending > 0) {
+        return;
+      }
+      ensureCoverage();
+      if (pending > 0) {
+        return;
+      }
+      loopStarted = true;
+      startGalleryLoop(track);
+      resizeActiveGalleryItems();
+    };
+
+    const ensureCoverage = () => {
+      if (!baseSources.length) return;
+      const computed = window.getComputedStyle(track);
+      const gapValue = parseFloat(computed.columnGap || computed.gap || '0') || 0;
+      const firstCycle = Array.from(track.children).slice(0, baseSources.length);
+      if (!firstCycle.length) return;
+      const cycleWidth = firstCycle.reduce((total, el, index) => {
+        const rectWidth = el.getBoundingClientRect().width || el.offsetWidth || 0;
+        if (!(rectWidth > 0)) return total;
+        return total + rectWidth + (index < firstCycle.length - 1 ? gapValue : 0);
+      }, 0);
+      if (!(cycleWidth > 0)) return;
+      const targetWidth = minTrackWidth || cycleWidth * 3;
+      let guard = 0;
+      while (track.scrollWidth < targetWidth && guard < 6) {
+        baseSources.forEach((src, idx) => addItem(src, idx + 1));
+        guard += 1;
+      }
+    };
+
+    function addItem(src, displayIndex) {
+      const resolvedSrc = safeNormaliseMediaSource(src);
+      const finalSrc = resolvedSrc || (typeof src === 'string' ? src : '');
+      if (!finalSrc) return;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'feature-gallery-item';
       const img = document.createElement('img');
-      const resolvedSrc = safeNormaliseMediaSource(src);
-      const finalSrc = resolvedSrc || src;
-      if (finalSrc) {
-        img.src = finalSrc;
-      }
+      img.src = finalSrc;
       img.decoding = 'async';
-      if (index < media.length) {
-        try { img.fetchPriority = 'high'; } catch (_) {}
-      }
-      const baseIndex = (index % media.length) + 1;
-      img.alt = `${label} preview ${baseIndex}`;
+      img.loading = 'eager';
+      try { img.fetchPriority = 'high'; } catch (_) {}
+      img.alt = `${label} preview ${displayIndex}`;
       button.appendChild(img);
       button.addEventListener('click', () => {
         playEffect(SOUND_FILES.imageClick, { volume: 0.6 });
         openImageOverlay(finalSrc);
       });
-      const sizeHandler = () => adjustGalleryItemSize(button, img);
-      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
-        sizeHandler();
-      } else {
-        img.addEventListener('load', sizeHandler, { once: true });
-        img.addEventListener('error', () => adjustGalleryItemSize(button, img), { once: true });
-      }
       track.appendChild(button);
-    });
-    featureGallery.appendChild(track);
-    featureGallery.classList.add('active');
-    const images = Array.from(track.querySelectorAll('img'));
-    let pending = images.length;
-    const maybeStart = () => {
-      pending -= 1;
-      if (pending <= 0) {
-        startGalleryLoop(track);
-        resizeActiveGalleryItems();
+      pending += 1;
+      const finalize = () => {
+        adjustGalleryItemSize(button, img);
+        pending = Math.max(0, pending - 1);
+        maybeActivate();
+      };
+      if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        requestAnimationFrame(finalize);
+      } else {
+        img.addEventListener('load', finalize, { once: true });
+        img.addEventListener('error', finalize, { once: true });
       }
-    };
-    if (!images.length) {
-      startGalleryLoop(track);
-    } else {
-      images.forEach(img => {
-        if (img.complete && img.naturalWidth > 0) {
-          maybeStart();
-        } else {
-          img.addEventListener('load', maybeStart, { once: true });
-          img.addEventListener('error', maybeStart, { once: true });
-        }
-      });
     }
+
+    baseSources.forEach((src, idx) => addItem(src, idx + 1));
+    baseSources.forEach((src, idx) => addItem(src, idx + 1));
+
+    maybeActivate();
   }
 
   function renderFeatureLinkMarquee(linkText) {
@@ -2185,7 +2339,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (preferLinkMarquee) {
       renderFeatureLinkMarquee(externalLink);
     } else if (!hasVideo && hasImages) {
-      renderFeatureGallery(media, label);
+      const preloadList = Array.isArray(entry.mediaPreload) && entry.mediaPreload.length
+        ? entry.mediaPreload
+        : media;
+      renderFeatureGallery(media, label, preloadList);
     } else if (!hasVideo && !hasImages && externalLink) {
       renderFeatureLinkMarquee(externalLink);
     } else if (!hasVideo && !hasImages && !externalLink) {
@@ -2946,10 +3103,27 @@ document.addEventListener('DOMContentLoaded', () => {
     return items.map((item, idx) => {
       const label = (item && item.label) ? item.label : String(item && item.id || idx + 1).replace(/^[0-9]+_/, '').replace(/_/g, ' ').toUpperCase();
       const index = (item && item.index) ? item.index.padStart(2, '0') : String(idx + 1).padStart(2, '0');
-      const media = Array.isArray(item?.media)
-        ? item.media.map(entry => safeNormaliseMediaSource(entry)).filter(Boolean)
-        : [];
-      let featureVideo = normaliseFeatureVideo(item?.featureVideo);
+      const rawMediaList = Array.isArray(item?.media) ? item.media : [];
+      const mediaPreloadSet = new Set();
+      const media = rawMediaList
+        .map(entry => {
+          const sources = collectMediaSources(entry);
+          sources.forEach(src => mediaPreloadSet.add(src));
+          return sources.length ? sources[0] : '';
+        })
+        .filter(Boolean);
+      const rawFeatureVideo = item?.featureVideo;
+      let featureVideo = normaliseFeatureVideo(rawFeatureVideo);
+      if (rawFeatureVideo && typeof rawFeatureVideo === 'object') {
+        if (typeof rawFeatureVideo.poster === 'string') {
+          collectMediaSources({ src: rawFeatureVideo.poster }).forEach(src => mediaPreloadSet.add(src));
+        }
+        if (Array.isArray(rawFeatureVideo.posters)) {
+          rawFeatureVideo.posters.forEach(entry => {
+            collectMediaSources(entry).forEach(src => mediaPreloadSet.add(src));
+          });
+        }
+      }
       const externalLink = typeof item?.externalLink === 'string' ? item.externalLink.trim() : '';
       const requestedAspect = typeof item?.videoAspectRatio === 'string' ? item.videoAspectRatio.trim() : '';
       if (!featureVideo && externalLink && media.length > 0 && isEmbedVideoLink(externalLink)) {
@@ -2959,6 +3133,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       }
       const base = { index, label, media, externalLink };
+      const mediaPreload = Array.from(mediaPreloadSet);
+      if (mediaPreload.length) {
+        base.mediaPreload = mediaPreload;
+      }
       return featureVideo ? { ...base, featureVideo } : base;
     });
   }
