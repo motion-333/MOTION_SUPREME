@@ -933,7 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ? (cb => window.requestIdleCallback(cb, { timeout: 2000 }))
     : (cb => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 200));
 
-  function normaliseMediaSource(raw) {
+  function safeNormaliseMediaSource(raw) {
     if (typeof raw !== 'string') return '';
     const trimmed = raw.trim();
     if (!trimmed) return '';
@@ -951,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function preloadImageAsset(src) {
-    const normalised = normaliseMediaSource(src);
+    const normalised = safeNormaliseMediaSource(src);
     if (!normalised || !shouldPreloadMedia(normalised)) {
       return Promise.resolve(null);
     }
@@ -995,7 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function scheduleMediaPreload(src) {
-    const normalised = normaliseMediaSource(src);
+    const normalised = safeNormaliseMediaSource(src);
     if (!normalised || !shouldPreloadMedia(normalised)) return;
     if (mediaPreloadCache.has(normalised) || mediaPreloadQueue.has(normalised)) return;
     mediaPreloadQueue.add(normalised);
@@ -1015,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
       items.forEach(item => {
         const mediaList = Array.isArray(item?.media) ? item.media : [];
         mediaList.forEach(src => {
-          const normalised = normaliseMediaSource(src);
+          const normalised = safeNormaliseMediaSource(src);
           if (!normalised || unique.has(normalised)) return;
           unique.add(normalised);
           scheduleMediaPreload(normalised);
@@ -1916,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.type = 'button';
       button.className = 'feature-gallery-item';
       const img = document.createElement('img');
-      const resolvedSrc = normaliseMediaSource(src);
+      const resolvedSrc = safeNormaliseMediaSource(src);
       const finalSrc = resolvedSrc || src;
       if (finalSrc) {
         img.src = finalSrc;
@@ -2009,7 +2009,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openImageOverlay(src) {
     if (!featureImageOverlay || !featureImageOverlayImg) return;
-    const resolved = normaliseMediaSource(src);
+    const resolved = safeNormaliseMediaSource(src);
     featureImageOverlayImg.src = resolved || src;
     featureImageOverlay.classList.add('visible');
   }
@@ -2931,7 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const label = (item && item.label) ? item.label : String(item && item.id || idx + 1).replace(/^[0-9]+_/, '').replace(/_/g, ' ').toUpperCase();
       const index = (item && item.index) ? item.index.padStart(2, '0') : String(idx + 1).padStart(2, '0');
       const media = Array.isArray(item?.media)
-        ? item.media.map(entry => normaliseMediaSource(entry)).filter(Boolean)
+        ? item.media.map(entry => safeNormaliseMediaSource(entry)).filter(Boolean)
         : [];
       let featureVideo = normaliseFeatureVideo(item?.featureVideo);
       const externalLink = typeof item?.externalLink === 'string' ? item.externalLink.trim() : '';
