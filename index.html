@@ -956,7 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function collectMediaSources(entry) {
+  const collectMediaSources = window.collectMediaSources || function collectMediaSources(entry) {
     const sources = [];
     const seen = new Set();
     const addSource = value => {
@@ -1021,6 +1021,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return sources;
+  };
+
+  if (typeof window !== 'undefined') {
+    window.collectMediaSources = collectMediaSources;
   }
 
   function extractPrimaryMediaSource(entry) {
