@@ -1036,6 +1036,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (typeof window !== 'undefined') {
+    window.queuePortfolioMediaPreload = queuePortfolioMediaPreload;
+  }
+
   const SOUND_FILES = {
     click: 'click.wav',
     scroll: 'scroll.wav',
@@ -2995,7 +2999,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     applyPortfolio(portfolioManifest);
     sendPortfolio();
-    queuePortfolioMediaPreload(portfolioManifest);
+    const runPreload = () => {
+      if (typeof window.queuePortfolioMediaPreload === 'function') {
+        try {
+          window.queuePortfolioMediaPreload(portfolioManifest);
+        } catch (error) {
+          console.warn('Failed to queue portfolio preloads', error);
+        }
+      }
+    };
+
+    if (typeof window.queuePortfolioMediaPreload === 'function') {
+      runPreload();
+    } else if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', runPreload, { once: true });
+    } else {
+      runPreload();
+    }
   }
 
   if (orbitIframe) orbitIframe.addEventListener('load', sendPortfolio);
