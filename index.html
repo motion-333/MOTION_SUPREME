@@ -784,6 +784,18 @@
     }
 
   </style>
+  <script>
+    window.safeNormaliseMediaSource = function safeNormaliseMediaSource(raw) {
+      if (typeof raw !== 'string') return '';
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      try {
+        return encodeURI(trimmed);
+      } catch (error) {
+        return trimmed;
+      }
+    };
+  </script>
 </head>
   <script>
     document.documentElement.classList.add('i18n-loading');
@@ -933,16 +945,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ? (cb => window.requestIdleCallback(cb, { timeout: 2000 }))
     : (cb => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 200));
 
-  function safeNormaliseMediaSource(raw) {
+  const safeNormaliseMediaSource = window.safeNormaliseMediaSource || (raw => {
     if (typeof raw !== 'string') return '';
     const trimmed = raw.trim();
     if (!trimmed) return '';
     try {
       return encodeURI(trimmed);
-    } catch (_) {
+    } catch (error) {
       return trimmed;
     }
-  }
+  });
 
   function shouldPreloadMedia(src) {
     if (!src) return false;
