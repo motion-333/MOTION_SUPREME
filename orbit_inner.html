@@ -382,6 +382,106 @@
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+    const DIRECT_VIDEO_EXT = /\.(mp4|webm|ogg)(?:\?.*)?$/i;
+    const IMAGE_EXT = /\.(?:apng|avif|gif|jpe?g|jfif|pjpe?g|pjp|png|svg|webp)$/i;
+
+    const mediaPreloadCache = new Map();
+    const mediaPreloadQueue = new Set();
+    let mediaPreloadActive = 0;
+    const MEDIA_PRELOAD_CONCURRENCY = 2;
+    const scheduleIdle = (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function')
+      ? (cb => window.requestIdleCallback(cb, { timeout: 2000 }))
+      : (cb => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 200));
+
+    function normaliseMediaSrc(raw) {
+      if (typeof raw !== 'string') return '';
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      try {
+        return encodeURI(trimmed);
+      } catch (_) {
+        return trimmed;
+      }
+    }
+
+    function shouldPreloadMedia(src) {
+      if (!src) return false;
+      const clean = src.split('#')[0].split('?')[0];
+      if (DIRECT_VIDEO_EXT.test(clean)) return false;
+      return IMAGE_EXT.test(clean);
+    }
+
+    function preloadMediaAsset(src) {
+      const normalised = normaliseMediaSrc(src);
+      if (!normalised || !shouldPreloadMedia(normalised)) {
+        return Promise.resolve(null);
+      }
+      if (mediaPreloadCache.has(normalised)) {
+        return mediaPreloadCache.get(normalised);
+      }
+      const promise = new Promise(resolve => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.loading = 'eager';
+        const done = () => {
+          img.onload = null;
+          img.onerror = null;
+          resolve(normalised);
+        };
+        img.onload = done;
+        img.onerror = done;
+        img.src = normalised;
+      });
+      mediaPreloadCache.set(normalised, promise);
+      return promise;
+    }
+
+    function drainMediaPreloadQueue(deadline) {
+      if (!mediaPreloadQueue.size) return;
+      const timeRemaining = typeof deadline?.timeRemaining === 'function'
+        ? () => deadline.timeRemaining()
+        : () => 0;
+      while (mediaPreloadActive < MEDIA_PRELOAD_CONCURRENCY && mediaPreloadQueue.size) {
+        if (timeRemaining() <= 1 && mediaPreloadActive > 0) break;
+        const iterator = mediaPreloadQueue.values().next();
+        if (iterator.done) break;
+        const src = iterator.value;
+        mediaPreloadQueue.delete(src);
+        mediaPreloadActive++;
+        preloadMediaAsset(src).finally(() => {
+          mediaPreloadActive--;
+          scheduleIdle(drainMediaPreloadQueue);
+        });
+      }
+    }
+
+    function scheduleMediaPreload(src) {
+      const normalised = normaliseMediaSrc(src);
+      if (!normalised || !shouldPreloadMedia(normalised)) return;
+      if (mediaPreloadCache.has(normalised) || mediaPreloadQueue.has(normalised)) return;
+      mediaPreloadQueue.add(normalised);
+      scheduleIdle(drainMediaPreloadQueue);
+    }
+
+    function queueMediaPreloads(list) {
+      if (!Array.isArray(list)) return;
+      list.forEach(src => scheduleMediaPreload(src));
+    }
+
+    function queueShowcaseMediaPreload() {
+      const unique = new Set();
+      Object.values(portfolioShowcase || {}).forEach(entries => {
+        (Array.isArray(entries) ? entries : []).forEach(entry => {
+          if (!entry || !Array.isArray(entry.media)) return;
+          entry.media.forEach(src => {
+            if (!src || unique.has(src)) return;
+            unique.add(src);
+            scheduleMediaPreload(src);
+          });
+        });
+      });
+    }
+
     function cloneShowcase(map = {}) {
       const result = {};
       Object.keys(map).forEach(key => {
@@ -391,7 +491,7 @@
             const label = String(entry.label ?? '').trim() || String(entry.id ?? '').replace(/^[0-9]+_/, '').replace(/_/g, ' ');
             const index = String(entry.index ?? entry.id ?? idx + 1).split('_')[0];
             const media = Array.isArray(entry.media)
-              ? entry.media.map(src => String(src))
+              ? entry.media.map(src => normaliseMediaSrc(src)).filter(Boolean)
               : [];
             const featureVideo = sanitizeFeatureVideo(entry.featureVideo);
             const externalLink = typeof entry.externalLink === 'string' ? entry.externalLink.trim() : '';
@@ -418,6 +518,7 @@
     function setPortfolioShowcase(map) {
       const clone = cloneShowcase(map);
       portfolioShowcase = Object.keys(clone).length ? clone : cloneShowcase(DEFAULT_SHOWCASE);
+      queueShowcaseMediaPreload();
     }
 
     function getShowcaseEntries(folderName) {
@@ -429,7 +530,7 @@
         const payload = {
           index: entry.index ? String(entry.index).padStart(2, '0') : String(idx + 1).padStart(2, '0'),
           label: entry.label ? String(entry.label).toUpperCase() : '',
-          media: Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [],
+          media: Array.isArray(entry.media) ? entry.media.map(src => normaliseMediaSrc(src)).filter(Boolean) : [],
           externalLink
         };
         return featureVideo ? { ...payload, featureVideo } : payload;
@@ -437,6 +538,7 @@
     }
 
     let portfolioShowcase = cloneShowcase(DEFAULT_SHOWCASE);
+    queueShowcaseMediaPreload();
     let showcaseActiveIndex = -1;
     let cardBounds = { minX: 0, maxX: window.innerWidth, minY: 0, maxY: window.innerHeight };
     function computeVisibleMetrics() {
@@ -580,7 +682,11 @@
         card.style.backgroundColor = colorWithAlpha(accentColor, 0.12);
 
         const img = document.createElement('img');
-        img.src = encodeURI(src);
+        const resolvedSrc = normaliseMediaSrc(src);
+        if (resolvedSrc) {
+          img.src = resolvedSrc;
+        }
+        img.decoding = 'async';
         img.alt = '';
         card.appendChild(img);
 
@@ -1097,10 +1203,15 @@
 
     function renderGifCards(list) {
       if (!gifPreview) return;
-      const limited = list.slice(0, 5);
+      const limited = list
+        .map(src => normaliseMediaSrc(src))
+        .filter(Boolean)
+        .slice(0, 5);
+      if (!limited.length) return;
+      queueMediaPreloads(limited);
       scheduleCardBounds();
-      limited.forEach((raw, idx) => {
-        spawnCard(raw, idx * 140 + Math.random() * 120);
+      limited.forEach((resolved, idx) => {
+        spawnCard(resolved, idx * 140 + Math.random() * 120);
       });
     }
 
@@ -1108,7 +1219,7 @@
       if (!gifPreview) return;
       clearTimeout(previewClearTimer);
       const cleaned = Array.isArray(mediaList)
-        ? mediaList.filter(src => typeof src === 'string' && src.trim())
+        ? mediaList.map(src => normaliseMediaSrc(src)).filter(Boolean)
         : [];
       if (!cleaned.length) {
         currentPreviewKey = '';
@@ -1118,6 +1229,7 @@
       const key = cleaned.join('|');
       if (key === currentPreviewKey) return;
       currentPreviewKey = key;
+      queueMediaPreloads(cleaned);
       const hadCards = gifPreview.childElementCount > 0;
       dropExistingCards({ immediate });
       const delay = immediate || !hadCards ? 0 : 220;
@@ -1367,7 +1479,10 @@
           line.appendChild(indexLabel);
           line.appendChild(word);
           line.tabIndex = 0;
-          line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => String(src)) : [];
+          line._entryMedia = Array.isArray(entry.media) ? entry.media.map(src => normaliseMediaSrc(src)).filter(Boolean) : [];
+          if (line._entryMedia.length) {
+            queueMediaPreloads(line._entryMedia);
+          }
           line._featureVideo = entry.featureVideo ? { ...entry.featureVideo } : null;
           line.addEventListener('click', () => {
             setShowcaseActive(idx);
@@ -1397,6 +1512,9 @@
           };
           const schedulePreviewWithDelay = () => {
             cancelPreviewTimer();
+            if (line._entryMedia && line._entryMedia.length) {
+              queueMediaPreloads(line._entryMedia);
+            }
             previewTimer = window.setTimeout(() => {
               previewTimer = null;
               setGifPreview(line._entryMedia);
